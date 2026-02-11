@@ -19,16 +19,19 @@ use crate::spike::Spike;
 const DEFAULT_PORT: u16 = 3847;
 const WIDGET_JS: &str = include_str!("../../../widget/spikes.js");
 const DASHBOARD_HTML: &str = include_str!("../../../widget/dashboard.html");
+const REVIEW_JS: &str = include_str!("../../../widget/review.js");
 
 pub struct ServeOptions {
     pub port: u16,
     pub directory: String,
+    pub marked: bool,
 }
 
 #[derive(Clone)]
 struct AppState {
     serve_dir: PathBuf,
     spikes_dir: PathBuf,
+    marked: bool,
 }
 
 pub fn run(opts: ServeOptions) -> Result<()> {
@@ -53,6 +56,7 @@ pub fn run(opts: ServeOptions) -> Result<()> {
     let state = AppState {
         serve_dir: serve_dir.clone(),
         spikes_dir,
+        marked: opts.marked,
     };
 
     let runtime = tokio::runtime::Runtime::new()?;
@@ -65,12 +69,13 @@ pub fn run(opts: ServeOptions) -> Result<()> {
 
         let app = Router::new()
             .route("/spikes.js", get(serve_widget))
+            .route("/review.js", get(serve_review))
             .route("/dashboard", get(serve_dashboard))
             .route("/spikes", get(get_spikes))
             .route("/spikes", post(save_spike))
             .fallback(serve_static)
             .layer(cors)
-            .with_state(state);
+            .with_state(state.clone());
 
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
@@ -80,6 +85,9 @@ pub fn run(opts: ServeOptions) -> Result<()> {
         println!("  Local:      http://localhost:{}", port);
         println!("  Directory:  {}", serve_dir.display());
         println!("  Dashboard:  http://localhost:{}/dashboard", port);
+        if state.marked {
+            println!("  Review:     Marked mode enabled - spike markers will appear on pages");
+        }
         println!();
         println!("  Press Ctrl+C to stop");
         println!();
@@ -105,6 +113,15 @@ async fn serve_dashboard() -> Response<Body> {
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .body(Body::from(DASHBOARD_HTML))
+        .unwrap()
+}
+
+async fn serve_review() -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(Body::from(REVIEW_JS))
         .unwrap()
 }
 
@@ -204,10 +221,18 @@ async fn serve_static(
     match async_fs::read(&file_path).await {
         Ok(content) => {
             let content_type = guess_content_type(&file_path);
+            
+            // If marked mode is enabled and this is an HTML file, inject review.js
+            let final_content = if state.marked && content_type.starts_with("text/html") {
+                inject_review_script(content)
+            } else {
+                content
+            };
+            
             Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, content_type)
-                .body(Body::from(content))
+                .body(Body::from(final_content))
                 .unwrap()
         }
         Err(_) => Response::builder()
@@ -216,6 +241,40 @@ async fn serve_static(
             .body(Body::from("Not Found"))
             .unwrap(),
     }
+}
+
+fn inject_review_script(content: Vec<u8>) -> Vec<u8> {
+    let html = match String::from_utf8(content.clone()) {
+        Ok(s) => s,
+        Err(_) => return content,
+    };
+    
+    let script_tag = r#"<script src="/review.js"></script>"#;
+    
+    // Try to inject before </body>
+    if let Some(pos) = html.to_lowercase().rfind("</body>") {
+        let mut result = String::with_capacity(html.len() + script_tag.len() + 1);
+        result.push_str(&html[..pos]);
+        result.push_str(script_tag);
+        result.push('\n');
+        result.push_str(&html[pos..]);
+        return result.into_bytes();
+    }
+    
+    // Try to inject before </html>
+    if let Some(pos) = html.to_lowercase().rfind("</html>") {
+        let mut result = String::with_capacity(html.len() + script_tag.len() + 1);
+        result.push_str(&html[..pos]);
+        result.push_str(script_tag);
+        result.push('\n');
+        result.push_str(&html[pos..]);
+        return result.into_bytes();
+    }
+    
+    // Just append at the end
+    let mut result = html;
+    result.push_str(script_tag);
+    result.into_bytes()
 }
 
 fn guess_content_type(path: &std::path::Path) -> &'static str {

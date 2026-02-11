@@ -109,6 +109,10 @@ enum Commands {
         /// Directory to serve (default: current directory)
         #[arg(long, short, default_value = ".")]
         dir: String,
+
+        /// Enable review mode with spike markers on pages
+        #[arg(long, short)]
+        marked: bool,
     },
 
     /// Deploy backend to Cloudflare
@@ -212,9 +216,10 @@ fn main() {
             widget_url,
             json,
         }),
-        Commands::Serve { port, dir } => commands::serve::run(ServeOptions {
+        Commands::Serve { port, dir, marked } => commands::serve::run(ServeOptions {
             port,
             directory: dir,
+            marked,
         }),
         Commands::Deploy { backend } => match backend {
             DeployBackend::Cloudflare { dir, json } => {
