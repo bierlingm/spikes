@@ -1407,7 +1407,7 @@
                 <a href="#features">Features</a>
                 <a href="#cli">CLI</a>
                 <a href="#pricing">Pricing</a>
-                <a href="/supporters">Supporters</a>
+                <a href="#supporters">Supporters</a>
                 <a href="https://github.com/bierlingm/spikes" class="nav-cta">GitHub</a>
             </div>
             <button class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
@@ -1421,7 +1421,7 @@
         <a href="#features" onclick="closeMobileMenu()">Features</a>
         <a href="#cli" onclick="closeMobileMenu()">CLI</a>
         <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
-        <a href="/supporters" onclick="closeMobileMenu()">Supporters</a>
+        <a href="#supporters" onclick="closeMobileMenu()">Supporters</a>
         <a href="https://github.com/bierlingm/spikes">GitHub</a>
     </div>
 
@@ -1790,6 +1790,30 @@
             <p style="margin-top: 32px; color: var(--text-dim); font-size: 14px; text-align: center; max-width: 500px; margin-left: auto; margin-right: auto;">
                 Like Sublime Text: use it free forever, pay when it earns its place.
             </p>
+            
+            <!-- Supporters section -->
+            <div id="supporters" style="margin-top: 64px; padding-top: 48px; border-top: 1px solid var(--border);">
+                <h3 style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 24px; text-align: center;">They spiked us back</h3>
+                
+                <!-- Sponsors -->
+                <div id="sponsorsContainer" style="margin-bottom: 32px;">
+                    <div id="sponsorsGrid" style="display: none; justify-content: center; gap: 16px; flex-wrap: wrap;"></div>
+                    <p id="sponsorsEmpty" style="text-align: center; color: var(--text-dim); font-size: 14px;">
+                        <a href="https://buy.stripe.com/aFacN548bdaa4By0Wv5Ne0d" style="color: var(--gold); text-decoration: none;" target="_blank" rel="noopener">Become the first sponsor →</a>
+                    </p>
+                </div>
+                
+                <!-- Supporters -->
+                <div id="supportersGrid" style="display: none; justify-content: center; gap: 8px; flex-wrap: wrap;"></div>
+                <p id="supportersEmpty" style="text-align: center; color: var(--text-dim); font-size: 14px;">No supporters yet. Be the first.</p>
+            </div>
+            
+            <!-- Thank you message -->
+            <div id="thankYou" style="display: none; margin-top: 32px; padding: 24px; background: linear-gradient(135deg, var(--bg-card) 0%, rgba(34, 197, 94, 0.1) 100%); border: 1px solid var(--green); border-radius: 12px; text-align: center;">
+                <div style="font-size: 32px; margin-bottom: 8px;">🗡️</div>
+                <div style="font-size: 18px; font-weight: 600; color: var(--green); margin-bottom: 4px;">You spiked us back</div>
+                <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Thank you. Your name will appear here shortly.</p>
+            </div>
         </div>
     </section>
     
@@ -1873,7 +1897,7 @@
                     <a href="#features">Features</a>
                     <a href="#cli">CLI</a>
                     <a href="#pricing">Pricing</a>
-                    <a href="/supporters">Supporters</a>
+                    <a href="#supporters">Supporters</a>
                 </div>
                 <div class="footer-column">
                     <h4>Resources</h4>
@@ -1953,6 +1977,61 @@
                 }
             })
             .catch(function() {});
+        
+        // Supporters data (edit to add supporters)
+        var supporters = [
+            // { name: "Jane Smith", level: "love" },
+        ];
+        var sponsors = [
+            // { name: "Acme Corp", url: "https://acme.com", logo: "https://..." },
+        ];
+        
+        // Render supporters
+        (function() {
+            var grid = document.getElementById('supportersGrid');
+            var empty = document.getElementById('supportersEmpty');
+            if (supporters.length > 0) {
+                empty.style.display = 'none';
+                grid.style.display = 'flex';
+                supporters.forEach(function(s) {
+                    var chip = document.createElement('span');
+                    chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--bg-card);border:1px solid ' + (s.level === 'love' ? 'var(--green)' : 'var(--border)') + ';border-radius:6px;font-size:13px;color:var(--text-muted);';
+                    chip.textContent = s.name || 'Anonymous';
+                    grid.appendChild(chip);
+                });
+            }
+        })();
+        
+        // Render sponsors
+        (function() {
+            var grid = document.getElementById('sponsorsGrid');
+            var empty = document.getElementById('sponsorsEmpty');
+            if (sponsors.length > 0) {
+                empty.style.display = 'none';
+                grid.style.display = 'flex';
+                sponsors.forEach(function(s) {
+                    var card = document.createElement('a');
+                    card.href = s.url;
+                    card.target = '_blank';
+                    card.rel = 'noopener';
+                    card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 20px;background:var(--bg-card);border:1px solid var(--gold);border-radius:8px;text-decoration:none;transition:all 0.2s;';
+                    card.innerHTML = (s.logo ? '<img src="' + s.logo + '" style="width:32px;height:32px;border-radius:6px;">' : '') +
+                        '<span style="color:var(--text);font-weight:500;">' + s.name + '</span>' +
+                        '<span style="background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:2px 6px;border-radius:3px;">SPONSOR</span>';
+                    grid.appendChild(card);
+                });
+            }
+        })();
+        
+        // Show thank you if from Stripe
+        (function() {
+            if (new URLSearchParams(window.location.search).has('thanks')) {
+                document.getElementById('thankYou').style.display = 'block';
+                setTimeout(function() {
+                    document.getElementById('supporters').scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            }
+        })();
         
         // CLI typing animation
         var cliLines = [

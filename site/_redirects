@@ -1,2 +1,6 @@
 # Redirect /spikes.js to /widget.js for backwards compatibility
 /spikes.js /widget.js 200
+
+# Supporters page now integrated into main site
+/supporters /#supporters 301
+/supporters.html /#supporters 301
