@@ -1,30 +1,91 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <!-- Gradient for accent -->
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e74c3c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
   <!-- Background -->
   <rect width="1200" height="630" fill="#09090b"/>
   
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1f1f23" stroke-width="0.5"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)" opacity="0.5"/>
+  
   <!-- Red accent line at top -->
-  <rect x="0" y="0" width="1200" height="4" fill="#e74c3c"/>
+  <rect x="0" y="0" width="1200" height="4" fill="url(#redGradient)"/>
   
-  <!-- Wordmark -->
-  <text x="80" y="120" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="bold" fill="#fafafa">
-    🗡️ Spikes
+  <!-- Logo mark -->
+  <text x="80" y="110" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold" fill="#e74c3c">/</text>
+  <text x="130" y="110" font-family="system-ui, -apple-system, sans-serif" font-size="42" font-weight="600" fill="#fafafa">Spikes</text>
+  
+  <!-- Main headline - line 1 with gradient -->
+  <text x="80" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="700" fill="url(#redGradient)">
+    Click. Comment. Ship.
   </text>
   
-  <!-- Main headline -->
-  <text x="80" y="300" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="bold" fill="#fafafa">
-    Sharp feedback for
+  <!-- Main headline - line 2 -->
+  <text x="80" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="600" fill="#fafafa">
+    Feedback your AI agent
   </text>
-  <text x="80" y="380" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="bold" fill="#fafafa">
-    static mockups
+  <text x="80" y="400" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="600" fill="#fafafa">
+    can act on.
   </text>
   
   <!-- Subtitle -->
-  <text x="80" y="480" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#71717a">
-    One script tag. Pinpoint any element. Query with CLI.
+  <text x="80" y="470" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#a1a1aa">
+    Exact CSS selectors. Structured JSON. Agent-ready.
   </text>
   
-  <!-- Red accent dot/glow -->
-  <circle cx="1080" cy="540" r="40" fill="#e74c3c" opacity="0.3"/>
-  <circle cx="1080" cy="540" r="20" fill="#e74c3c" opacity="0.5"/>
-  <circle cx="1080" cy="540" r="8" fill="#e74c3c"/>
+  <!-- Visual: Mockup card with spike indicator -->
+  <g transform="translate(800, 180)">
+    <!-- Card background -->
+    <rect x="0" y="0" width="320" height="200" rx="12" fill="#141417" stroke="#27272a" stroke-width="1"/>
+    
+    <!-- Card content mockup -->
+    <rect x="24" y="24" width="120" height="16" rx="4" fill="#27272a"/>
+    <rect x="24" y="52" width="272" height="10" rx="3" fill="#1f1f23"/>
+    <rect x="24" y="70" width="200" height="10" rx="3" fill="#1f1f23"/>
+    
+    <!-- Highlighted element with spike -->
+    <rect x="24" y="100" width="272" height="76" rx="8" fill="#141417" stroke="#e74c3c" stroke-width="2"/>
+    <rect x="40" y="116" width="80" height="12" rx="3" fill="#27272a"/>
+    <rect x="40" y="136" width="200" height="8" rx="2" fill="#1f1f23"/>
+    <rect x="40" y="152" width="160" height="8" rx="2" fill="#1f1f23"/>
+    
+    <!-- Spike badge -->
+    <circle cx="308" cy="88" r="16" fill="#e74c3c" filter="url(#glow)"/>
+    <text x="308" y="94" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="white" text-anchor="middle">/</text>
+  </g>
+  
+  <!-- Flow indicator at bottom -->
+  <g transform="translate(80, 520)">
+    <text font-family="ui-monospace, monospace" font-size="16" fill="#52525b">
+      <tspan>Click</tspan>
+      <tspan dx="20" fill="#3f3f46">→</tspan>
+      <tspan dx="20">Comment</tspan>
+      <tspan dx="20" fill="#3f3f46">→</tspan>
+      <tspan dx="20">Ship</tspan>
+    </text>
+  </g>
+  
+  <!-- URL -->
+  <text x="80" y="580" font-family="ui-monospace, monospace" font-size="18" fill="#52525b">spikes.sh</text>
+  
+  <!-- Decorative corner accent -->
+  <circle cx="1140" cy="570" r="30" fill="#e74c3c" opacity="0.15"/>
+  <circle cx="1140" cy="570" r="15" fill="#e74c3c" opacity="0.3"/>
+  <circle cx="1140" cy="570" r="6" fill="#e74c3c"/>
 </svg>
