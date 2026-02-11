@@ -97,63 +97,19 @@
         /* Hero */
         .hero {
             text-align: center;
-            padding: 80px 0 64px;
-            position: relative;
-        }
-        
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 600px;
-            height: 400px;
-            background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
-            pointer-events: none;
-            opacity: 0.5;
+            padding: 64px 0 48px;
         }
         
         .hero h1 {
-            font-size: 56px;
+            font-size: 42px;
             font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -0.03em;
-            position: relative;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
         
         .hero .subtitle {
-            font-size: 20px;
+            font-size: 18px;
             color: var(--text-muted);
-            max-width: 500px;
-            margin: 0 auto 32px;
-            position: relative;
-        }
-        
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 48px;
-            position: relative;
-        }
-        
-        .stat {
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 36px;
-            font-weight: 700;
-            color: var(--text);
-            line-height: 1;
-        }
-        
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 4px;
         }
         
         /* Sections */
@@ -557,16 +513,6 @@
         <div class="hero">
             <h1>Supporters</h1>
             <p class="subtitle">They spiked us back.</p>
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-value" id="sponsorCount">0</div>
-                    <div class="stat-label">Sponsors</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-value" id="supporterCount">0</div>
-                    <div class="stat-label">Supporters</div>
-                </div>
-            </div>
         </div>
 
         <section id="sponsors">
@@ -671,9 +617,6 @@
         (function() {
             var grid = document.getElementById('supportersGrid');
             var empty = document.getElementById('supportersEmpty');
-            var count = document.getElementById('supporterCount');
-            
-            count.textContent = supporters.length;
             
             if (supporters.length > 0) {
                 empty.style.display = 'none';
@@ -705,9 +648,6 @@
         (function() {
             var grid = document.getElementById('sponsorsGrid');
             var empty = document.getElementById('sponsorsEmpty');
-            var count = document.getElementById('sponsorCount');
-            
-            count.textContent = sponsors.length;
             
             if (sponsors.length > 0) {
                 empty.style.display = 'none';
