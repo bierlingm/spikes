@@ -134,6 +134,24 @@ No wrangler, no manual deploy scripts. Just push.
 - GitHub Actions integration (fail deploy on negative feedback)
 - Webhook triggers for autonomous agent workflows
 
+## AI Agent Friendliness
+
+The site implements multiple standards for AI agent accessibility:
+
+**llms.txt Standard:**
+- `/llms.txt` — Curated index of docs for LLM context windows
+- `/llms-full.txt` — Expanded version with all content inline
+- `/docs.html.md` — Clean markdown version of docs page
+
+**Structured Data:**
+- JSON-LD schema markup on all pages (SoftwareApplication, TechArticle)
+- Full Open Graph and Twitter Card metadata
+
+**Future: WebMCP**
+- W3C draft standard for exposing JS functions to AI agents
+- Could expose `getSpikes()`, `getSpikesByRating()` etc. directly to browser agents
+- See: https://docs.mcp-b.ai/ and https://webmachinelearning.github.io/webmcp/
+
 ## References
 
 - Shaping doc: `shaping.md`

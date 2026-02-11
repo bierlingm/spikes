@@ -1,0 +1,66 @@
+# Spikes
+
+> Spikes is a feedback tool for AI-assisted building. Click elements, leave comments, get exact CSS selectors your AI agent can act on. Structured JSON output for Claude Code, Cursor, and other AI coding assistants.
+
+## Key Concepts
+
+- **Widget**: Drop-in JavaScript (`<script src="https://spikes.sh/widget.js">`) that adds a feedback button to any HTML page
+- **CLI**: Rust binary for querying feedback, injecting widget, serving locally
+- **Feedback format**: JSON with selector, rating (love/like/meh/no), comments, reviewer, timestamp
+- **Two workflows**: (1) You reviewing agent work, (2) Collecting feedback from others
+
+## Docs
+
+- [Documentation](https://spikes.sh/docs.html.md): Complete CLI reference, widget configuration, data formats
+- [Quick Start](https://spikes.sh/docs.html.md#quick-start): Get running in 30 seconds
+
+## CLI Commands
+
+- `spikes inject <dir>`: Add widget to HTML files
+- `spikes serve`: Start local dev server (default port 3847)
+- `spikes list`: List all feedback (supports --json, --rating, --page filters)
+- `spikes list --json`: Machine-readable output for AI agents
+- `spikes hotspots`: Find most-spiked elements
+- `spikes export --format json`: Export all feedback
+
+## Data Format
+
+```typescript
+interface Spike {
+  id: string;                    // nanoid
+  type: "page" | "element";
+  selector?: string;             // CSS selector for element spikes
+  rating: "love" | "like" | "meh" | "no" | null;
+  comments: string;
+  reviewer: { id: string; name: string };
+  timestamp: string;             // ISO 8601
+  page: string;
+  viewport: { width, height };
+}
+```
+
+## Installation
+
+```bash
+# Install CLI
+curl -fsSL https://spikes.sh/install.sh | sh
+
+# Or via Cargo
+cargo install spikes
+```
+
+## Widget Configuration
+
+```html
+<script 
+  src="https://spikes.sh/widget.js"
+  data-project="my-project"
+  data-position="bottom-right"
+  data-endpoint="https://my-backend.workers.dev/spikes"
+></script>
+```
+
+## Optional
+
+- [GitHub Repository](https://github.com/bierlingm/spikes): Source code, issues, contributing
+- [Landing Page](https://spikes.sh): Marketing site with use cases and pricing

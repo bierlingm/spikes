@@ -1,0 +1,273 @@
+# Spikes — Complete Documentation for AI Agents
+
+> Spikes is a feedback tool for AI-assisted building. Click elements, leave comments, get exact CSS selectors your AI agent can act on. Structured JSON output for Claude Code, Cursor, and other AI coding assistants.
+
+## Overview
+
+Spikes solves the feedback loop problem in AI-assisted development. Building prototypes with AI is fast, but turning feedback into action is slow. Spikes makes feedback structured, precise, and agent-ready.
+
+**Two core use cases:**
+1. **You reviewing agent work** — Click elements, leave comments, agent gets exact CSS selectors
+2. **Collecting feedback from others** — Share a link, they spike it, you get JSON for your agent
+
+**Components:**
+- **Widget**: Vanilla JS that injects a floating feedback button (<10KB gzipped)
+- **CLI**: Rust binary with robot-friendly JSON output
+- **Data**: Stored in `.spikes/feedback.jsonl` (one spike per line)
+
+---
+
+## Installation
+
+### CLI — Install Script
+```bash
+curl -fsSL https://spikes.sh/install.sh | sh
+```
+
+### CLI — Cargo
+```bash
+cargo install spikes
+```
+
+### Widget — Script Tag
+```html
+<script src="https://spikes.sh/widget.js"></script>
+```
+
+---
+
+## Quick Start
+
+```bash
+# Inject widget into all HTML files in a directory
+spikes inject ./mockups/
+
+# Start local server
+spikes serve
+# → http://localhost:3847
+
+# Share URL with reviewer, collect feedback, then:
+spikes list                    # See all feedback
+spikes list --rating no        # Find problems
+spikes hotspots                # Most-spiked elements
+spikes list --json | jq '...'  # Feed to agents
+```
+
+---
+
+## CLI Commands Reference
+
+### spikes init
+Create a `.spikes/` directory to store feedback data.
+```bash
+spikes init
+```
+
+### spikes list
+List all feedback with optional filtering.
+```bash
+spikes list [OPTIONS]
+```
+**Options:**
+- `--json` — Output as JSON array
+- `--page <PAGE>` — Filter by page URL or filename
+- `--reviewer <NAME>` — Filter by reviewer name
+- `--rating <RATING>` — Filter by rating (love, like, meh, no)
+- `--type <TYPE>` — Filter by type (page, element)
+
+**Examples:**
+```bash
+spikes list --rating no
+spikes list --page index.html --json
+```
+
+### spikes show
+Display details for a single spike.
+```bash
+spikes show <ID> [--json]
+```
+
+### spikes export
+Export all feedback in various formats.
+```bash
+spikes export [--format <FORMAT>] [--output <FILE>]
+```
+**Formats:** json, csv, jsonl (default: json)
+
+### spikes hotspots
+Find elements with the most feedback.
+```bash
+spikes hotspots [--json] [--limit <N>]
+```
+
+### spikes reviewers
+List all reviewers who have submitted feedback.
+```bash
+spikes reviewers [--json]
+```
+
+### spikes inject
+Add the Spikes widget to HTML files.
+```bash
+spikes inject <DIR> [OPTIONS]
+```
+**Options:**
+- `--project <NAME>` — Set project key
+- `--endpoint <URL>` — Set sync endpoint
+- `--recursive` — Process subdirectories
+- `--dry-run` — Preview changes
+
+### spikes serve
+Start a local development server.
+```bash
+spikes serve [--port <PORT>] [--dir <DIR>]
+```
+Default port: 3847
+
+### spikes deploy
+Generate deployment scaffolding.
+```bash
+spikes deploy cloudflare
+```
+
+### spikes pull / spikes push
+Sync feedback with a remote endpoint.
+```bash
+spikes pull [--endpoint <URL>]
+spikes push [--endpoint <URL>]
+```
+
+### spikes dashboard
+Launch interactive TUI dashboard.
+```bash
+spikes dashboard
+```
+
+---
+
+## Widget Configuration
+
+Configure with data attributes on the script tag:
+
+```html
+<script 
+  src="https://spikes.sh/widget.js"
+  data-project="my-project"
+  data-position="bottom-left"
+  data-color="#3498db"
+  data-endpoint="https://my-worker.workers.dev/spikes"
+  data-reviewer="alice"
+></script>
+```
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `data-project` | hostname | Project key for grouping feedback |
+| `data-position` | bottom-right | Button position (bottom-right, bottom-left, top-right, top-left) |
+| `data-color` | #e74c3c | Button background color |
+| `data-endpoint` | — | POST endpoint for multi-reviewer sync |
+| `data-reviewer` | — | Pre-set reviewer name (skip prompt) |
+
+---
+
+## Data Format
+
+Every spike follows this TypeScript interface:
+
+```typescript
+interface Spike {
+  id: string;                    // nanoid
+  type: "page" | "element";
+  projectKey: string;
+  page: string;
+  url: string;
+  reviewer: { id: string; name: string };
+  selector?: string;             // Element spikes only
+  elementText?: string;          // Element spikes only
+  boundingBox?: { x: number; y: number; width: number; height: number };
+  rating: "love" | "like" | "meh" | "no" | null;
+  comments: string;
+  timestamp: string;             // ISO 8601
+  viewport: { width: number; height: number };
+}
+```
+
+**Storage:** Feedback is stored in `.spikes/feedback.jsonl` — one spike per line in JSON Lines format.
+
+---
+
+## Multi-Reviewer Sync
+
+By default, feedback lives in each reviewer's browser (localStorage). For team reviews:
+
+### Deploy to Cloudflare
+```bash
+spikes deploy cloudflare
+cd spikes-worker
+npx wrangler deploy
+```
+
+### Configure Widget
+```html
+<script 
+  src="https://spikes.sh/widget.js" 
+  data-endpoint="https://your-worker.workers.dev/spikes"
+></script>
+```
+
+### Sync from CLI
+```bash
+spikes pull  # Fetch remote feedback
+spikes push  # Upload local feedback
+```
+
+Set `SPIKES_ENDPOINT` environment variable to avoid passing `--endpoint` every time.
+
+---
+
+## Example Agent Workflow
+
+```bash
+# 1. Agent builds prototype
+# 2. You inject spikes widget
+spikes inject ./mockups/
+
+# 3. Serve and review
+spikes serve
+
+# 4. After collecting feedback, query for agent
+spikes list --json --rating no
+
+# Output:
+[
+  {
+    "id": "abc123",
+    "selector": ".pricing-card",
+    "comments": "needs more breathing room, title should be bolder",
+    "rating": "meh",
+    "page": "/pricing.html"
+  }
+]
+
+# 5. Feed to Claude Code / Cursor
+# "Here's feedback on my mockup: [paste JSON]"
+```
+
+---
+
+## Pricing
+
+**$0 forever (MIT licensed):**
+- Full widget + CLI
+- Local workflow (inject + serve)
+- BYO backend (Cloudflare deploy)
+- Unlimited local usage
+
+---
+
+## Links
+
+- Website: https://spikes.sh
+- Documentation: https://spikes.sh/docs.html
+- GitHub: https://github.com/bierlingm/spikes
+- Install: `curl -fsSL https://spikes.sh/install.sh | sh`
