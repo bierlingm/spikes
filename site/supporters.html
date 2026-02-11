@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supporters — Spikes</title>
-    <meta name="description" content="People and teams who support Spikes development.">
+    <meta name="description" content="People and organizations who support Spikes development.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
     <style>
         * {
@@ -16,6 +16,7 @@
         :root {
             --red: #e74c3c;
             --red-dark: #c0392b;
+            --red-glow: rgba(231, 76, 60, 0.3);
             --bg: #09090b;
             --bg-subtle: #0f0f11;
             --bg-card: #141417;
@@ -23,8 +24,22 @@
             --text-muted: #71717a;
             --text-dim: #52525b;
             --border: #27272a;
+            --border-subtle: #1f1f23;
             --green: #22c55e;
+            --green-glow: rgba(34, 197, 94, 0.2);
             --blue: #3b82f6;
+            --gold: #fbbf24;
+            --gold-glow: rgba(251, 191, 36, 0.2);
+        }
+        
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
         
         body {
@@ -36,15 +51,15 @@
         }
         
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 0 24px;
         }
         
+        /* Nav */
         nav {
             padding: 24px 0;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 64px;
+            border-bottom: 1px solid var(--border-subtle);
         }
         
         nav .container {
@@ -71,6 +86,7 @@
             color: var(--text-muted);
             text-decoration: none;
             margin-left: 24px;
+            font-size: 14px;
             transition: color 0.2s;
         }
         
@@ -78,212 +94,375 @@
             color: var(--text);
         }
         
-        header {
+        /* Hero */
+        .hero {
             text-align: center;
-            margin-bottom: 64px;
+            padding: 80px 0 64px;
+            position: relative;
         }
         
-        h1 {
-            font-size: 48px;
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        
+        .hero h1 {
+            font-size: 56px;
             font-weight: 700;
             margin-bottom: 16px;
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
+            position: relative;
         }
         
-        .subtitle {
-            font-size: 18px;
+        .hero .subtitle {
+            font-size: 20px;
             color: var(--text-muted);
             max-width: 500px;
-            margin: 0 auto;
+            margin: 0 auto 32px;
+            position: relative;
         }
         
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            position: relative;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+        
+        /* Sections */
         section {
-            margin-bottom: 64px;
+            padding: 48px 0;
         }
         
-        h2 {
-            font-size: 14px;
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        
+        .section-header h2 {
+            font-size: 13px;
             font-weight: 600;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 2px;
-            margin-bottom: 24px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border);
         }
         
-        .agencies {
+        .section-header .line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        
+        .section-header .count {
+            font-size: 13px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        /* Sponsors */
+        .sponsors-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
         }
         
-        .agency {
+        .sponsor-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 24px;
-            text-align: center;
-            transition: border-color 0.2s;
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: inherit;
         }
         
-        .agency:hover {
-            border-color: var(--text-dim);
+        .sponsor-card:hover {
+            border-color: var(--gold);
+            box-shadow: 0 0 30px var(--gold-glow);
+            transform: translateY(-2px);
         }
         
-        .agency-logo {
-            width: 120px;
-            height: 40px;
+        .sponsor-logo {
+            width: 64px;
+            height: 64px;
             background: var(--bg-subtle);
-            border-radius: 4px;
-            margin: 0 auto 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--text-dim);
-            font-size: 12px;
+            flex-shrink: 0;
+            overflow: hidden;
         }
         
-        .agency-name {
-            font-weight: 500;
+        .sponsor-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .sponsor-logo .placeholder {
+            font-size: 28px;
+        }
+        
+        .sponsor-info h3 {
+            font-size: 16px;
+            font-weight: 600;
             margin-bottom: 4px;
         }
         
-        .agency-link {
+        .sponsor-info p {
             font-size: 13px;
             color: var(--text-dim);
         }
         
+        .sponsor-badge {
+            margin-left: auto;
+            background: linear-gradient(135deg, var(--gold) 0%, #d97706 100%);
+            color: #000;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Supporters */
         .supporters-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
         }
         
         .supporter {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 8px 16px;
+            border-radius: 8px;
+            padding: 10px 16px;
             font-size: 14px;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
+            animation: fade-in 0.4s ease-out backwards;
         }
         
         .supporter:hover {
             border-color: var(--text-dim);
+            transform: translateY(-1px);
         }
         
         .supporter.love {
             border-color: var(--green);
-            color: var(--green);
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(34, 197, 94, 0.05) 100%);
+        }
+        
+        .supporter.love:hover {
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+        
+        .supporter-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            overflow: hidden;
+        }
+        
+        .supporter-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         
         .supporter.anonymous {
             color: var(--text-dim);
+        }
+        
+        .supporter.anonymous .supporter-name {
             font-family: 'SF Mono', Monaco, monospace;
             font-size: 12px;
         }
         
-        .count {
-            color: var(--text-dim);
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-        
+        /* Empty states */
         .empty-state {
             text-align: center;
-            padding: 48px;
-            color: var(--text-dim);
+            padding: 64px 32px;
+            background: var(--bg-card);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+        }
+        
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .empty-state h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
         }
         
         .empty-state p {
+            color: var(--text-dim);
             margin-bottom: 24px;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
+        /* CTA */
         .cta-section {
             text-align: center;
-            padding: 64px 0;
+            padding: 80px 0;
+            margin-top: 48px;
             border-top: 1px solid var(--border);
-            margin-top: 64px;
+            position: relative;
+        }
+        
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 500px;
+            height: 300px;
+            background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 70%);
+            pointer-events: none;
+            opacity: 0.3;
         }
         
         .cta-section h2 {
-            font-size: 32px;
-            text-transform: none;
-            letter-spacing: -0.01em;
-            color: var(--text);
-            border: none;
-            padding: 0;
-            margin-bottom: 16px;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+            position: relative;
         }
         
-        .cta-section p {
+        .cta-section > p {
             color: var(--text-muted);
-            margin-bottom: 32px;
+            margin-bottom: 40px;
+            font-size: 17px;
+            position: relative;
         }
         
-        .cta-buttons {
-            display: flex;
-            justify-content: center;
+        .cta-tiers {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
-            flex-wrap: wrap;
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
         }
         
-        .btn {
-            display: inline-flex;
+        .cta-tier {
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 8px;
-            padding: 14px 24px;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 500;
+            padding: 28px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
             text-decoration: none;
+            color: inherit;
             transition: all 0.2s;
         }
         
-        .btn-love {
-            background: var(--green);
-            color: white;
-        }
-        
-        .btn-love:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-        
-        .btn-like {
-            background: var(--red);
-            color: white;
-        }
-        
-        .btn-like:hover {
-            background: var(--red-dark);
-            transform: translateY(-1px);
-        }
-        
-        .btn-meh {
-            background: var(--bg-card);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-        
-        .btn-meh:hover {
+        .cta-tier:hover {
             border-color: var(--text-dim);
+            transform: translateY(-2px);
         }
         
-        .btn-agency {
-            background: var(--blue);
-            color: white;
+        .cta-tier.featured {
+            border-color: var(--red);
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(231, 76, 60, 0.05) 100%);
         }
         
-        .btn-agency:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
+        .cta-tier.featured:hover {
+            box-shadow: 0 0 30px var(--red-glow);
         }
         
+        .cta-tier .emoji {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .cta-tier .label {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .cta-tier .price {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        
+        .cta-tier .price span {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-dim);
+        }
+        
+        .cta-tier.sponsor {
+            border-color: var(--gold);
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(251, 191, 36, 0.05) 100%);
+        }
+        
+        .cta-tier.sponsor:hover {
+            box-shadow: 0 0 30px var(--gold-glow);
+        }
+        
+        .cta-tier.sponsor .label {
+            color: var(--gold);
+        }
+        
+        /* Footer */
         footer {
             padding: 32px 0;
-            border-top: 1px solid var(--border);
+            border-top: 1px solid var(--border-subtle);
             text-align: center;
             color: var(--text-dim);
             font-size: 14px;
@@ -296,6 +475,59 @@
         
         footer a:hover {
             color: var(--text);
+        }
+        
+        /* Thank you state */
+        .thank-you {
+            display: none;
+            text-align: center;
+            padding: 48px;
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(34, 197, 94, 0.1) 100%);
+            border: 1px solid var(--green);
+            border-radius: 16px;
+            margin-bottom: 48px;
+            animation: fade-in 0.5s ease-out;
+        }
+        
+        .thank-you.visible {
+            display: block;
+        }
+        
+        .thank-you .icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .thank-you h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--green);
+        }
+        
+        .thank-you p {
+            color: var(--text-muted);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            .hero h1 {
+                font-size: 40px;
+            }
+            
+            .stats {
+                gap: 32px;
+            }
+            
+            .stat-value {
+                font-size: 28px;
+            }
+            
+            .cta-tiers {
+                grid-template-columns: 1fr 1fr;
+            }
         }
     </style>
 </head>
@@ -315,53 +547,94 @@
     </nav>
 
     <div class="container">
-        <header>
+        <!-- Thank you message (shown via URL param) -->
+        <div class="thank-you" id="thankYou">
+            <div class="icon">🗡️</div>
+            <h2>You spiked us back</h2>
+            <p>Thank you for supporting Spikes. Your name will appear here shortly.</p>
+        </div>
+
+        <div class="hero">
             <h1>Supporters</h1>
             <p class="subtitle">They spiked us back.</p>
-        </header>
-
-        <section id="agencies">
-            <h2>Agencies</h2>
-            <div class="empty-state">
-                <p>No agency sponsors yet.</p>
-                <a href="/#pricing" class="btn btn-agency">Become the first →</a>
-            </div>
-            <!-- When agencies exist:
-            <div class="agencies">
-                <div class="agency">
-                    <div class="agency-logo">
-                        <img src="..." alt="..." />
-                    </div>
-                    <div class="agency-name">Studio Name</div>
-                    <div class="agency-link">studio.com</div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="sponsorCount">0</div>
+                    <div class="stat-label">Sponsors</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="supporterCount">0</div>
+                    <div class="stat-label">Supporters</div>
                 </div>
             </div>
-            -->
+        </div>
+
+        <section id="sponsors">
+            <div class="section-header">
+                <h2>Sponsors</h2>
+                <div class="line"></div>
+                <div class="count">$149 — logo + link</div>
+            </div>
+            
+            <div class="empty-state" id="sponsorsEmpty">
+                <div class="icon">🏢</div>
+                <h3>Your logo here</h3>
+                <p>Be the first organization to sponsor Spikes and get your logo featured.</p>
+                <a href="https://buy.stripe.com/aFacN548bdaa4By0Wv5Ne0d" class="cta-tier sponsor" style="display: inline-flex; max-width: 200px;">
+                    <span class="emoji">⚔️</span>
+                    <span class="label">Sponsor</span>
+                    <span class="price">$149</span>
+                </a>
+            </div>
+            
+            <div class="sponsors-grid" id="sponsorsGrid" style="display: none;">
+                <!-- Sponsors will be listed here -->
+            </div>
         </section>
 
         <section id="supporters">
-            <h2>Individual Supporters</h2>
-            <p class="count">0 supporters</p>
-            <div class="empty-state">
-                <p>No supporters yet. Be the first to spike us back.</p>
+            <div class="section-header">
+                <h2>Supporters</h2>
+                <div class="line"></div>
+                <div class="count">pay what you feel</div>
             </div>
-            <!-- When supporters exist:
-            <div class="supporters-grid">
-                <div class="supporter love">💚 Jane Smith</div>
-                <div class="supporter">John Doe</div>
-                <div class="supporter anonymous">a8f3c2d1...</div>
+            
+            <div class="empty-state" id="supportersEmpty">
+                <div class="icon">🗡️</div>
+                <h3>Be the first</h3>
+                <p>No supporters yet. If Spikes earned its place in your workflow, spike us back.</p>
             </div>
-            -->
+            
+            <div class="supporters-grid" id="supportersGrid" style="display: none;">
+                <!-- Supporters will be listed here -->
+            </div>
         </section>
 
         <section class="cta-section">
             <h2>Spike us back</h2>
             <p>You've collected spikes. Return one.</p>
-            <div class="cta-buttons">
-                <a href="https://buy.stripe.com/8x26oH2039XY8ROfRp5Ne0e" class="btn btn-love">💚 Love — $29+</a>
-                <a href="https://buy.stripe.com/8x26oH2039XY8ROfRp5Ne0e" class="btn btn-like">💙 Like — $19</a>
-                <a href="https://buy.stripe.com/8x26oH2039XY8ROfRp5Ne0e" class="btn btn-meh">😐 Fine — $9</a>
-                <a href="https://buy.stripe.com/aFacN548bdaa4By0Wv5Ne0d" class="btn btn-agency">Sponsor — $149</a>
+            
+            <div class="cta-tiers">
+                <a href="https://buy.stripe.com/8x26oH2039XY8ROfRp5Ne0e" class="cta-tier">
+                    <span class="emoji">😐</span>
+                    <span class="label">It's fine</span>
+                    <span class="price">$9</span>
+                </a>
+                <a href="https://buy.stripe.com/8x26oH2039XY8ROfRp5Ne0e" class="cta-tier featured">
+                    <span class="emoji">💙</span>
+                    <span class="label">Like it</span>
+                    <span class="price">$19</span>
+                </a>
+                <a href="https://buy.stripe.com/8x26oH2039XY8ROfRp5Ne0e" class="cta-tier">
+                    <span class="emoji">💚</span>
+                    <span class="label">Love it</span>
+                    <span class="price">$29<span>+</span></span>
+                </a>
+                <a href="https://buy.stripe.com/aFacN548bdaa4By0Wv5Ne0d" class="cta-tier sponsor">
+                    <span class="emoji">⚔️</span>
+                    <span class="label">Sponsor</span>
+                    <span class="price">$149</span>
+                </a>
             </div>
         </section>
     </div>
@@ -371,5 +644,97 @@
             <a href="/">spikes.sh</a> · MIT License · Built by <a href="https://x.com/bierlingm">@bierlingm</a>
         </div>
     </footer>
+
+    <script>
+        // Show thank you message if redirected from Stripe
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            if (params.has('thanks')) {
+                document.getElementById('thankYou').classList.add('visible');
+                // Scroll to top smoothly
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        })();
+        
+        // Supporters data (edit this to add supporters)
+        var supporters = [
+            // { name: "Jane Smith", level: "love", avatar: "https://..." },
+            // { name: "John Doe", level: "like" },
+            // { name: null, level: "meh" }, // anonymous
+        ];
+        
+        var sponsors = [
+            // { name: "Acme Corp", url: "https://acme.com", logo: "https://..." },
+        ];
+        
+        // Render supporters
+        (function() {
+            var grid = document.getElementById('supportersGrid');
+            var empty = document.getElementById('supportersEmpty');
+            var count = document.getElementById('supporterCount');
+            
+            count.textContent = supporters.length;
+            
+            if (supporters.length > 0) {
+                empty.style.display = 'none';
+                grid.style.display = 'flex';
+                
+                supporters.forEach(function(s, i) {
+                    var div = document.createElement('div');
+                    div.className = 'supporter ' + (s.level || '');
+                    div.style.animationDelay = (i * 0.05) + 's';
+                    
+                    if (s.name) {
+                        var avatarHtml = s.avatar 
+                            ? '<img src="' + s.avatar + '" alt="">'
+                            : s.name.charAt(0).toUpperCase();
+                        div.innerHTML = '<div class="supporter-avatar">' + avatarHtml + '</div>' +
+                                        '<span class="supporter-name">' + s.name + '</span>';
+                    } else {
+                        div.className += ' anonymous';
+                        div.innerHTML = '<div class="supporter-avatar">?</div>' +
+                                        '<span class="supporter-name">Anonymous</span>';
+                    }
+                    
+                    grid.appendChild(div);
+                });
+            }
+        })();
+        
+        // Render sponsors
+        (function() {
+            var grid = document.getElementById('sponsorsGrid');
+            var empty = document.getElementById('sponsorsEmpty');
+            var count = document.getElementById('sponsorCount');
+            
+            count.textContent = sponsors.length;
+            
+            if (sponsors.length > 0) {
+                empty.style.display = 'none';
+                grid.style.display = 'grid';
+                
+                sponsors.forEach(function(s) {
+                    var a = document.createElement('a');
+                    a.className = 'sponsor-card';
+                    a.href = s.url;
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    
+                    var logoHtml = s.logo 
+                        ? '<img src="' + s.logo + '" alt="' + s.name + '">'
+                        : '<span class="placeholder">🏢</span>';
+                    
+                    a.innerHTML = '<div class="sponsor-logo">' + logoHtml + '</div>' +
+                                  '<div class="sponsor-info">' +
+                                  '  <h3>' + s.name + '</h3>' +
+                                  '  <p>' + s.url.replace(/^https?:\/\//, '').replace(/\/$/, '') + '</p>' +
+                                  '</div>' +
+                                  '<span class="sponsor-badge">Sponsor</span>';
+                    
+                    grid.appendChild(a);
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
