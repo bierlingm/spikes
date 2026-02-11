@@ -1,12 +1,31 @@
+<coding_guidelines>
 # Spikes — Agent Instructions
 
 ## Project Overview
 
-Spikes is a drop-in feedback collection tool for static HTML mockups. 
+Spikes is the feedback loop tool for AI-assisted building. Building prototypes is easy now (Claude Code, Cursor, v0). The bottleneck is turning feedback into action. Spikes makes feedback structured, precise, and agent-ready.
 
+**Two core use cases:**
+1. **You reviewing agent work** — Click elements, leave comments, agent gets exact CSS selectors
+2. **Collecting feedback from others** — Share a link, they spike it, you get JSON for your agent
+
+**Components:**
 - **Widget:** Vanilla JS (`widget/spikes.js`) that injects a floating button
 - **CLI:** Rust binary (`cli/`) with robot-friendly JSON output
 - **Dashboard:** Static HTML (`widget/dashboard.html`) for viewing feedback
+- **Site:** Landing page and docs (`site/`)
+
+## Task Tracking
+
+**Use beads (br) for all task tracking:**
+```bash
+br ready --json              # See current work
+br create "Task description" # Create new task
+br close <id>                # Complete task
+br show <id>                 # View task details
+```
+
+All work should flow through beads. Check `br ready` before starting. Create beads for discoveries during implementation.
 
 ## Architecture
 
@@ -84,8 +103,40 @@ cd cli && cargo build --release
 gzip -c widget/spikes.js | wc -c  # should be <10KB
 ```
 
+## Deployment
+
+**Site deploys via GitHub → Cloudflare Pages.** Push to `main` triggers automatic deployment:
+
+```bash
+git push origin main  # This IS the deploy command
+```
+
+No wrangler, no manual deploy scripts. Just push.
+
+## Business Model
+
+**Free forever (MIT):**
+- Full widget + CLI
+- Local workflow (`inject` + `serve`)
+- BYO backend (Cloudflare deploy)
+- Unlimited local usage
+
+**Paid hosting (planned):**
+- Instant shareable links: `yourname.spikes.sh/project`
+- No wrangler setup, no CF account needed
+- Multi-reviewer persistence
+- API access, webhooks
+- Time-limited/password-protected links
+
+**Agent integrations (planned):**
+- MCP server for agent harnesses
+- Cursor/Claude Code context file export
+- GitHub Actions integration (fail deploy on negative feedback)
+- Webhook triggers for autonomous agent workflows
+
 ## References
 
 - Shaping doc: `shaping.md`
 - Original prototype: `/Users/moritzbierling/werk/gate/patricia-arribalzaga/mockups/`
 - FrankenTUI: https://github.com/Dicklesworthstone/frankentui
+</coding_guidelines>
