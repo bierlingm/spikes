@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spikes Dashboard</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+            color: #1a1a1a;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        select, button {
+            font-family: inherit;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #d0d0d0;
+            background: white;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        select:hover, button:hover {
+            border-color: #999;
+        }
+        button {
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+            border-color: #2980b9;
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            border-color: #e74c3c;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+            border-color: #c0392b;
+        }
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .filter-group label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+        .rating-filters {
+            display: flex;
+            gap: 4px;
+        }
+        .rating-btn {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            background: #f0f0f0;
+            border: 1px solid transparent;
+        }
+        .rating-btn.active {
+            background: #1a1a1a;
+            color: white;
+        }
+        .rating-btn[data-rating="love"].active { background: #27ae60; }
+        .rating-btn[data-rating="like"].active { background: #3498db; }
+        .rating-btn[data-rating="meh"].active { background: #f39c12; }
+        .rating-btn[data-rating="no"].active { background: #e74c3c; }
+        .spike-count {
+            font-size: 14px;
+            color: #666;
+            margin-left: auto;
+        }
+        .spikes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .spike-card {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            display: flex;
+            gap: 16px;
+            transition: box-shadow 0.15s;
+        }
+        .spike-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        .spike-rating {
+            flex-shrink: 0;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+        }
+        .spike-rating.love { background: #27ae60; }
+        .spike-rating.like { background: #3498db; }
+        .spike-rating.meh { background: #f39c12; }
+        .spike-rating.no { background: #e74c3c; }
+        .spike-rating.none { background: #95a5a6; }
+        .spike-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .spike-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .spike-page {
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        .spike-type {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #f0f0f0;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        .spike-type.element { background: #e8f4fd; color: #2980b9; }
+        .spike-element {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 12px;
+            background: #f5f5f5;
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: #666;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+        .spike-element-text {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+        .spike-comments {
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .spike-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 12px;
+            color: #888;
+        }
+        .spike-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .empty-state h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            color: #333;
+        }
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+        .empty-state code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .confirm-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .confirm-dialog.show {
+            display: flex;
+        }
+        .confirm-dialog-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .confirm-dialog h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+        .confirm-dialog p {
+            margin: 0 0 20px;
+            color: #666;
+        }
+        .confirm-dialog-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        @media (max-width: 640px) {
+            .container { padding: 16px; }
+            header { flex-direction: column; align-items: flex-start; }
+            .filters { flex-direction: column; align-items: flex-start; }
+            .filter-group { width: 100%; }
+            .filter-group select { flex: 1; }
+            .rating-filters { flex-wrap: wrap; }
+            .spike-count { margin-left: 0; width: 100%; text-align: left; }
+            .spike-card { flex-direction: column; }
+            .spike-rating { width: 40px; height: 40px; font-size: 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗡️ Spikes Dashboard</h1>
+            <div class="header-actions">
+                <select id="project-select">
+                    <option value="">All Projects</option>
+                </select>
+                <button id="export-json" class="btn-primary">Export JSON</button>
+                <button id="export-csv" class="btn-primary">Export CSV</button>
+                <button id="clear-all" class="btn-danger">Clear All</button>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Page:</label>
+                <select id="filter-page">
+                    <option value="">All Pages</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Reviewer:</label>
+                <select id="filter-reviewer">
+                    <option value="">All Reviewers</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Rating:</label>
+                <div class="rating-filters">
+                    <button class="rating-btn active" data-rating="">All</button>
+                    <button class="rating-btn" data-rating="love">❤️ Love</button>
+                    <button class="rating-btn" data-rating="like">👍 Like</button>
+                    <button class="rating-btn" data-rating="meh">😐 Meh</button>
+                    <button class="rating-btn" data-rating="no">👎 No</button>
+                </div>
+            </div>
+            <div class="spike-count">
+                <span id="spike-count">0 spikes</span>
+            </div>
+        </div>
+
+        <div id="spikes-list" class="spikes-list"></div>
+    </div>
+
+    <div id="confirm-dialog" class="confirm-dialog">
+        <div class="confirm-dialog-content">
+            <h3>Clear All Spikes?</h3>
+            <p>This will permanently delete all feedback data from localStorage. This cannot be undone.</p>
+            <div class="confirm-dialog-actions">
+                <button id="confirm-cancel">Cancel</button>
+                <button id="confirm-delete" class="btn-danger">Delete All</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        // State
+        var allSpikes = [];
+        var filteredSpikes = [];
+        var projects = [];
+        var currentProject = '';
+        var filterPage = '';
+        var filterReviewer = '';
+        var filterRating = '';
+
+        // DOM elements
+        var projectSelect = document.getElementById('project-select');
+        var filterPageSelect = document.getElementById('filter-page');
+        var filterReviewerSelect = document.getElementById('filter-reviewer');
+        var ratingBtns = document.querySelectorAll('.rating-btn');
+        var spikesList = document.getElementById('spikes-list');
+        var spikeCountEl = document.getElementById('spike-count');
+        var exportJsonBtn = document.getElementById('export-json');
+        var exportCsvBtn = document.getElementById('export-csv');
+        var clearAllBtn = document.getElementById('clear-all');
+        var confirmDialog = document.getElementById('confirm-dialog');
+        var confirmCancel = document.getElementById('confirm-cancel');
+        var confirmDelete = document.getElementById('confirm-delete');
+
+        // Load spikes from localStorage
+        function loadSpikes() {
+            allSpikes = [];
+            projects = [];
+
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.startsWith('spikes:') && key !== 'spikes:reviewer') {
+                    var projectKey = key.substring(7);
+                    projects.push(projectKey);
+
+                    try {
+                        var data = JSON.parse(localStorage.getItem(key));
+                        if (Array.isArray(data)) {
+                            data.forEach(function(spike) {
+                                spike.projectKey = spike.projectKey || projectKey;
+                                allSpikes.push(spike);
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse spikes for ' + key, e);
+                    }
+                }
+            }
+
+            // Sort by timestamp descending
+            allSpikes.sort(function(a, b) {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+
+            updateProjectSelect();
+            updateFilters();
+            applyFilters();
+        }
+
+        function updateProjectSelect() {
+            projectSelect.innerHTML = '<option value="">All Projects</option>';
+            projects.forEach(function(project) {
+                var opt = document.createElement('option');
+                opt.value = project;
+                opt.textContent = project;
+                projectSelect.appendChild(opt);
+            });
+        }
+
+        function updateFilters() {
+            var pages = [];
+            var reviewers = [];
+
+            var spikesToConsider = currentProject
+                ? allSpikes.filter(function(s) { return s.projectKey === currentProject; })
+                : allSpikes;
+
+            spikesToConsider.forEach(function(spike) {
+                if (spike.page && pages.indexOf(spike.page) === -1) {
+                    pages.push(spike.page);
+                }
+                if (spike.reviewer && spike.reviewer.name && reviewers.indexOf(spike.reviewer.name) === -1) {
+                    reviewers.push(spike.reviewer.name);
+                }
+            });
+
+            pages.sort();
+            reviewers.sort();
+
+            filterPageSelect.innerHTML = '<option value="">All Pages</option>';
+            pages.forEach(function(page) {
+                var opt = document.createElement('option');
+                opt.value = page;
+                opt.textContent = page.length > 50 ? page.substring(0, 47) + '...' : page;
+                filterPageSelect.appendChild(opt);
+            });
+
+            filterReviewerSelect.innerHTML = '<option value="">All Reviewers</option>';
+            reviewers.forEach(function(reviewer) {
+                var opt = document.createElement('option');
+                opt.value = reviewer;
+                opt.textContent = reviewer;
+                filterReviewerSelect.appendChild(opt);
+            });
+        }
+
+        function applyFilters() {
+            filteredSpikes = allSpikes.filter(function(spike) {
+                if (currentProject && spike.projectKey !== currentProject) return false;
+                if (filterPage && spike.page !== filterPage) return false;
+                if (filterReviewer && (!spike.reviewer || spike.reviewer.name !== filterReviewer)) return false;
+                if (filterRating && spike.rating !== filterRating) return false;
+                return true;
+            });
+
+            renderSpikes();
+        }
+
+        function renderSpikes() {
+            var count = filteredSpikes.length;
+            spikeCountEl.textContent = count + ' spike' + (count === 1 ? '' : 's');
+
+            if (filteredSpikes.length === 0) {
+                if (allSpikes.length === 0) {
+                    spikesList.innerHTML = '<div class="empty-state">' +
+                        '<h2>No spikes yet</h2>' +
+                        '<p>Add the Spikes widget to your HTML mockups to start collecting feedback.</p>' +
+                        '<p style="margin-top:12px"><code>&lt;script src="spikes.js"&gt;&lt;/script&gt;</code></p>' +
+                        '</div>';
+                } else {
+                    spikesList.innerHTML = '<div class="empty-state">' +
+                        '<h2>No matching spikes</h2>' +
+                        '<p>Try adjusting your filters.</p>' +
+                        '</div>';
+                }
+                return;
+            }
+
+            var html = filteredSpikes.map(function(spike) {
+                return renderSpikeCard(spike);
+            }).join('');
+
+            spikesList.innerHTML = html;
+        }
+
+        function renderSpikeCard(spike) {
+            var ratingClass = spike.rating || 'none';
+            var ratingEmoji = getRatingEmoji(spike.rating);
+            var typeClass = spike.type === 'element' ? 'element' : '';
+
+            var elementHtml = '';
+            if (spike.type === 'element' && spike.selector) {
+                var selector = spike.selector.length > 60 
+                    ? spike.selector.substring(0, 57) + '...' 
+                    : spike.selector;
+                elementHtml = '<div class="spike-element">' + escapeHtml(selector) + '</div>';
+                if (spike.elementText) {
+                    var text = spike.elementText.length > 80 
+                        ? spike.elementText.substring(0, 77) + '...' 
+                        : spike.elementText;
+                    elementHtml += '<div class="spike-element-text">"' + escapeHtml(text) + '"</div>';
+                }
+            }
+
+            var commentsHtml = spike.comments 
+                ? '<div class="spike-comments">' + escapeHtml(spike.comments) + '</div>' 
+                : '';
+
+            var reviewerName = spike.reviewer ? spike.reviewer.name : 'Anonymous';
+            var timeAgo = formatTimeAgo(spike.timestamp);
+
+            return '<div class="spike-card">' +
+                '<div class="spike-rating ' + ratingClass + '">' + ratingEmoji + '</div>' +
+                '<div class="spike-content">' +
+                    '<div class="spike-header">' +
+                        '<span class="spike-page">' + escapeHtml(spike.page || 'Unknown Page') + '</span>' +
+                        '<span class="spike-type ' + typeClass + '">' + spike.type + '</span>' +
+                    '</div>' +
+                    elementHtml +
+                    commentsHtml +
+                    '<div class="spike-meta">' +
+                        '<span>👤 ' + escapeHtml(reviewerName) + '</span>' +
+                        '<span>🕐 ' + timeAgo + '</span>' +
+                        (currentProject === '' && spike.projectKey ? '<span>📁 ' + escapeHtml(spike.projectKey) + '</span>' : '') +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        function getRatingEmoji(rating) {
+            switch (rating) {
+                case 'love': return '❤️';
+                case 'like': return '👍';
+                case 'meh': return '😐';
+                case 'no': return '👎';
+                default: return '—';
+            }
+        }
+
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'Unknown';
+
+            var date = new Date(timestamp);
+            var now = new Date();
+            var seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + ' min ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + ' hours ago';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + ' days ago';
+
+            return date.toLocaleDateString();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Export functions
+        function exportJSON() {
+            var data = filteredSpikes.length > 0 ? filteredSpikes : allSpikes;
+            var json = JSON.stringify(data, null, 2);
+            downloadFile(json, 'spikes-export.json', 'application/json');
+        }
+
+        function exportCSV() {
+            var data = filteredSpikes.length > 0 ? filteredSpikes : allSpikes;
+            
+            var headers = ['id', 'type', 'projectKey', 'page', 'selector', 'elementText', 'rating', 'comments', 'reviewer_name', 'reviewer_id', 'timestamp', 'url'];
+            var rows = [headers.join(',')];
+
+            data.forEach(function(spike) {
+                var row = [
+                    csvEscape(spike.id || ''),
+                    csvEscape(spike.type || ''),
+                    csvEscape(spike.projectKey || ''),
+                    csvEscape(spike.page || ''),
+                    csvEscape(spike.selector || ''),
+                    csvEscape(spike.elementText || ''),
+                    csvEscape(spike.rating || ''),
+                    csvEscape(spike.comments || ''),
+                    csvEscape(spike.reviewer ? spike.reviewer.name : ''),
+                    csvEscape(spike.reviewer ? spike.reviewer.id : ''),
+                    csvEscape(spike.timestamp || ''),
+                    csvEscape(spike.url || '')
+                ];
+                rows.push(row.join(','));
+            });
+
+            var csv = rows.join('\n');
+            downloadFile(csv, 'spikes-export.csv', 'text/csv');
+        }
+
+        function csvEscape(str) {
+            if (!str) return '""';
+            str = String(str);
+            if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            var blob = new Blob([content], { type: mimeType });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Clear all
+        function clearAll() {
+            confirmDialog.classList.add('show');
+        }
+
+        function doClearAll() {
+            // Remove all spikes:* keys except spikes:reviewer
+            var keysToRemove = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.startsWith('spikes:') && key !== 'spikes:reviewer') {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(function(key) {
+                localStorage.removeItem(key);
+            });
+
+            confirmDialog.classList.remove('show');
+            loadSpikes();
+        }
+
+        // Event listeners
+        projectSelect.addEventListener('change', function() {
+            currentProject = this.value;
+            filterPage = '';
+            filterReviewer = '';
+            filterPageSelect.value = '';
+            filterReviewerSelect.value = '';
+            updateFilters();
+            applyFilters();
+        });
+
+        filterPageSelect.addEventListener('change', function() {
+            filterPage = this.value;
+            applyFilters();
+        });
+
+        filterReviewerSelect.addEventListener('change', function() {
+            filterReviewer = this.value;
+            applyFilters();
+        });
+
+        ratingBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                ratingBtns.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                filterRating = this.getAttribute('data-rating');
+                applyFilters();
+            });
+        });
+
+        exportJsonBtn.addEventListener('click', exportJSON);
+        exportCsvBtn.addEventListener('click', exportCSV);
+        clearAllBtn.addEventListener('click', clearAll);
+
+        confirmCancel.addEventListener('click', function() {
+            confirmDialog.classList.remove('show');
+        });
+
+        confirmDelete.addEventListener('click', doClearAll);
+
+        confirmDialog.addEventListener('click', function(e) {
+            if (e.target === confirmDialog) {
+                confirmDialog.classList.remove('show');
+            }
+        });
+
+        // Initialize
+        loadSpikes();
+    })();
+    </script>
+</body>
+</html>

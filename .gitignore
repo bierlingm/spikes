@@ -1,0 +1,27 @@
+# Build artifacts
+/cli/target/
+/dist/
+
+# Dependencies
+node_modules/
+
+# Local data
+.spikes/
+*.jsonl
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test files (keep in repo but ignore local changes)
+/mockups/
+
+# Rust
+**/*.rs.bk
+Cargo.lock
