@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spikes — Drop-in feedback for static mockups</title>
+    <meta name="description" content="Add one script tag to your HTML mockups. Collect structured feedback from reviewers. Query it with a CLI that agents love.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        :root {
+            --red: #e74c3c;
+            --red-dark: #c0392b;
+            --bg: #0a0a0a;
+            --text: #fafafa;
+            --text-muted: #888;
+            --code-bg: #1a1a1a;
+            --border: #333;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        header {
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        
+        .tagline {
+            font-size: 20px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+        
+        .cta {
+            display: inline-block;
+            background: var(--red);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        
+        .cta:hover {
+            background: var(--red-dark);
+        }
+        
+        .hero-code {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 48px 0;
+            text-align: left;
+            overflow-x: auto;
+        }
+        
+        .hero-code pre {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .hero-code .comment {
+            color: var(--text-muted);
+        }
+        
+        .hero-code .tag {
+            color: var(--red);
+        }
+        
+        .hero-code .attr {
+            color: #f39c12;
+        }
+        
+        .hero-code .string {
+            color: #27ae60;
+        }
+        
+        section {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+        }
+        
+        h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 32px;
+            margin-top: 32px;
+        }
+        
+        .feature {
+            padding: 24px;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        
+        .feature h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .feature p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .install-options {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .install-option {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+        
+        .install-option label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .install-option code {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+            color: var(--text);
+        }
+        
+        .cli-demo {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+        
+        .cli-demo pre {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+        
+        .cli-demo .prompt {
+            color: var(--red);
+        }
+        
+        .cli-demo .output {
+            color: var(--text-muted);
+        }
+        
+        footer {
+            padding: 48px 0;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            border-top: 1px solid var(--border);
+        }
+        
+        footer a {
+            color: var(--text);
+            text-decoration: none;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 16px;
+        }
+        
+        @media (max-width: 600px) {
+            header {
+                padding: 48px 0 40px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .tagline {
+                font-size: 16px;
+            }
+            
+            .hero-code pre {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">🗡️</div>
+            <h1>Spikes</h1>
+            <p class="tagline">Drop-in feedback for static mockups</p>
+            <a href="https://github.com/bierlingm/spikes" class="cta">View on GitHub</a>
+        </header>
+        
+        <div class="hero-code">
+            <pre><span class="comment">&lt;!-- Add this to any HTML mockup --&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+
+<span class="comment">&lt;!-- That's it. Reviewers can now:
+     • Rate the page (love/like/meh/no)
+     • Click elements to spike them with precise feedback
+     • Leave comments --&gt;</span></pre>
+        </div>
+        
+        <section>
+            <h2>Why Spikes?</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>Zero friction</h3>
+                    <p>One script tag. No accounts. No build step. Works on file://, localhost, anywhere.</p>
+                </div>
+                <div class="feature">
+                    <h3>Precise feedback</h3>
+                    <p>Element-level spikes capture CSS selectors. Know exactly what reviewers are talking about.</p>
+                </div>
+                <div class="feature">
+                    <h3>Agent-friendly</h3>
+                    <p>CLI outputs JSON. Pipe to jq, feed to agents, automate your workflow.</p>
+                </div>
+                <div class="feature">
+                    <h3>Your infrastructure</h3>
+                    <p>Local-first by default. Deploy to your own Cloudflare for multi-reviewer sync.</p>
+                </div>
+                <div class="feature">
+                    <h3>Tiny footprint</h3>
+                    <p>Widget is 8KB gzipped. No dependencies. No tracking. No bloat.</p>
+                </div>
+                <div class="feature">
+                    <h3>Free forever</h3>
+                    <p>MIT licensed. All features included. Pay only if you want to support development.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section>
+            <h2>Install the CLI</h2>
+            <div class="install-options">
+                <div class="install-option">
+                    <label>One-liner</label>
+                    <code>curl -fsSL https://spikes.sh/install.sh | sh</code>
+                </div>
+                <div class="install-option">
+                    <label>With Cargo</label>
+                    <code>cargo install spikes</code>
+                </div>
+                <div class="install-option">
+                    <label>From source</label>
+                    <code>git clone https://github.com/bierlingm/spikes && cd spikes/cli && cargo install --path .</code>
+                </div>
+            </div>
+        </section>
+        
+        <section>
+            <h2>CLI in action</h2>
+            <div class="cli-demo">
+                <pre><span class="prompt">$</span> spikes inject ./mockups/
+Injected widget into 10 files.
+
+<span class="prompt">$</span> spikes serve
+🗡️ Spikes server running at http://localhost:3847
+
+<span class="prompt">$</span> spikes list
+<span class="output">┌──────────┬─────────┬──────────┬──────────┬────────┐
+│ ID       │ Type    │ Page     │ Reviewer │ Rating │
+├──────────┼─────────┼──────────┼──────────┼────────┤
+│ abc123   │ page    │ Homepage │ Patricia │ love   │
+│ def456   │ element │ Pricing  │ Patricia │ no     │
+│ ghi789   │ element │ About    │ John     │ meh    │
+└──────────┴─────────┴──────────┴──────────┴────────┘</span>
+
+<span class="prompt">$</span> spikes hotspots
+<span class="output">┌───────────────────┬──────────┐
+│ Selector          │ Count    │
+├───────────────────┼──────────┤
+│ nav > a.pricing   │ 5 spikes │
+│ footer > .social  │ 2 spikes │
+└───────────────────┴──────────┘</span>
+
+<span class="prompt">$</span> spikes list --json | jq '.[] | select(.rating == "no")'
+<span class="output">{
+  "id": "def456",
+  "page": "Pricing",
+  "selector": "nav > a.pricing",
+  "rating": "no",
+  "comments": "This link is too hidden"
+}</span></pre>
+            </div>
+        </section>
+        
+        <footer>
+            <div class="footer-links">
+                <a href="https://github.com/bierlingm/spikes">GitHub</a>
+                <a href="https://github.com/bierlingm/spikes/releases">Releases</a>
+                <a href="https://github.com/bierlingm/spikes/blob/main/LICENSE">MIT License</a>
+            </div>
+            <p>Built for designers who ship HTML mockups.</p>
+        </footer>
+    </div>
+</body>
+</html>

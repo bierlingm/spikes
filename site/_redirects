@@ -1,0 +1,2 @@
+# Redirect /spikes.js to /widget.js for backwards compatibility
+/spikes.js /widget.js 200
