@@ -1,74 +1,69 @@
-<p align="center">
-  <strong>🗡️ Spikes</strong><br>
-  <em>Drop-in feedback for static mockups</em>
-</p>
+# Spikes
 
-<p align="center">
-  <a href="https://spikes.sh">spikes.sh</a> •
-  <a href="#install">Install</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#cli-reference">CLI Reference</a>
-</p>
+Sharp feedback for static mockups.
 
----
+One script tag. Pinpoint any element. Query with a CLI that agents love.
 
-Add one script tag to your HTML mockups. Collect structured feedback from reviewers. Query it with a CLI that agents love.
+## What It Does
+
+Add `<script src="https://spikes.sh/widget.js"></script>` to any HTML file. Reviewers click the floating button to rate the page or spike specific elements with precise CSS selectors. All feedback is structured, queryable, and ready for automation.
 
 ## Install
 
-**One-liner:**
 ```bash
+# CLI (recommended)
 curl -fsSL https://spikes.sh/install.sh | sh
-```
 
-**Or with Cargo:**
-```bash
+# Or with Cargo
 cargo install spikes
-```
 
-**Or download** from [Releases](https://github.com/moritzbierling/spikes/releases).
-
-## Quick Start
-
-### 1. Add the widget
-
-```html
+# Widget only (add to HTML)
 <script src="https://spikes.sh/widget.js"></script>
 ```
 
-Or for local development:
+## Quick Start
+
 ```bash
+# Inject widget into all mockups
 spikes inject ./mockups/
+
+# Start local server
 spikes serve
 # → http://localhost:3847
+
+# Share URL with reviewer, collect feedback, then:
+spikes list                           # See all feedback
+spikes list --rating no               # Find problems
+spikes hotspots                       # Most-spiked elements
+spikes list --json | jq '...'         # Feed to agents
 ```
 
-### 2. Collect feedback
+## How It Works
 
-Reviewers see a floating button. They can:
-- **Rate the page** — click button, pick love/like/meh/no, add comments
-- **Spike an element** — click button to enter spike mode, click any element to capture it with a precise CSS selector
+1. Reviewer clicks floating button → enters spike mode
+2. Click any element → captures CSS selector, bounding box, text
+3. Rate (love/like/meh/no) + add comments
+4. Feedback stored locally or synced to your backend
 
-First-time reviewers are prompted for their name.
+First-time reviewers are prompted for their name. All spikes tagged with reviewer identity.
 
-### 3. Query feedback
+## CLI Reference
 
-```bash
-# List all feedback
-spikes list
-
-# Filter by rating
-spikes list --rating no
-
-# Find problem areas
-spikes hotspots
-
-# Export for agents
-spikes list --json | jq '.[] | select(.rating == "no")'
-
-# Interactive TUI
-spikes dashboard
 ```
+spikes init                    Create .spikes/ directory
+spikes list [OPTIONS]          List feedback (--json, --page, --reviewer, --rating)
+spikes show <ID>               Show single spike
+spikes export [--format X]     Export as json/csv/jsonl
+spikes hotspots                Elements with most feedback
+spikes reviewers               List all reviewers
+spikes inject <DIR>            Add widget to HTML files
+spikes serve [--port N]        Local dev server
+spikes deploy cloudflare       Scaffold Cloudflare Worker + D1
+spikes pull / push             Sync with remote endpoint
+spikes dashboard               Interactive TUI
+```
+
+All commands support `--json` for scripting and agents.
 
 ## Widget Configuration
 
@@ -88,83 +83,79 @@ spikes dashboard
 | `data-position` | `bottom-right` | Button position |
 | `data-color` | `#e74c3c` | Button color |
 | `data-endpoint` | — | POST endpoint for multi-reviewer sync |
-| `data-reviewer` | — | Pre-set reviewer name (skips prompt) |
+| `data-reviewer` | — | Pre-set reviewer name |
 
 ## Multi-Reviewer Sync
 
-By default, feedback is stored in each reviewer's browser (localStorage). For team reviews, deploy a backend to your own Cloudflare account:
+By default, feedback lives in each reviewer's browser (localStorage). For team reviews:
 
 ```bash
+# Deploy to your Cloudflare account
 spikes deploy cloudflare
 cd spikes-worker && npx wrangler deploy
-```
 
-Then add the endpoint URL to your widget:
-```html
+# Add endpoint to widget
 <script src="https://spikes.sh/widget.js" data-endpoint="https://...workers.dev/spikes"></script>
-```
 
-Sync local feedback:
-```bash
-spikes pull   # Fetch from remote
-spikes push   # Upload local spikes
+# Sync
+spikes pull   # Fetch remote
+spikes push   # Upload local
 ```
-
-## CLI Reference
-
-```
-spikes init                    Initialize .spikes/ directory
-spikes list [OPTIONS]          List feedback (--json, --page, --reviewer, --rating)
-spikes show <ID>               Show single spike detail
-spikes export [--format X]     Export as json, csv, or jsonl
-spikes hotspots                Elements with most feedback
-spikes reviewers               List all reviewers
-spikes inject <DIR>            Add widget to HTML files
-spikes inject --remove <DIR>   Remove widget from HTML files
-spikes serve [--port N]        Local dev server (default: 3847)
-spikes deploy cloudflare       Scaffold Cloudflare Worker + D1
-spikes pull                    Fetch from remote endpoint
-spikes push                    Upload to remote endpoint
-spikes dashboard               Interactive TUI
-```
-
-All commands support `--json` for scripting and agent consumption.
 
 ## Data Format
 
 ```typescript
 interface Spike {
-  id: string;                    // Unique ID
+  id: string;
   type: "page" | "element";
   projectKey: string;
-  page: string;                  // Page title
+  page: string;
   url: string;
   reviewer: { id: string; name: string };
-  selector?: string;             // CSS selector (element spikes)
-  elementText?: string;          // Captured text (truncated)
+  selector?: string;           // Element spikes only
+  elementText?: string;
   boundingBox?: { x, y, width, height };
   rating: "love" | "like" | "meh" | "no" | null;
   comments: string;
-  timestamp: string;             // ISO 8601
+  timestamp: string;           // ISO 8601
   viewport: { width, height };
 }
 ```
+
+## Pricing
+
+**Free** — Everything. Forever. MIT licensed.
+
+**Spike Us Back** — $19+ (pay what you feel, min $9)  
+You've collected spikes. Now spike us. Badge, priority issues, supporters page.
+
+**Agency** — $149 once  
+Whole team covered. Logo on spikes.sh. Priority support.
+
+No feature gating. Payment is appreciation, not access.
+
+See [LICENSE-MODEL.md](LICENSE-MODEL.md) for details.
 
 ## Why Spikes?
 
 - **Zero friction** — One script tag, no accounts, no build step
 - **Works anywhere** — file://, localhost, any domain
-- **Precise feedback** — Element-level spikes with CSS selectors
-- **Agent-friendly** — JSON output, pipes, queryable CLI
-- **Your infrastructure** — Deploy to your own Cloudflare (free tier)
+- **Precise** — Element-level feedback with CSS selectors
+- **Agent-friendly** — JSON everywhere, pipes, queryable
+- **Your infrastructure** — Deploy to your own Cloudflare
 - **Tiny** — Widget is 8KB gzipped
+- **Private** — No tracking, no analytics, your data
+
+## Links
+
+- **Website:** [spikes.sh](https://spikes.sh)
+- **GitHub:** [github.com/bierlingm/spikes](https://github.com/bierlingm/spikes)
+- **Issues:** [Report a bug](https://github.com/bierlingm/spikes/issues)
 
 ## License
 
-MIT — Free for everything. See [LICENSE](LICENSE).
+MIT — Free for everything.
 
 ---
 
-<p align="center">
-  <em>Built for designers who ship HTML mockups and the agents who help them.</em>
-</p>
+Built for designers who ship HTML mockups and the agents who help them.

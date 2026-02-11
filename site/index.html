@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spikes — Drop-in feedback for static mockups</title>
-    <meta name="description" content="Add one script tag to your HTML mockups. Collect structured feedback from reviewers. Query it with a CLI that agents love.">
+    <title>Spikes — Sharp feedback for static mockups</title>
+    <meta name="description" content="One script tag. Precise element-level feedback. A CLI that speaks JSON. Zero accounts, zero tracking, zero friction.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
     <style>
         * {
@@ -16,11 +16,53 @@
         :root {
             --red: #e74c3c;
             --red-dark: #c0392b;
-            --bg: #0a0a0a;
+            --red-glow: rgba(231, 76, 60, 0.4);
+            --bg: #09090b;
+            --bg-subtle: #0f0f11;
+            --bg-card: #141417;
             --text: #fafafa;
-            --text-muted: #888;
-            --code-bg: #1a1a1a;
-            --border: #333;
+            --text-muted: #71717a;
+            --text-dim: #52525b;
+            --border: #27272a;
+            --border-subtle: #1f1f23;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --blue: #3b82f6;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px var(--red-glow), 0 4px 20px rgba(0,0,0,0.4); }
+            50% { box-shadow: 0 0 40px var(--red-glow), 0 4px 30px rgba(0,0,0,0.5); }
+        }
+        
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        @keyframes typewriter {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        
+        @keyframes blink-caret {
+            from, to { border-color: transparent; }
+            50% { border-color: var(--text); }
         }
         
         body {
@@ -29,140 +71,856 @@
             color: var(--text);
             line-height: 1.6;
             min-height: 100vh;
+            overflow-x: hidden;
         }
         
         .container {
-            max-width: 800px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 0 24px;
         }
         
-        header {
-            padding: 80px 0 60px;
-            text-align: center;
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            background: rgba(9, 9, 11, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 1000;
         }
         
-        .logo {
-            font-size: 48px;
-            margin-bottom: 16px;
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        
+        .nav-logo span {
+            font-size: 24px;
+        }
+        
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--text);
+        }
+        
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        .hamburger span {
+            width: 24px;
+            height: 2px;
+            background: var(--text);
+            transition: all 0.3s;
+        }
+        
+        .hamburger.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        
+        .hamburger.active span:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .hamburger.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+        
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: rgba(9, 9, 11, 0.98);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 24px;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 999;
+        }
+        
+        .mobile-menu.active {
+            display: flex;
+        }
+        
+        .mobile-menu a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: color 0.2s;
+        }
+        
+        .mobile-menu a:hover {
+            color: var(--text);
+        }
+        
+        .mobile-menu a:last-child {
+            border-bottom: none;
+        }
+        
+        .nav-cta {
+            background: var(--red);
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s, transform 0.2s;
+        }
+        
+        .nav-cta:hover {
+            background: var(--red-dark);
+            transform: translateY(-1px);
+        }
+        
+        /* Hero */
+        header {
+            padding: 160px 0 100px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            animation: slide-up 0.6s ease-out;
+        }
+        
+        .hero-badge .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green);
+            border-radius: 50%;
         }
         
         h1 {
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 12px;
+            font-size: clamp(40px, 8vw, 72px);
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+            letter-spacing: -0.02em;
+            animation: slide-up 0.6s ease-out 0.1s both;
+        }
+        
+        h1 .gradient {
+            background: linear-gradient(135deg, var(--red) 0%, #f97316 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .tagline {
-            font-size: 20px;
+            font-size: clamp(18px, 3vw, 22px);
             color: var(--text-muted);
-            margin-bottom: 32px;
+            max-width: 600px;
+            margin: 0 auto 40px;
+            animation: slide-up 0.6s ease-out 0.2s both;
         }
         
-        .cta {
-            display: inline-block;
+        .hero-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 64px;
+            animation: slide-up 0.6s ease-out 0.3s both;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .btn-primary {
             background: var(--red);
             color: white;
-            padding: 14px 32px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 16px;
-            transition: background 0.2s;
         }
         
-        .cta:hover {
+        .btn-primary:hover {
             background: var(--red-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--red-glow);
         }
         
-        .hero-code {
-            background: var(--code-bg);
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-subtle);
+            border-color: var(--text-dim);
+        }
+        
+        /* Hero Demo */
+        .hero-demo {
+            position: relative;
+            max-width: 900px;
+            margin: 0 auto;
+            animation: slide-up 0.6s ease-out 0.4s both;
+        }
+        
+        .demo-window {
+            background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 24px;
-            margin: 48px 0;
-            text-align: left;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        
+        .demo-titlebar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .demo-dots {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .demo-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .demo-dot.red { background: #ff5f57; }
+        .demo-dot.yellow { background: #febc2e; }
+        .demo-dot.green { background: #28c840; }
+        
+        .demo-url {
+            flex: 1;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        .demo-content {
+            padding: 32px;
+            min-height: 280px;
+            position: relative;
+            background: 
+                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px) 0 0 / 40px 40px,
+                linear-gradient(var(--border-subtle) 1px, transparent 1px) 0 0 / 40px 40px;
+        }
+        
+        .demo-mockup {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 24px;
+        }
+        
+        .demo-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .demo-sidebar-item {
+            height: 14px;
+            background: var(--border);
+            border-radius: 4px;
+        }
+        
+        .demo-sidebar-item:nth-child(1) { width: 70%; }
+        .demo-sidebar-item:nth-child(2) { width: 90%; }
+        .demo-sidebar-item:nth-child(3) { width: 60%; }
+        .demo-sidebar-item:nth-child(4) { width: 80%; }
+        
+        .demo-main {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .demo-header {
+            height: 32px;
+            background: var(--border);
+            border-radius: 6px;
+            width: 60%;
+        }
+        
+        .demo-text {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .demo-line {
+            height: 10px;
+            background: var(--border-subtle);
+            border-radius: 4px;
+        }
+        
+        .demo-line:nth-child(1) { width: 100%; }
+        .demo-line:nth-child(2) { width: 95%; }
+        .demo-line:nth-child(3) { width: 80%; }
+        
+        .demo-card {
+            padding: 20px;
+            background: var(--bg-subtle);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            position: relative;
+        }
+        
+        .demo-card-header {
+            height: 16px;
+            background: var(--border);
+            border-radius: 4px;
+            width: 40%;
+            margin-bottom: 12px;
+        }
+        
+        .demo-card-text {
+            height: 10px;
+            background: var(--border-subtle);
+            border-radius: 4px;
+            width: 90%;
+        }
+        
+        /* Floating widget button */
+        .demo-widget-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: var(--red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            animation: pulse-glow 2s ease-in-out infinite;
+            cursor: default;
+        }
+        
+        /* Spike indicator on element */
+        .demo-spike {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            background: var(--red);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            animation: float 3s ease-in-out infinite;
+            box-shadow: 0 4px 12px var(--red-glow);
+        }
+        
+        .demo-spike::after {
+            content: '2';
+            color: white;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        
+        /* Code snippet */
+        .hero-code {
+            max-width: 600px;
+            margin: 48px auto 0;
+            animation: slide-up 0.6s ease-out 0.5s both;
+        }
+        
+        .code-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .code-filename {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        .code-copy {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .code-copy:hover {
+            background: var(--bg-card);
+            border-color: var(--text-dim);
+            color: var(--text);
+        }
+        
+        .code-copy.copied {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+        }
+        
+        .code-content {
+            padding: 20px;
             overflow-x: auto;
         }
         
-        .hero-code pre {
+        .code-content pre {
             font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
             font-size: 14px;
             line-height: 1.8;
         }
         
-        .hero-code .comment {
-            color: var(--text-muted);
-        }
+        .code-content .comment { color: var(--text-dim); }
+        .code-content .tag { color: var(--red); }
+        .code-content .attr { color: var(--yellow); }
+        .code-content .string { color: var(--green); }
         
-        .hero-code .tag {
-            color: var(--red);
-        }
-        
-        .hero-code .attr {
-            color: #f39c12;
-        }
-        
-        .hero-code .string {
-            color: #27ae60;
-        }
-        
-        section {
+        /* Trust Section */
+        .trust {
             padding: 60px 0;
-            border-top: 1px solid var(--border);
+            text-align: center;
+            border-top: 1px solid var(--border-subtle);
+        }
+        
+        .trust-text {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .trust-badges {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+        
+        .trust-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        .trust-badge svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+        
+        /* Features */
+        section {
+            padding: 100px 0;
+            border-top: 1px solid var(--border-subtle);
+        }
+        
+        .section-label {
+            font-size: 13px;
+            color: var(--red);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-bottom: 16px;
         }
         
         h2 {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 24px;
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 700;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
         }
         
-        .features {
+        .section-subtitle {
+            font-size: 18px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin-bottom: 64px;
+        }
+        
+        .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 32px;
-            margin-top: 32px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
         }
         
         .feature {
-            padding: 24px;
-            background: var(--code-bg);
+            padding: 32px;
+            background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
+            transition: all 0.3s;
+        }
+        
+        .feature:hover {
+            border-color: var(--text-dim);
+            transform: translateY(-4px);
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--red) 0%, #f97316 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 20px;
         }
         
         .feature h3 {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             margin-bottom: 8px;
         }
         
         .feature p {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+        
+        /* How it works */
+        .flow {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 32px;
+            margin-top: 64px;
+        }
+        
+        .flow-step {
+            text-align: center;
+            position: relative;
+        }
+        
+        .flow-step::after {
+            content: '';
+            position: absolute;
+            top: 40px;
+            right: -16px;
+            width: 32px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--border), transparent);
+        }
+        
+        .flow-step:last-child::after {
+            display: none;
+        }
+        
+        .flow-number {
+            width: 80px;
+            height: 80px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--red);
+            margin: 0 auto 20px;
+        }
+        
+        .flow-step h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .flow-step p {
             font-size: 14px;
             color: var(--text-muted);
+        }
+        
+        /* CLI Section */
+        .cli-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+        }
+        
+        @media (max-width: 900px) {
+            .cli-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .cli-content h2 {
+            margin-bottom: 24px;
+        }
+        
+        .cli-content p {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            font-size: 17px;
+        }
+        
+        .cli-features {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .cli-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .cli-feature-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .cli-feature-icon::after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        
+        .cli-feature span {
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+        
+        .cli-demo {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .cli-demo-header {
+            padding: 12px 16px;
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .cli-demo-header span {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        .cli-demo pre {
+            padding: 24px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            line-height: 2;
+            overflow-x: auto;
+        }
+        
+        .cli-demo .prompt {
+            color: var(--red);
+            user-select: none;
+        }
+        
+        .cli-demo .cmd {
+            color: var(--text);
+        }
+        
+        .cli-demo .output {
+            color: var(--text-dim);
+        }
+        
+        .cli-demo .success {
+            color: var(--green);
+        }
+        
+        .cli-demo .json-key {
+            color: var(--blue);
+        }
+        
+        .cli-demo .json-string {
+            color: var(--green);
+        }
+        
+        /* Pricing */
+        .pricing-section {
+            text-align: center;
+        }
+        
+        .pricing-card {
+            max-width: 480px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 48px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pricing-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--red), #f97316);
+        }
+        
+        .pricing-label {
+            font-size: 14px;
+            color: var(--red);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .pricing-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        
+        .pricing-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+        
+        .pricing-features {
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        
+        .pricing-feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 15px;
+            color: var(--text-muted);
+        }
+        
+        .pricing-feature::before {
+            content: '✓';
+            color: var(--green);
+            font-weight: 700;
+        }
+        
+        /* Install Section */
+        .install-section .container {
+            max-width: 700px;
         }
         
         .install-options {
             display: flex;
             flex-direction: column;
             gap: 16px;
+            margin-top: 48px;
         }
         
         .install-option {
-            background: var(--code-bg);
+            background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px 20px;
+            border-radius: 10px;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
         }
         
-        .install-option label {
-            display: block;
+        .install-option-label {
             font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
+            color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
         }
         
         .install-option code {
@@ -171,184 +929,1134 @@
             color: var(--text);
         }
         
-        .cli-demo {
-            background: var(--code-bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-top: 24px;
+        .install-option .code-copy {
+            flex-shrink: 0;
         }
         
-        .cli-demo pre {
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 13px;
-            line-height: 1.8;
-            overflow-x: auto;
+        /* Interactive Demo Section */
+        .try-section {
+            background: var(--bg-subtle);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
         }
         
-        .cli-demo .prompt {
-            color: var(--red);
-        }
-        
-        .cli-demo .output {
-            color: var(--text-muted);
-        }
-        
-        footer {
-            padding: 48px 0;
+        .try-section .container {
             text-align: center;
+        }
+        
+        .try-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--red);
+            padding: 12px 24px;
+            border-radius: 100px;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+        
+        .try-hint .arrow {
+            font-size: 20px;
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        /* Footer */
+        footer {
+            padding: 80px 0 48px;
+            border-top: 1px solid var(--border-subtle);
+        }
+        
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 64px;
+        }
+        
+        @media (max-width: 768px) {
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .footer-brand {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 18px;
+        }
+        
+        .footer-logo span {
+            font-size: 24px;
+        }
+        
+        .footer-desc {
             color: var(--text-muted);
             font-size: 14px;
-            border-top: 1px solid var(--border);
+            max-width: 280px;
         }
         
-        footer a {
-            color: var(--text);
-            text-decoration: none;
-        }
-        
-        footer a:hover {
-            text-decoration: underline;
-        }
-        
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
+        .footer-column h4 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
             margin-bottom: 16px;
+            color: var(--text-muted);
+        }
+        
+        .footer-column a {
+            display: block;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+        
+        .footer-column a:hover {
+            color: var(--text);
+        }
+        
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .footer-social {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .footer-social a {
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+        
+        .footer-social a:hover {
+            color: var(--text);
+        }
+        
+        .footer-social svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+        
+        /* Use cases */
+        .use-cases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+        }
+        
+        .use-case {
+            padding: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .use-case:hover {
+            border-color: var(--text-dim);
+            transform: translateY(-2px);
+        }
+        
+        .use-case-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .use-case h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .use-case p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        /* Comparison table */
+        .comparison-wrapper {
+            overflow-x: auto;
+            margin-top: 48px;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .comparison-table th {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .comparison-table th:first-child {
+            color: var(--text);
+        }
+        
+        .comparison-table td:first-child {
+            font-weight: 500;
+        }
+        
+        .comparison-table .check {
+            color: var(--green);
+        }
+        
+        .comparison-table .cross {
+            color: var(--text-dim);
+        }
+        
+        .comparison-table .highlight {
+            background: var(--bg-card);
+        }
+        
+        /* Newsletter */
+        .newsletter-section {
+            background: var(--bg-subtle);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            text-align: center;
+        }
+        
+        .newsletter-form {
+            display: flex;
+            gap: 12px;
+            max-width: 440px;
+            margin: 32px auto 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .newsletter-form input[type="email"] {
+            flex: 1;
+            min-width: 240px;
+            padding: 14px 18px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 15px;
+        }
+        
+        .newsletter-form input[type="email"]::placeholder {
+            color: var(--text-dim);
+        }
+        
+        .newsletter-form input[type="email"]:focus {
+            outline: none;
+            border-color: var(--red);
+        }
+        
+        .newsletter-form button {
+            padding: 14px 24px;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .newsletter-form button:hover {
+            background: var(--red-dark);
+        }
+        
+        /* Social proof */
+        .built-by {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .built-by:hover {
+            border-color: var(--text-dim);
+        }
+        
+        .built-by img {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+        }
+        
+        .built-by span {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .built-by strong {
+            color: var(--text);
+            font-weight: 500;
+        }
+        
+        /* GitHub stars badge */
+        .github-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        
+        .github-badge:hover {
+            border-color: var(--text-dim);
+            color: var(--text);
+        }
+        
+        .github-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+        
+        /* Support links */
+        .support-links {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .support-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .support-link:hover {
+            border-color: var(--text-dim);
+            color: var(--text);
+        }
+        
+        .support-link svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+        
+        .support-link.sponsor {
+            border-color: #db61a2;
+            color: #db61a2;
+        }
+        
+        .support-link.sponsor:hover {
+            background: rgba(219, 97, 162, 0.1);
+        }
+        
+        /* CLI typing animation */
+        .cli-line {
+            overflow: hidden;
+            white-space: nowrap;
+            opacity: 0;
+        }
+        
+        .cli-line.typing {
+            animation: reveal 0.5s ease forwards;
+        }
+        
+        @keyframes reveal {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .cli-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--text);
+            animation: blink-caret 1s step-end infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+        
+        /* Mobile */
+        @media (max-width: 768px) {
+            .hamburger {
+                display: flex;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .comparison-table {
+                font-size: 14px;
+            }
+            
+            .comparison-table th,
+            .comparison-table td {
+                padding: 12px 8px;
+            }
         }
         
         @media (max-width: 600px) {
+            nav {
+                padding: 12px 16px;
+            }
+            
+            .nav-links {
+                gap: 16px;
+                display: none;
+            }
+            
             header {
-                padding: 48px 0 40px;
+                padding: 120px 0 60px;
             }
             
-            h1 {
-                font-size: 24px;
+            .demo-mockup {
+                grid-template-columns: 1fr;
             }
             
-            .tagline {
-                font-size: 16px;
+            .demo-sidebar {
+                display: none;
             }
             
-            .hero-code pre {
-                font-size: 12px;
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+            }
+            
+            section {
+                padding: 60px 0;
+            }
+            
+            .flow-step::after {
+                display: none;
+            }
+            
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .footer-bottom {
+                flex-direction: column;
+                text-align: center;
             }
         }
     </style>
 </head>
 <body>
+    <nav>
+        <div class="container">
+            <a href="/" class="nav-logo">
+                <span>🗡️</span>
+                Spikes
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#cli">CLI</a>
+                <a href="#pricing">Pricing</a>
+                <a href="/supporters">Supporters</a>
+                <a href="https://github.com/bierlingm/spikes" class="nav-cta">GitHub</a>
+            </div>
+            <button class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="#features" onclick="closeMobileMenu()">Features</a>
+        <a href="#cli" onclick="closeMobileMenu()">CLI</a>
+        <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
+        <a href="/supporters" onclick="closeMobileMenu()">Supporters</a>
+        <a href="https://github.com/bierlingm/spikes">GitHub</a>
+    </div>
+
     <div class="container">
         <header>
-            <div class="logo">🗡️</div>
-            <h1>Spikes</h1>
-            <p class="tagline">Drop-in feedback for static mockups</p>
-            <a href="https://github.com/bierlingm/spikes" class="cta">View on GitHub</a>
-        </header>
-        
-        <div class="hero-code">
-            <pre><span class="comment">&lt;!-- Add this to any HTML mockup --&gt;</span>
-<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
-
-<span class="comment">&lt;!-- That's it. Reviewers can now:
-     • Rate the page (love/like/meh/no)
-     • Click elements to spike them with precise feedback
-     • Leave comments --&gt;</span></pre>
-        </div>
-        
-        <section>
-            <h2>Why Spikes?</h2>
-            <div class="features">
-                <div class="feature">
-                    <h3>Zero friction</h3>
-                    <p>One script tag. No accounts. No build step. Works on file://, localhost, anywhere.</p>
-                </div>
-                <div class="feature">
-                    <h3>Precise feedback</h3>
-                    <p>Element-level spikes capture CSS selectors. Know exactly what reviewers are talking about.</p>
-                </div>
-                <div class="feature">
-                    <h3>Agent-friendly</h3>
-                    <p>CLI outputs JSON. Pipe to jq, feed to agents, automate your workflow.</p>
-                </div>
-                <div class="feature">
-                    <h3>Your infrastructure</h3>
-                    <p>Local-first by default. Deploy to your own Cloudflare for multi-reviewer sync.</p>
-                </div>
-                <div class="feature">
-                    <h3>Tiny footprint</h3>
-                    <p>Widget is 8KB gzipped. No dependencies. No tracking. No bloat.</p>
-                </div>
-                <div class="feature">
-                    <h3>Free forever</h3>
-                    <p>MIT licensed. All features included. Pay only if you want to support development.</p>
+            <div class="hero-badge">
+                <span class="dot"></span>
+                100% free &amp; open source
+            </div>
+            <a href="https://github.com/bierlingm/spikes" class="github-badge" target="_blank" rel="noopener" style="margin-left: 12px; animation: slide-up 0.6s ease-out;">
+                <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                <span id="starCount">Star</span>
+            </a>
+            <h1>
+                Feedback that <span class="gradient">cuts through</span>
+            </h1>
+            <p class="tagline">
+                One script tag turns any HTML mockup into a feedback machine. 
+                Pinpoint elements, capture context, query with CLI.
+            </p>
+            <a href="https://x.com/bierlingm" class="built-by" target="_blank" rel="noopener">
+                <img src="https://unavatar.io/twitter/bierlingm" alt="Moritz Bierling" loading="lazy">
+                <span>Built by <strong>@bierlingm</strong></span>
+            </a>
+            <div class="hero-buttons" style="margin-top: 32px;">
+                <a href="#install" class="btn btn-primary">
+                    Get Started
+                    <span>→</span>
+                </a>
+                <a href="https://github.com/bierlingm/spikes" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    Star on GitHub
+                </a>
+            </div>
+            
+            <div class="hero-demo">
+                <div class="demo-window">
+                    <div class="demo-titlebar">
+                        <div class="demo-dots">
+                            <div class="demo-dot red"></div>
+                            <div class="demo-dot yellow"></div>
+                            <div class="demo-dot green"></div>
+                        </div>
+                        <div class="demo-url">your-mockup.html</div>
+                    </div>
+                    <div class="demo-content">
+                        <div class="demo-mockup">
+                            <div class="demo-sidebar">
+                                <div class="demo-sidebar-item"></div>
+                                <div class="demo-sidebar-item"></div>
+                                <div class="demo-sidebar-item"></div>
+                                <div class="demo-sidebar-item"></div>
+                            </div>
+                            <div class="demo-main">
+                                <div class="demo-header"></div>
+                                <div class="demo-text">
+                                    <div class="demo-line"></div>
+                                    <div class="demo-line"></div>
+                                    <div class="demo-line"></div>
+                                </div>
+                                <div class="demo-card">
+                                    <div class="demo-spike"></div>
+                                    <div class="demo-card-header"></div>
+                                    <div class="demo-card-text"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="demo-widget-btn">💬</div>
+                    </div>
                 </div>
             </div>
-        </section>
-        
-        <section>
-            <h2>Install the CLI</h2>
+            
+            <div class="hero-code">
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-filename">index.html</span>
+                        <button class="code-copy" onclick="copyCode(this, 'hero-snippet')">Copy</button>
+                    </div>
+                    <div class="code-content">
+                        <pre id="hero-snippet"><span class="comment">&lt;!-- Add before &lt;/body&gt; --&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span><span class="tag">&gt;&lt;/script&gt;</span></pre>
+                    </div>
+                </div>
+            </div>
+        </header>
+    </div>
+    
+    <div class="trust">
+        <div class="container">
+            <div class="trust-text">Built for the way you work</div>
+            <div class="trust-badges">
+                <div class="trust-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z"/></svg>
+                    No accounts
+                </div>
+                <div class="trust-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z"/></svg>
+                    No tracking
+                </div>
+                <div class="trust-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z"/></svg>
+                    MIT licensed
+                </div>
+                <div class="trust-badge">
+                    <svg viewBox="0 0 24 24"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-1-11v6h2v-6h-2zm0-4v2h2V7h-2z"/></svg>
+                    8KB gzipped
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <section id="features">
+        <div class="container">
+            <div class="section-label">Features</div>
+            <h2>Sharp tools for sharp feedback</h2>
+            <p class="section-subtitle">
+                Everything you need to collect, organize, and act on mockup feedback. Nothing you don't.
+            </p>
+            
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Element-level precision</h3>
+                    <p>Click any element to spike it. Captures CSS selector, bounding box, and text content. No more "the thing on the left."</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Zero friction</h3>
+                    <p>One script tag. Works on file://, localhost, any domain. No build step, no accounts, no tracking scripts.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Agent-friendly CLI</h3>
+                    <p>Every command outputs JSON. Pipe to jq, feed to AI agents, integrate with your workflow. Built for automation.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🏠</div>
+                    <h3>Local-first</h3>
+                    <p>Feedback lives in localStorage by default. Your data, your control. Deploy to your Cloudflare for team sync.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Structured data</h3>
+                    <p>Every spike includes page, reviewer, rating, timestamp, viewport, and precise element data. Query anything.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🪶</div>
+                    <h3>Tiny footprint</h3>
+                    <p>8KB gzipped. No dependencies. No external requests except to your own endpoint. Loads instantly.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section>
+        <div class="container">
+            <div class="section-label">How it works</div>
+            <h2>Three steps to better feedback</h2>
+            
+            <div class="flow">
+                <div class="flow-step">
+                    <div class="flow-number">1</div>
+                    <h3>Add the widget</h3>
+                    <p>One script tag in your HTML mockup. Or use <code>spikes inject</code> to add it to a whole directory.</p>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">2</div>
+                    <h3>Share with reviewers</h3>
+                    <p>They click the button, rate pages, spike elements. First-timers enter their name once.</p>
+                </div>
+                <div class="flow-step">
+                    <div class="flow-number">3</div>
+                    <h3>Query feedback</h3>
+                    <p>Use the CLI to list, filter, export. Find hotspots. Feed to agents. Take action.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section id="use-cases">
+        <div class="container">
+            <div class="section-label">Use Cases</div>
+            <h2>Perfect for</h2>
+            <p class="section-subtitle">
+                Whether you're solo or on a team, Spikes fits right into your workflow.
+            </p>
+            
+            <div class="use-cases-grid">
+                <div class="use-case">
+                    <div class="use-case-icon">🎨</div>
+                    <h3>Design Reviews</h3>
+                    <p>Get pixel-precise feedback on mockups before dev handoff</p>
+                </div>
+                <div class="use-case">
+                    <div class="use-case-icon">🤝</div>
+                    <h3>Client Feedback</h3>
+                    <p>Share static prototypes and collect structured input</p>
+                </div>
+                <div class="use-case">
+                    <div class="use-case-icon">🧪</div>
+                    <h3>Prototype Testing</h3>
+                    <p>Validate ideas with real user reactions on specific elements</p>
+                </div>
+                <div class="use-case">
+                    <div class="use-case-icon">📋</div>
+                    <h3>QA Handoff</h3>
+                    <p>Document issues with exact selectors and visual context</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section id="cli">
+        <div class="container">
+            <div class="cli-section">
+                <div class="cli-content">
+                    <div class="section-label">CLI</div>
+                    <h2>A CLI that agents love</h2>
+                    <p>
+                        Every command supports <code>--json</code> for machine-readable output. 
+                        Inject widgets, serve mockups, query feedback, find hotspots—all from the terminal.
+                    </p>
+                    <div class="cli-features">
+                        <div class="cli-feature">
+                            <div class="cli-feature-icon"></div>
+                            <span>List and filter feedback by page, reviewer, or rating</span>
+                        </div>
+                        <div class="cli-feature">
+                            <div class="cli-feature-icon"></div>
+                            <span>Find hotspots—elements with the most spikes</span>
+                        </div>
+                        <div class="cli-feature">
+                            <div class="cli-feature-icon"></div>
+                            <span>Export to JSON, CSV, or JSONL for processing</span>
+                        </div>
+                        <div class="cli-feature">
+                            <div class="cli-feature-icon"></div>
+                            <span>Sync with remote endpoints you control</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="cli-demo" id="cliDemo">
+                    <div class="cli-demo-header">
+                        <span>Terminal</span>
+                    </div>
+                    <pre id="cliTerminal"></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section id="compare">
+        <div class="container">
+            <div class="section-label">Comparison</div>
+            <h2>Why Spikes?</h2>
+            <p class="section-subtitle">
+                How we stack up against other feedback tools.
+            </p>
+            
+            <div class="comparison-wrapper">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="highlight">Spikes</th>
+                            <th>InVision</th>
+                            <th>Hotjar</th>
+                            <th>Pastel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>No account required</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td>Works offline / local files</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td>CLI with JSON output</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td>Self-hosted option</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td>No tracking / privacy-first</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td>Element-level targeting</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td>100% free</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td>Open source (MIT)</td>
+                            <td class="highlight"><span class="check">✓</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    
+    <section class="pricing-section" id="pricing">
+        <div class="container">
+            <div class="section-label">Pricing</div>
+            <h2>Spike us back</h2>
+            <p class="section-subtitle" style="margin: 0 auto 48px;">
+                You've been spiking mockups. Now complete the loop.<br>
+                No feature gating. Free tier is 100% functional. Payment is appreciation, not access.
+            </p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 960px; margin: 0 auto;">
+                <div class="pricing-card" style="max-width: none;">
+                    <div class="pricing-label">Free</div>
+                    <div class="pricing-title">$0</div>
+                    <p class="pricing-subtitle">Everything. Forever.</p>
+                    
+                    <div class="pricing-features">
+                        <div class="pricing-feature">Unlimited mockups</div>
+                        <div class="pricing-feature">Unlimited reviewers</div>
+                        <div class="pricing-feature">Full CLI + widget</div>
+                        <div class="pricing-feature">JSON/CSV export</div>
+                        <div class="pricing-feature">Deploy to your Cloudflare</div>
+                        <div class="pricing-feature">MIT licensed</div>
+                    </div>
+                    
+                    <a href="#install" class="btn btn-secondary" style="width: 100%;">Get Started</a>
+                </div>
+                
+                <div class="pricing-card" style="max-width: none; border-color: var(--red);">
+                    <div class="pricing-label">Spike Us Back</div>
+                    <div class="pricing-title">$19<span style="font-size: 18px; font-weight: 400; color: var(--text-muted);">+</span></div>
+                    <p class="pricing-subtitle">Pay what you feel (min $9)</p>
+                    
+                    <div class="pricing-features">
+                        <div class="pricing-feature">💚 Love it — $29+</div>
+                        <div class="pricing-feature">💙 Like it — $19</div>
+                        <div class="pricing-feature">😐 It's fine — $9</div>
+                        <div class="pricing-feature">Badge for your site</div>
+                        <div class="pricing-feature">Priority GitHub issues</div>
+                        <div class="pricing-feature">Name on supporters page</div>
+                    </div>
+                    
+                    <a href="https://buy.stripe.com/spikes-supporter" class="btn btn-primary" style="width: 100%;" target="_blank" rel="noopener">Spike Us Back</a>
+                </div>
+                
+                <div class="pricing-card" style="max-width: none;">
+                    <div class="pricing-label">Agency</div>
+                    <div class="pricing-title">$149</div>
+                    <p class="pricing-subtitle">One-time. Whole team.</p>
+                    
+                    <div class="pricing-features">
+                        <div class="pricing-feature">Everything in Supporter</div>
+                        <div class="pricing-feature">Covers your whole agency</div>
+                        <div class="pricing-feature">Logo on spikes.sh</div>
+                        <div class="pricing-feature">Priority email support</div>
+                        <div class="pricing-feature">Influence roadmap</div>
+                        <div class="pricing-feature">Honor system (we trust you)</div>
+                    </div>
+                    
+                    <a href="https://buy.stripe.com/spikes-agency" class="btn btn-secondary" style="width: 100%;" target="_blank" rel="noopener">Get Agency License</a>
+                </div>
+            </div>
+            
+            <p style="margin-top: 48px; color: var(--text-dim); font-size: 14px; text-align: center; max-width: 600px; margin-left: auto; margin-right: auto;">
+                Like Sublime Text or WinRAR: use it free forever, pay when it earns its place in your workflow. 
+                We have near-zero infrastructure costs — you deploy to YOUR Cloudflare/Vercel. We're not going anywhere.
+            </p>
+        </div>
+    </section>
+    
+    <section class="newsletter-section">
+        <div class="container">
+            <h2>Stay in the loop</h2>
+            <p class="section-subtitle" style="margin: 0 auto;">
+                Get notified when we ship new features. No spam, unsubscribe anytime.
+            </p>
+            <form class="newsletter-form" action="https://buttondown.email/api/emails/embed-subscribe/spikes" method="post" target="_blank">
+                <input type="email" name="email" placeholder="you@example.com" required>
+                <button type="submit">Subscribe</button>
+            </form>
+        </div>
+    </section>
+    
+    <section class="try-section">
+        <div class="container">
+            <div class="try-hint">
+                <span class="arrow">↘</span>
+                Try it now — click the red button
+            </div>
+            <h2>See it in action</h2>
+            <p class="section-subtitle" style="margin: 0 auto;">
+                This page has Spikes installed. Click the floating button in the corner to leave feedback on any element.
+            </p>
+        </div>
+    </section>
+    
+    <section id="install" class="install-section">
+        <div class="container">
+            <div class="section-label">Get started</div>
+            <h2>Install in seconds</h2>
+            <p class="section-subtitle">
+                Choose your method. Be collecting feedback in under a minute.
+            </p>
+            
             <div class="install-options">
                 <div class="install-option">
-                    <label>One-liner</label>
-                    <code>curl -fsSL https://spikes.sh/install.sh | sh</code>
+                    <div>
+                        <div class="install-option-label">Widget (add to HTML)</div>
+                        <code id="install-widget">&lt;script src="https://spikes.sh/widget.js"&gt;&lt;/script&gt;</code>
+                    </div>
+                    <button class="code-copy" onclick="copyCode(this, 'install-widget')">Copy</button>
                 </div>
                 <div class="install-option">
-                    <label>With Cargo</label>
-                    <code>cargo install spikes</code>
+                    <div>
+                        <div class="install-option-label">CLI (one-liner)</div>
+                        <code id="install-curl">curl -fsSL https://spikes.sh/install.sh | sh</code>
+                    </div>
+                    <button class="code-copy" onclick="copyCode(this, 'install-curl')">Copy</button>
                 </div>
                 <div class="install-option">
-                    <label>From source</label>
-                    <code>git clone https://github.com/bierlingm/spikes && cd spikes/cli && cargo install --path .</code>
+                    <div>
+                        <div class="install-option-label">CLI (with Cargo)</div>
+                        <code id="install-cargo">cargo install spikes</code>
+                    </div>
+                    <button class="code-copy" onclick="copyCode(this, 'install-cargo')">Copy</button>
                 </div>
             </div>
-        </section>
-        
-        <section>
-            <h2>CLI in action</h2>
-            <div class="cli-demo">
-                <pre><span class="prompt">$</span> spikes inject ./mockups/
-Injected widget into 10 files.
-
-<span class="prompt">$</span> spikes serve
-🗡️ Spikes server running at http://localhost:3847
-
-<span class="prompt">$</span> spikes list
-<span class="output">┌──────────┬─────────┬──────────┬──────────┬────────┐
-│ ID       │ Type    │ Page     │ Reviewer │ Rating │
-├──────────┼─────────┼──────────┼──────────┼────────┤
-│ abc123   │ page    │ Homepage │ Patricia │ love   │
-│ def456   │ element │ Pricing  │ Patricia │ no     │
-│ ghi789   │ element │ About    │ John     │ meh    │
-└──────────┴─────────┴──────────┴──────────┴────────┘</span>
-
-<span class="prompt">$</span> spikes hotspots
-<span class="output">┌───────────────────┬──────────┐
-│ Selector          │ Count    │
-├───────────────────┼──────────┤
-│ nav > a.pricing   │ 5 spikes │
-│ footer > .social  │ 2 spikes │
-└───────────────────┴──────────┘</span>
-
-<span class="prompt">$</span> spikes list --json | jq '.[] | select(.rating == "no")'
-<span class="output">{
-  "id": "def456",
-  "page": "Pricing",
-  "selector": "nav > a.pricing",
-  "rating": "no",
-  "comments": "This link is too hidden"
-}</span></pre>
+        </div>
+    </section>
+    
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <span>🗡️</span>
+                        Spikes
+                    </div>
+                    <p class="footer-desc">
+                        Sharp feedback for static mockups. Built for designers who ship HTML and the agents who help them.
+                    </p>
+                </div>
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <a href="#features">Features</a>
+                    <a href="#cli">CLI</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="/supporters">Supporters</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Resources</h4>
+                    <a href="https://github.com/bierlingm/spikes">GitHub</a>
+                    <a href="https://github.com/bierlingm/spikes/releases">Releases</a>
+                    <a href="https://github.com/bierlingm/spikes/blob/main/LICENSE">License</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Connect</h4>
+                    <a href="https://x.com/bierlingm">Twitter/X</a>
+                    <a href="https://github.com/bierlingm/spikes/issues">Report Issue</a>
+                </div>
             </div>
-        </section>
-        
-        <footer>
-            <div class="footer-links">
-                <a href="https://github.com/bierlingm/spikes">GitHub</a>
-                <a href="https://github.com/bierlingm/spikes/releases">Releases</a>
-                <a href="https://github.com/bierlingm/spikes/blob/main/LICENSE">MIT License</a>
+            <div class="footer-bottom">
+                <div>MIT License. Free forever.</div>
+                <div class="footer-social">
+                    <a href="https://github.com/bierlingm/spikes" aria-label="GitHub">
+                        <svg viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    </a>
+                    <a href="https://x.com/moritzbierling" aria-label="Twitter">
+                        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                </div>
             </div>
-            <p>Built for designers who ship HTML mockups.</p>
-        </footer>
-    </div>
+        </div>
+    </footer>
+    
+    <script>
+        function copyCode(btn, sourceId) {
+            var source = document.getElementById(sourceId);
+            var text = source.textContent;
+            
+            navigator.clipboard.writeText(text).then(function() {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(function() {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+        
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                var target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+        
+        // Mobile menu
+        function toggleMobileMenu() {
+            var menu = document.getElementById('mobileMenu');
+            var hamburger = document.querySelector('.hamburger');
+            menu.classList.toggle('active');
+            hamburger.classList.toggle('active');
+        }
+        
+        function closeMobileMenu() {
+            var menu = document.getElementById('mobileMenu');
+            var hamburger = document.querySelector('.hamburger');
+            menu.classList.remove('active');
+            hamburger.classList.remove('active');
+        }
+        
+        // GitHub stars badge
+        fetch('https://api.github.com/repos/bierlingm/spikes')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.stargazers_count !== undefined) {
+                    var count = data.stargazers_count;
+                    var el = document.getElementById('starCount');
+                    if (el) el.textContent = count > 0 ? count + ' stars' : 'Star';
+                }
+            })
+            .catch(function() {});
+        
+        // CLI typing animation
+        var cliLines = [
+            { type: 'cmd', text: '$ spikes inject ./mockups/', delay: 0 },
+            { type: 'success', text: 'Injected widget into 12 files', delay: 800 },
+            { type: 'cmd', text: '$ spikes serve', delay: 1400 },
+            { type: 'output', text: '🗡️ Running at http://localhost:3847', delay: 2000 },
+            { type: 'cmd', text: '$ spikes list --rating no', delay: 2800 },
+            { type: 'table', text: '┌──────────┬─────────┬────────────┐\n│ ID       │ Page    │ Selector   │\n├──────────┼─────────┼────────────┤\n│ Kx8mPq2  │ Pricing │ nav > .cta │\n│ Lm3nRt7  │ About   │ .hero h1   │\n└──────────┴─────────┴────────────┘', delay: 3600 },
+            { type: 'cmd', text: '$ spikes hotspots', delay: 5000 },
+            { type: 'table', text: '┌───────────────────┬───────┐\n│ Selector          │ Count │\n├───────────────────┼───────┤\n│ nav > .cta        │ 5     │\n│ footer > .social  │ 3     │\n└───────────────────┴───────┘', delay: 5600 }
+        ];
+        
+        var cliTerminal = document.getElementById('cliTerminal');
+        var cliAnimationStarted = false;
+        
+        function startCliAnimation() {
+            if (cliAnimationStarted) return;
+            cliAnimationStarted = true;
+            
+            cliLines.forEach(function(line, index) {
+                setTimeout(function() {
+                    var div = document.createElement('div');
+                    if (line.type === 'cmd') {
+                        var prompt = document.createElement('span');
+                        prompt.className = 'prompt';
+                        prompt.textContent = '$ ';
+                        var cmd = document.createElement('span');
+                        cmd.className = 'cmd';
+                        typeText(cmd, line.text.substring(2), 30);
+                        div.appendChild(prompt);
+                        div.appendChild(cmd);
+                    } else if (line.type === 'success') {
+                        div.className = 'success';
+                        div.textContent = line.text;
+                    } else if (line.type === 'output') {
+                        div.className = 'output';
+                        div.textContent = line.text;
+                    } else if (line.type === 'table') {
+                        div.className = 'output';
+                        div.style.whiteSpace = 'pre';
+                        div.textContent = line.text;
+                    }
+                    cliTerminal.appendChild(div);
+                }, line.delay);
+            });
+        }
+        
+        function typeText(element, text, speed) {
+            var i = 0;
+            function type() {
+                if (i < text.length) {
+                    element.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+        
+        // Start CLI animation when visible
+        var cliObserver = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    startCliAnimation();
+                    cliObserver.disconnect();
+                }
+            });
+        }, { threshold: 0.3 });
+        
+        if (cliTerminal) {
+            cliObserver.observe(document.getElementById('cliDemo'));
+        }
+    </script>
+    
+    <!-- Spikes widget - try it yourself! -->
+    <script src="https://spikes.sh/widget.js" data-project="spikes-landing"></script>
 </body>
 </html>

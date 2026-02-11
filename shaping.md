@@ -337,20 +337,34 @@ EXAMPLES:
 | Tier | Price | What You Get |
 |------|-------|--------------|
 | **Free** | $0 | Everything: Widget + CLI + local storage + HTML dashboard + BYO backend deploy + TUI — unlimited, forever |
-| **Supporter** | $19+ (pay what you want, min $9) | Same features + license badge for your site + priority GitHub issues + our gratitude |
-| **Team** | $49 once | Team license (5 seats) + priority support + logo on spikes.sh |
+| **Spike Us Back** | $19+ (pay what you feel, min $9) | Same features + license badge + priority GitHub issues + name on supporters page |
+| **Agency** | $149 once | Whole agency covered + logo on spikes.sh + priority support + influence roadmap |
+| **Fill the Cup** | Custom | Sponsor features, fund development, name a release |
 
 **Philosophy:** 
 - No feature gating. Free tier is 100% functional.
 - You deploy to YOUR infrastructure (Cloudflare, Vercel) — we don't pay for your hosting, you don't pay us for features.
 - Payment is appreciation, not access. Like Sublime Text or WinRAR.
-- If Spikes saves you time and makes your workflow better, throw us some money. If not, use it free forever.
+- Payment is *reciprocity*: you've collected spikes, now spike us back.
+
+**The "Spike Us Back" Framing:**
+```
+You've been spiking mockups. Now spike us.
+
+💚 Love it — $29+
+💙 Like it — $19  
+😐 It's fine — $9
+```
+
+Uses the product's own vocabulary. Payment IS feedback.
 
 **Why this works:**
 - Cloudflare D1/Workers free tier is generous — most users will never pay Cloudflare anything
-- Vercel has similar free tier
 - We have near-zero infrastructure costs (static site + GitHub)
 - Revenue comes from people who *want* to pay, not people forced to
+- The framing makes payment feel like completing a loop, not a transaction
+
+See `LICENSE-MODEL.md` for full implementation details.
 
 ---
 
