@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f11"/>
+      <stop offset="100%" style="stop-color:#09090b"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e74c3c"/>
+      <stop offset="100%" style="stop-color:#c0392b"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+  
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#1f1f23" stroke-width="1"/>
+  </pattern>
+  <rect width="512" height="512" fill="url(#grid)" opacity="0.5"/>
+  
+  <!-- Three swords (representing team/org) -->
+  <g transform="translate(256, 190)">
+    <!-- Left sword -->
+    <g transform="translate(-70, 20) rotate(-15)">
+      <path d="M 0 -90 L 14 -60 L 14 30 L 0 45 L -14 30 L -14 -60 Z" fill="#71717a"/>
+      <rect x="-35" y="30" width="70" height="12" rx="3" fill="#52525b"/>
+      <rect x="-8" y="42" width="16" height="40" rx="3" fill="#3f3f46"/>
+      <circle cx="0" cy="90" r="10" fill="#52525b"/>
+    </g>
+    
+    <!-- Center sword (highlighted) -->
+    <g transform="translate(0, 0)">
+      <path d="M 0 -100 L 16 -65 L 16 35 L 0 52 L -16 35 L -16 -65 Z" fill="url(#red)"/>
+      <rect x="-42" y="35" width="84" height="14" rx="4" fill="#fafafa"/>
+      <rect x="-10" y="49" width="20" height="50" rx="3" fill="url(#gold)"/>
+      <circle cx="0" cy="110" r="14" fill="#fafafa"/>
+    </g>
+    
+    <!-- Right sword -->
+    <g transform="translate(70, 20) rotate(15)">
+      <path d="M 0 -90 L 14 -60 L 14 30 L 0 45 L -14 30 L -14 -60 Z" fill="#71717a"/>
+      <rect x="-35" y="30" width="70" height="12" rx="3" fill="#52525b"/>
+      <rect x="-8" y="42" width="16" height="40" rx="3" fill="#3f3f46"/>
+      <circle cx="0" cy="90" r="10" fill="#52525b"/>
+    </g>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="380" text-anchor="middle" fill="#fafafa" 
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+        font-size="42" font-weight="700">
+    Spikes
+  </text>
+  <text x="256" y="420" text-anchor="middle" fill="url(#gold)" 
+        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+        font-size="24" font-weight="600">
+    Sponsor
+  </text>
+  
+  <!-- Accent line (gold for sponsor) -->
+  <rect x="180" y="440" width="152" height="3" rx="1.5" fill="url(#gold)"/>
+</svg>
