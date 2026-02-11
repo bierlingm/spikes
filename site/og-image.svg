@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#09090b"/>
+  
+  <!-- Red accent line at top -->
+  <rect x="0" y="0" width="1200" height="4" fill="#e74c3c"/>
+  
+  <!-- Wordmark -->
+  <text x="80" y="120" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="bold" fill="#fafafa">
+    🗡️ Spikes
+  </text>
+  
+  <!-- Main headline -->
+  <text x="80" y="300" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="bold" fill="#fafafa">
+    Sharp feedback for
+  </text>
+  <text x="80" y="380" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="bold" fill="#fafafa">
+    static mockups
+  </text>
+  
+  <!-- Subtitle -->
+  <text x="80" y="480" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#71717a">
+    One script tag. Pinpoint any element. Query with CLI.
+  </text>
+  
+  <!-- Red accent dot/glow -->
+  <circle cx="1080" cy="540" r="40" fill="#e74c3c" opacity="0.3"/>
+  <circle cx="1080" cy="540" r="20" fill="#e74c3c" opacity="0.5"/>
+  <circle cx="1080" cy="540" r="8" fill="#e74c3c"/>
+</svg>

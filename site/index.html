@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spikes — Sharp feedback for static mockups</title>
     <meta name="description" content="One script tag. Precise element-level feedback. A CLI that speaks JSON. Zero accounts, zero tracking, zero friction.">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="Spikes — Sharp feedback for static mockups">
+    <meta property="og:description" content="One script tag. Pinpoint any element. Query with CLI. Zero accounts, zero tracking, zero friction.">
+    <meta property="og:image" content="https://spikes.sh/og-image.png">
+    <meta property="og:url" content="https://spikes.sh">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Spikes — Sharp feedback for static mockups">
+    <meta name="twitter:description" content="One script tag. Pinpoint any element. Query with CLI.">
+    <meta name="twitter:image" content="https://spikes.sh/og-image.png">
+    
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
     <style>
         * {
@@ -1406,8 +1418,8 @@
             <div class="nav-links">
                 <a href="#features">Features</a>
                 <a href="#cli">CLI</a>
+                <a href="/docs.html">Docs</a>
                 <a href="#pricing">Pricing</a>
-                <a href="#supporters">Supporters</a>
                 <a href="https://github.com/bierlingm/spikes" class="nav-cta">GitHub</a>
             </div>
             <button class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">
@@ -1420,8 +1432,8 @@
     <div class="mobile-menu" id="mobileMenu">
         <a href="#features" onclick="closeMobileMenu()">Features</a>
         <a href="#cli" onclick="closeMobileMenu()">CLI</a>
+        <a href="/docs.html" onclick="closeMobileMenu()">Docs</a>
         <a href="#pricing" onclick="closeMobileMenu()">Pricing</a>
-        <a href="#supporters" onclick="closeMobileMenu()">Supporters</a>
         <a href="https://github.com/bierlingm/spikes">GitHub</a>
     </div>
 
@@ -1433,17 +1445,12 @@
             <p class="tagline">
                 One script tag. Pinpoint any element. Query with CLI.
             </p>
+            <p style="font-size: 15px; color: var(--text-dim); margin-top: 12px; animation: slide-up 0.6s ease-out 0.15s both;">
+                A spike is feedback pinned to an exact CSS selector. No more "the thing on the left."
+            </p>
             
-            <div class="hero-install" style="margin-top: 40px; animation: slide-up 0.6s ease-out 0.2s both;">
-                <div class="code-block" style="max-width: 480px; margin: 0 auto;">
-                    <div class="code-content" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <pre id="hero-install-cmd" style="font-size: 14px; margin: 0;">curl -fsSL https://spikes.sh/install.sh | sh</pre>
-                        <button class="code-copy" onclick="copyCode(this, 'hero-install-cmd')">Copy</button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="hero-demo" style="margin-top: 48px;">
+            <!-- Demo first - show value before install -->
+            <div class="hero-demo" style="margin-top: 48px; animation: slide-up 0.6s ease-out 0.2s both;">
                 <div class="demo-window">
                     <div class="demo-titlebar">
                         <div class="demo-dots">
@@ -1476,6 +1483,20 @@
                             </div>
                         </div>
                         <div class="demo-widget-btn">🗡️</div>
+                    </div>
+                </div>
+                <!-- Widget/CLI relationship clarification -->
+                <p style="font-size: 13px; color: var(--text-dim); margin-top: 16px; text-align: center;">
+                    <strong style="color: var(--text-muted);">Widget</strong> collects feedback. <strong style="color: var(--text-muted);">CLI</strong> queries it.
+                </p>
+            </div>
+            
+            <!-- Install after demo -->
+            <div class="hero-install" style="margin-top: 40px; animation: slide-up 0.6s ease-out 0.3s both;">
+                <div class="code-block" style="max-width: 480px; margin: 0 auto;">
+                    <div class="code-content" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <pre id="hero-install-cmd" style="font-size: 14px; margin: 0;">curl -fsSL https://spikes.sh/install.sh | sh</pre>
+                        <button class="code-copy" onclick="copyCode(this, 'hero-install-cmd')">Copy</button>
                     </div>
                 </div>
             </div>
@@ -1523,32 +1544,32 @@
             
             <div class="features-grid">
                 <div class="feature">
-                    <div class="feature-icon"><span style="font-size:20px;font-weight:700;">+</span></div>
+                    <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></div>
                     <h3>Element-level precision</h3>
                     <p>Click any element to spike it. Captures CSS selector, bounding box, and text content. No more "the thing on the left."</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon"><span style="font-size:20px;font-weight:700;">/</span></div>
+                    <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><polyline points="17 8 21 12 17 16"/></svg></div>
                     <h3>One script tag</h3>
                     <p>Works on file://, localhost, any domain. No build step, no accounts, no tracking scripts.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon"><span style="font-size:20px;font-weight:700;">$</span></div>
+                    <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
                     <h3>CLI that speaks JSON</h3>
                     <p>Every command outputs JSON. Pipe to jq, feed to AI agents, integrate with your workflow.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon"><span style="font-size:20px;font-weight:700;">~</span></div>
+                    <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                     <h3>Local-first</h3>
                     <p>Feedback lives in localStorage by default. Your data, your control. Deploy to your Cloudflare for team sync.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon"><span style="font-size:20px;font-weight:700;">{}</span></div>
+                    <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="12" y2="15"/></svg></div>
                     <h3>Structured data</h3>
                     <p>Every spike includes page, reviewer, rating, timestamp, viewport, and element data. Query anything.</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon"><span style="font-size:20px;font-weight:700;">8K</span></div>
+                    <div class="feature-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg></div>
                     <h3>Tiny footprint</h3>
                     <p>8KB gzipped. No dependencies. No external requests except to your own endpoint.</p>
                 </div>
@@ -1764,6 +1785,7 @@
                 
                 <div class="pricing-card" style="max-width: none; border-color: var(--red);">
                     <div class="pricing-label">Spike Us Back</div>
+                    <p style="font-size: 12px; color: var(--text-dim); margin-top: 4px; margin-bottom: -8px;">(Support the project)</p>
                     <div class="pricing-title" style="font-size: 32px;">Pay what you feel</div>
                     <p class="pricing-subtitle">$9 / $19 / $29+</p>
                     
@@ -1896,8 +1918,8 @@
                     <h4>Product</h4>
                     <a href="#features">Features</a>
                     <a href="#cli">CLI</a>
+                    <a href="/docs.html">Docs</a>
                     <a href="#pricing">Pricing</a>
-                    <a href="#supporters">Supporters</a>
                 </div>
                 <div class="footer-column">
                     <h4>Resources</h4>

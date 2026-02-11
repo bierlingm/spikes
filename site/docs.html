@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation — Spikes</title>
+    <meta name="description" content="Complete documentation for Spikes — installation, CLI commands, widget configuration, and more.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗡️</text></svg>">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        :root {
+            --red: #e74c3c;
+            --red-dark: #c0392b;
+            --red-glow: rgba(231, 76, 60, 0.4);
+            --bg: #09090b;
+            --bg-subtle: #0f0f11;
+            --bg-card: #141417;
+            --text: #fafafa;
+            --text-muted: #71717a;
+            --text-dim: #52525b;
+            --border: #27272a;
+            --border-subtle: #1f1f23;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --blue: #3b82f6;
+            --purple: #a855f7;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 16px 24px;
+            background: rgba(9, 9, 11, 0.9);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            z-index: 1000;
+        }
+        
+        nav .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        
+        .nav-logo span {
+            font-size: 24px;
+        }
+        
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--text);
+        }
+        
+        .nav-cta {
+            background: var(--red);
+            color: white !important;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        
+        .nav-cta:hover {
+            background: var(--red-dark);
+        }
+        
+        /* Layout */
+        .docs-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 80px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 80px;
+            height: calc(100vh - 80px);
+            overflow-y: auto;
+            padding: 32px 24px;
+            border-right: 1px solid var(--border-subtle);
+        }
+        
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+        
+        .sidebar-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+        
+        .sidebar-link {
+            display: block;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 0;
+            transition: color 0.2s;
+        }
+        
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            color: var(--text);
+        }
+        
+        .sidebar-link.active {
+            color: var(--red);
+        }
+        
+        /* Main content */
+        .docs-content {
+            padding: 48px 64px;
+            max-width: 800px;
+        }
+        
+        .docs-content h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+        }
+        
+        .docs-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 48px 0 16px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+            letter-spacing: -0.01em;
+        }
+        
+        .docs-content h2:first-of-type {
+            margin-top: 32px;
+            border-top: none;
+            padding-top: 0;
+        }
+        
+        .docs-content h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 32px 0 12px;
+            color: var(--text);
+        }
+        
+        .docs-content h4 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 24px 0 8px;
+            color: var(--text-muted);
+        }
+        
+        .docs-content p {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+        
+        .docs-content ul,
+        .docs-content ol {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            padding-left: 24px;
+            font-size: 15px;
+        }
+        
+        .docs-content li {
+            margin-bottom: 8px;
+        }
+        
+        .docs-content a {
+            color: var(--red);
+            text-decoration: none;
+        }
+        
+        .docs-content a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Intro paragraph */
+        .intro {
+            font-size: 18px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+        
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 16px 0 24px;
+            overflow: hidden;
+        }
+        
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .code-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        .code-copy {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .code-copy:hover {
+            background: var(--bg-card);
+            color: var(--text);
+        }
+        
+        .code-copy.copied {
+            background: var(--green);
+            border-color: var(--green);
+            color: white;
+        }
+        
+        pre {
+            padding: 16px 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        
+        code {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 13px;
+            background: var(--bg-card);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--red);
+        }
+        
+        pre code {
+            background: none;
+            padding: 0;
+            color: var(--text);
+        }
+        
+        /* Syntax highlighting */
+        .comment { color: var(--text-dim); }
+        .keyword { color: var(--purple); }
+        .string { color: var(--green); }
+        .number { color: var(--yellow); }
+        .tag { color: var(--red); }
+        .attr { color: var(--yellow); }
+        .value { color: var(--green); }
+        .type { color: var(--blue); }
+        .property { color: var(--blue); }
+        .prompt { color: var(--red); user-select: none; }
+        .output { color: var(--text-dim); }
+        
+        /* Command reference */
+        .command {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0 24px;
+        }
+        
+        .command-name {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .command-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+        
+        .command-usage {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            color: var(--text-dim);
+            background: var(--bg);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        
+        .command-flags {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .command-flags dt {
+            font-family: 'SF Mono', Monaco, monospace;
+            color: var(--yellow);
+            margin-top: 8px;
+        }
+        
+        .command-flags dd {
+            margin-left: 16px;
+            margin-bottom: 4px;
+        }
+        
+        /* Tables */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 16px 0 24px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            background: var(--bg-subtle);
+        }
+        
+        td {
+            color: var(--text-muted);
+        }
+        
+        td code {
+            font-size: 12px;
+        }
+        
+        tr:hover td {
+            background: var(--bg-card);
+        }
+        
+        /* Notes/callouts */
+        .note {
+            background: var(--bg-card);
+            border-left: 3px solid var(--blue);
+            padding: 16px 20px;
+            margin: 16px 0 24px;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .note p {
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .note.warning {
+            border-left-color: var(--yellow);
+        }
+        
+        .note.tip {
+            border-left-color: var(--green);
+        }
+        
+        /* Mobile hamburger */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+        }
+        
+        .hamburger span {
+            width: 24px;
+            height: 2px;
+            background: var(--text);
+        }
+        
+        .mobile-sidebar {
+            display: none;
+        }
+        
+        /* Mobile styles */
+        @media (max-width: 900px) {
+            .docs-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            .docs-content {
+                padding: 32px 24px;
+            }
+            
+            .hamburger {
+                display: flex;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .mobile-sidebar {
+                display: none;
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: var(--bg);
+                padding: 24px;
+                overflow-y: auto;
+                z-index: 999;
+            }
+            
+            .mobile-sidebar.active {
+                display: block;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .docs-content h1 {
+                font-size: 28px;
+            }
+            
+            .docs-content h2 {
+                font-size: 20px;
+            }
+            
+            pre {
+                font-size: 12px;
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <a href="/" class="nav-logo">
+                <span>🗡️</span>
+                Spikes
+            </a>
+            <div class="nav-links">
+                <a href="/">Home</a>
+                <a href="/docs.html" style="color: var(--text);">Docs</a>
+                <a href="https://github.com/bierlingm/spikes" class="nav-cta">GitHub</a>
+            </div>
+            <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+        </div>
+    </nav>
+    
+    <div class="mobile-sidebar" id="mobileSidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">Getting Started</div>
+            <a href="#installation" class="sidebar-link" onclick="closeSidebar()">Installation</a>
+            <a href="#quick-start" class="sidebar-link" onclick="closeSidebar()">Quick Start</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">CLI Reference</div>
+            <a href="#cli-commands" class="sidebar-link" onclick="closeSidebar()">Commands</a>
+            <a href="#cli-init" class="sidebar-link" onclick="closeSidebar()">init</a>
+            <a href="#cli-list" class="sidebar-link" onclick="closeSidebar()">list</a>
+            <a href="#cli-show" class="sidebar-link" onclick="closeSidebar()">show</a>
+            <a href="#cli-export" class="sidebar-link" onclick="closeSidebar()">export</a>
+            <a href="#cli-hotspots" class="sidebar-link" onclick="closeSidebar()">hotspots</a>
+            <a href="#cli-reviewers" class="sidebar-link" onclick="closeSidebar()">reviewers</a>
+            <a href="#cli-inject" class="sidebar-link" onclick="closeSidebar()">inject</a>
+            <a href="#cli-serve" class="sidebar-link" onclick="closeSidebar()">serve</a>
+            <a href="#cli-deploy" class="sidebar-link" onclick="closeSidebar()">deploy</a>
+            <a href="#cli-pull-push" class="sidebar-link" onclick="closeSidebar()">pull / push</a>
+            <a href="#cli-dashboard" class="sidebar-link" onclick="closeSidebar()">dashboard</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Widget</div>
+            <a href="#widget-config" class="sidebar-link" onclick="closeSidebar()">Configuration</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Reference</div>
+            <a href="#data-format" class="sidebar-link" onclick="closeSidebar()">Data Format</a>
+            <a href="#multi-reviewer" class="sidebar-link" onclick="closeSidebar()">Multi-Reviewer Sync</a>
+        </div>
+    </div>
+    
+    <div class="docs-layout">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Getting Started</div>
+                <a href="#installation" class="sidebar-link">Installation</a>
+                <a href="#quick-start" class="sidebar-link">Quick Start</a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">CLI Reference</div>
+                <a href="#cli-commands" class="sidebar-link">Commands</a>
+                <a href="#cli-init" class="sidebar-link">init</a>
+                <a href="#cli-list" class="sidebar-link">list</a>
+                <a href="#cli-show" class="sidebar-link">show</a>
+                <a href="#cli-export" class="sidebar-link">export</a>
+                <a href="#cli-hotspots" class="sidebar-link">hotspots</a>
+                <a href="#cli-reviewers" class="sidebar-link">reviewers</a>
+                <a href="#cli-inject" class="sidebar-link">inject</a>
+                <a href="#cli-serve" class="sidebar-link">serve</a>
+                <a href="#cli-deploy" class="sidebar-link">deploy</a>
+                <a href="#cli-pull-push" class="sidebar-link">pull / push</a>
+                <a href="#cli-dashboard" class="sidebar-link">dashboard</a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Widget</div>
+                <a href="#widget-config" class="sidebar-link">Configuration</a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Reference</div>
+                <a href="#data-format" class="sidebar-link">Data Format</a>
+                <a href="#multi-reviewer" class="sidebar-link">Multi-Reviewer Sync</a>
+            </div>
+        </aside>
+        
+        <main class="docs-content">
+            <h1>Documentation</h1>
+            <p class="intro">
+                Complete reference for Spikes — the feedback tool for static mockups. 
+                CLI commands, widget configuration, and data formats.
+            </p>
+            
+            <h2 id="installation">Installation</h2>
+            
+            <h3>Widget</h3>
+            <p>Add a single script tag to your HTML file:</p>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">HTML</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span><span class="tag">&gt;&lt;/script&gt;</span></code></pre>
+            </div>
+            
+            <h3>CLI — Install Script</h3>
+            <p>Download and install the CLI with a single command:</p>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>curl -fsSL https://spikes.sh/install.sh | sh</code></pre>
+            </div>
+            
+            <h3>CLI — Cargo</h3>
+            <p>Or install via Cargo if you have Rust installed:</p>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>cargo install spikes</code></pre>
+            </div>
+            
+            <h2 id="quick-start">Quick Start</h2>
+            <p>Get feedback on your mockups in under a minute:</p>
+            
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Inject widget into all HTML files in a directory</span>
+spikes inject ./mockups/
+
+<span class="comment"># Start local server</span>
+spikes serve
+<span class="comment"># → http://localhost:3847</span>
+
+<span class="comment"># Share URL with reviewer, collect feedback, then:</span>
+spikes list                           <span class="comment"># See all feedback</span>
+spikes list --rating no               <span class="comment"># Find problems</span>
+spikes hotspots                       <span class="comment"># Most-spiked elements</span>
+spikes list --json | jq '...'         <span class="comment"># Feed to agents</span></code></pre>
+            </div>
+            
+            <div class="note tip">
+                <p><strong>Tip:</strong> First-time reviewers are prompted for their name. All spikes are tagged with reviewer identity.</p>
+            </div>
+            
+            <h2 id="cli-commands">CLI Commands</h2>
+            <p>All commands support <code>--json</code> for machine-readable output, making Spikes perfect for scripting and AI agents.</p>
+            
+            <h3 id="cli-init">init</h3>
+            <div class="command">
+                <div class="command-name">spikes init</div>
+                <p class="command-desc">Create a <code>.spikes/</code> directory in the current project to store feedback data.</p>
+                <div class="command-usage">spikes init</div>
+                <p class="command-desc">Creates <code>.spikes/feedback.jsonl</code> for storing spike data (one spike per line).</p>
+            </div>
+            
+            <h3 id="cli-list">list</h3>
+            <div class="command">
+                <div class="command-name">spikes list</div>
+                <p class="command-desc">List all feedback with optional filtering.</p>
+                <div class="command-usage">spikes list [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON array</dd>
+                    <dt>--page &lt;PAGE&gt;</dt>
+                    <dd>Filter by page URL or filename</dd>
+                    <dt>--reviewer &lt;NAME&gt;</dt>
+                    <dd>Filter by reviewer name</dd>
+                    <dt>--rating &lt;RATING&gt;</dt>
+                    <dd>Filter by rating (love, like, meh, no)</dd>
+                    <dt>--type &lt;TYPE&gt;</dt>
+                    <dd>Filter by type (page, element)</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># List all negative feedback</span>
+spikes list --rating no
+
+<span class="comment"># Get JSON for a specific page</span>
+spikes list --page index.html --json</code></pre>
+            </div>
+            
+            <h3 id="cli-show">show</h3>
+            <div class="command">
+                <div class="command-name">spikes show</div>
+                <p class="command-desc">Display details for a single spike.</p>
+                <div class="command-usage">spikes show &lt;ID&gt;</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON object</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>spikes show abc123xyz</code></pre>
+            </div>
+            
+            <h3 id="cli-export">export</h3>
+            <div class="command">
+                <div class="command-name">spikes export</div>
+                <p class="command-desc">Export all feedback in various formats for processing.</p>
+                <div class="command-usage">spikes export [--format &lt;FORMAT&gt;]</div>
+                <dl class="command-flags">
+                    <dt>--format &lt;FORMAT&gt;</dt>
+                    <dd>Output format: json, csv, jsonl (default: json)</dd>
+                    <dt>--output &lt;FILE&gt;</dt>
+                    <dd>Write to file instead of stdout</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Export as CSV for spreadsheets</span>
+spikes export --format csv --output feedback.csv
+
+<span class="comment"># Export as JSONL for streaming processing</span>
+spikes export --format jsonl</code></pre>
+            </div>
+            
+            <h3 id="cli-hotspots">hotspots</h3>
+            <div class="command">
+                <div class="command-name">spikes hotspots</div>
+                <p class="command-desc">Find elements with the most feedback — useful for identifying problem areas.</p>
+                <div class="command-usage">spikes hotspots [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON array</dd>
+                    <dt>--limit &lt;N&gt;</dt>
+                    <dd>Number of hotspots to show (default: 10)</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>spikes hotspots --limit 5 --json</code></pre>
+            </div>
+            
+            <h3 id="cli-reviewers">reviewers</h3>
+            <div class="command">
+                <div class="command-name">spikes reviewers</div>
+                <p class="command-desc">List all reviewers who have submitted feedback.</p>
+                <div class="command-usage">spikes reviewers [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON array</dd>
+                </dl>
+            </div>
+            
+            <h3 id="cli-inject">inject</h3>
+            <div class="command">
+                <div class="command-name">spikes inject</div>
+                <p class="command-desc">Add the Spikes widget script to HTML files in a directory.</p>
+                <div class="command-usage">spikes inject &lt;DIR&gt; [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--project &lt;NAME&gt;</dt>
+                    <dd>Set project key for grouping feedback</dd>
+                    <dt>--endpoint &lt;URL&gt;</dt>
+                    <dd>Set sync endpoint for multi-reviewer mode</dd>
+                    <dt>--recursive</dt>
+                    <dd>Process subdirectories</dd>
+                    <dt>--dry-run</dt>
+                    <dd>Show what would be changed without modifying files</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Add widget to all HTML files</span>
+spikes inject ./mockups/ --recursive
+
+<span class="comment"># Preview changes first</span>
+spikes inject ./mockups/ --dry-run</code></pre>
+            </div>
+            
+            <h3 id="cli-serve">serve</h3>
+            <div class="command">
+                <div class="command-name">spikes serve</div>
+                <p class="command-desc">Start a local development server for reviewing mockups.</p>
+                <div class="command-usage">spikes serve [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--port &lt;PORT&gt;</dt>
+                    <dd>Port to listen on (default: 3847)</dd>
+                    <dt>--dir &lt;DIR&gt;</dt>
+                    <dd>Directory to serve (default: current)</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>spikes serve --port 8080 --dir ./mockups/</code></pre>
+            </div>
+            
+            <h3 id="cli-deploy">deploy</h3>
+            <div class="command">
+                <div class="command-name">spikes deploy</div>
+                <p class="command-desc">Scaffold deployment configuration for your own backend.</p>
+                <div class="command-usage">spikes deploy &lt;PLATFORM&gt;</div>
+                <dl class="command-flags">
+                    <dt>cloudflare</dt>
+                    <dd>Generate Cloudflare Worker + D1 scaffolding</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Generate Cloudflare Worker project</span>
+spikes deploy cloudflare
+cd spikes-worker
+npx wrangler deploy</code></pre>
+            </div>
+            
+            <h3 id="cli-pull-push">pull / push</h3>
+            <div class="command">
+                <div class="command-name">spikes pull / spikes push</div>
+                <p class="command-desc">Sync feedback with a remote endpoint.</p>
+                <div class="command-usage">spikes pull [OPTIONS]
+spikes push [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--endpoint &lt;URL&gt;</dt>
+                    <dd>Remote endpoint URL (or use SPIKES_ENDPOINT env var)</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Fetch remote feedback</span>
+spikes pull --endpoint https://my-worker.workers.dev/spikes
+
+<span class="comment"># Upload local feedback</span>
+spikes push --endpoint https://my-worker.workers.dev/spikes</code></pre>
+            </div>
+            
+            <h3 id="cli-dashboard">dashboard</h3>
+            <div class="command">
+                <div class="command-name">spikes dashboard</div>
+                <p class="command-desc">Launch interactive TUI dashboard for browsing feedback.</p>
+                <div class="command-usage">spikes dashboard</div>
+            </div>
+            
+            <h2 id="widget-config">Widget Configuration</h2>
+            <p>Configure the widget with data attributes on the script tag:</p>
+            
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">HTML</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="tag">&lt;script</span> 
+  <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span>
+  <span class="attr">data-project</span>=<span class="string">"my-project"</span>
+  <span class="attr">data-position</span>=<span class="string">"bottom-left"</span>
+  <span class="attr">data-color</span>=<span class="string">"#3498db"</span>
+  <span class="attr">data-endpoint</span>=<span class="string">"https://my-worker.workers.dev/spikes"</span>
+  <span class="attr">data-reviewer</span>=<span class="string">"alice"</span>
+<span class="tag">&gt;&lt;/script&gt;</span></code></pre>
+            </div>
+            
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Attribute</th>
+                            <th>Default</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>data-project</code></td>
+                            <td>hostname</td>
+                            <td>Project key for grouping feedback across pages</td>
+                        </tr>
+                        <tr>
+                            <td><code>data-position</code></td>
+                            <td><code>bottom-right</code></td>
+                            <td>Button position: <code>bottom-right</code>, <code>bottom-left</code>, <code>top-right</code>, <code>top-left</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>data-color</code></td>
+                            <td><code>#e74c3c</code></td>
+                            <td>Button background color (any CSS color)</td>
+                        </tr>
+                        <tr>
+                            <td><code>data-endpoint</code></td>
+                            <td>—</td>
+                            <td>POST endpoint for multi-reviewer sync. When set, feedback is sent to this URL.</td>
+                        </tr>
+                        <tr>
+                            <td><code>data-reviewer</code></td>
+                            <td>—</td>
+                            <td>Pre-set reviewer name (skip the name prompt)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <h2 id="data-format">Data Format</h2>
+            <p>Every spike follows this structure:</p>
+            
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">TypeScript</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="keyword">interface</span> <span class="type">Spike</span> {
+  <span class="property">id</span>: <span class="type">string</span>;                    <span class="comment">// nanoid</span>
+  <span class="property">type</span>: <span class="string">"page"</span> | <span class="string">"element"</span>;
+  <span class="property">projectKey</span>: <span class="type">string</span>;
+  <span class="property">page</span>: <span class="type">string</span>;
+  <span class="property">url</span>: <span class="type">string</span>;
+  <span class="property">reviewer</span>: { <span class="property">id</span>: <span class="type">string</span>; <span class="property">name</span>: <span class="type">string</span> };
+  <span class="property">selector</span>?: <span class="type">string</span>;             <span class="comment">// Element spikes only</span>
+  <span class="property">elementText</span>?: <span class="type">string</span>;         <span class="comment">// Element spikes only</span>
+  <span class="property">boundingBox</span>?: { <span class="property">x</span>, <span class="property">y</span>, <span class="property">width</span>, <span class="property">height</span> };
+  <span class="property">rating</span>: <span class="string">"love"</span> | <span class="string">"like"</span> | <span class="string">"meh"</span> | <span class="string">"no"</span> | <span class="keyword">null</span>;
+  <span class="property">comments</span>: <span class="type">string</span>;
+  <span class="property">timestamp</span>: <span class="type">string</span>;             <span class="comment">// ISO 8601</span>
+  <span class="property">viewport</span>: { <span class="property">width</span>, <span class="property">height</span> };
+}</code></pre>
+            </div>
+            
+            <div class="note">
+                <p><strong>Storage:</strong> Feedback is stored in <code>.spikes/feedback.jsonl</code> — one spike per line in JSON Lines format.</p>
+            </div>
+            
+            <h2 id="multi-reviewer">Multi-Reviewer Sync</h2>
+            <p>By default, feedback lives in each reviewer's browser (localStorage). For team reviews, deploy your own backend:</p>
+            
+            <h3>Deploy to Cloudflare</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Generate Cloudflare Worker scaffolding</span>
+spikes deploy cloudflare
+
+<span class="comment"># Deploy to your Cloudflare account</span>
+cd spikes-worker
+npx wrangler deploy</code></pre>
+            </div>
+            
+            <h3>Configure Widget</h3>
+            <p>Add the endpoint to your widget configuration:</p>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">HTML</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="tag">&lt;script</span> 
+  <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span> 
+  <span class="attr">data-endpoint</span>=<span class="string">"https://your-worker.workers.dev/spikes"</span>
+<span class="tag">&gt;&lt;/script&gt;</span></code></pre>
+            </div>
+            
+            <h3>Sync from CLI</h3>
+            <p>Use <code>pull</code> and <code>push</code> to sync feedback between local storage and your remote endpoint:</p>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Fetch all remote feedback</span>
+spikes pull
+
+<span class="comment"># Upload local feedback</span>
+spikes push</code></pre>
+            </div>
+            
+            <div class="note tip">
+                <p><strong>Tip:</strong> Set the <code>SPIKES_ENDPOINT</code> environment variable to avoid passing <code>--endpoint</code> every time.</p>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block');
+            const code = codeBlock.querySelector('code').innerText;
+            
+            navigator.clipboard.writeText(code).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            });
+        }
+        
+        // Mobile sidebar toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            sidebar.classList.toggle('active');
+        }
+        
+        function closeSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            sidebar.classList.remove('active');
+        }
+        
+        // Highlight active sidebar link on scroll
+        const sections = document.querySelectorAll('h2[id], h3[id]');
+        const sidebarLinks = document.querySelectorAll('.sidebar-link');
+        
+        function highlightActiveLink() {
+            let current = '';
+            
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (window.scrollY >= sectionTop - 120) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            sidebarLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+        
+        window.addEventListener('scroll', highlightActiveLink);
+        highlightActiveLink();
+    </script>
+</body>
+</html>
