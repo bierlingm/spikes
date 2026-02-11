@@ -1,8 +1,12 @@
 # CORS headers for widget.js
 /widget.js
   Access-Control-Allow-Origin: *
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=300
 
 /install.sh
   Content-Type: text/plain; charset=utf-8
   Cache-Control: public, max-age=3600
+
+# Cache bust for HTML pages
+/*.html
+  Cache-Control: no-cache

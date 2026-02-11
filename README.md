@@ -2,6 +2,10 @@
 
 Sharp feedback for static mockups.
 
+```bash
+curl -fsSL https://spikes.sh/install.sh | sh
+```
+
 One script tag. Pinpoint any element. Query with a CLI that agents love.
 
 ## What It Does
@@ -11,7 +15,7 @@ Add `<script src="https://spikes.sh/widget.js"></script>` to any HTML file. Revi
 ## Install
 
 ```bash
-# CLI (recommended)
+# CLI
 curl -fsSL https://spikes.sh/install.sh | sh
 
 # Or with Cargo

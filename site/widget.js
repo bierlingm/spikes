@@ -491,7 +491,7 @@
         
         btn = document.createElement('button');
         btn.id = 'spikes-btn';
-        btn.innerHTML = '💬';
+        btn.innerHTML = '🗡️';
         btn.setAttribute('aria-label', 'Give Feedback');
         btn.style.cssText = [
             'width:56px',

@@ -1446,14 +1446,26 @@
                 <img src="https://unavatar.io/twitter/bierlingm" alt="Moritz Bierling" loading="lazy">
                 <span>Built by <strong>@bierlingm</strong></span>
             </a>
-            <div class="hero-buttons" style="margin-top: 32px;">
-                <a href="#install" class="btn btn-primary">
-                    Get Started
-                    <span>→</span>
+            
+            <div class="hero-install" style="margin-top: 32px; animation: slide-up 0.6s ease-out 0.25s both;">
+                <div class="code-block" style="max-width: 500px; margin: 0 auto;">
+                    <div class="code-header">
+                        <span class="code-filename">Install</span>
+                        <button class="code-copy" onclick="copyCode(this, 'hero-install-cmd')">Copy</button>
+                    </div>
+                    <div class="code-content" style="padding: 16px 20px;">
+                        <pre id="hero-install-cmd" style="font-size: 14px; margin: 0;">curl -fsSL https://spikes.sh/install.sh | sh</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="hero-buttons" style="margin-top: 24px;">
+                <a href="#features" class="btn btn-primary">
+                    See Features
                 </a>
                 <a href="https://github.com/bierlingm/spikes" class="btn btn-secondary">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    Star on GitHub
+                    GitHub
                 </a>
             </div>
             
@@ -1757,68 +1769,50 @@
     <section class="pricing-section" id="pricing">
         <div class="container">
             <div class="section-label">Pricing</div>
-            <h2>Spike us back</h2>
+            <h2>Free. Really.</h2>
             <p class="section-subtitle" style="margin: 0 auto 48px;">
-                You've collected spikes. Now return one.<br>
-                Free tier is 100% functional. Payment is appreciation, not access.
+                100% of features, forever, no asterisks. MIT licensed.<br>
+                If Spikes earns its place in your workflow, spike us back.
             </p>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 960px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 720px; margin: 0 auto;">
                 <div class="pricing-card" style="max-width: none;">
-                    <div class="pricing-label">Free</div>
+                    <div class="pricing-label">The Tool</div>
                     <div class="pricing-title">$0</div>
                     <p class="pricing-subtitle">Everything. Forever.</p>
                     
                     <div class="pricing-features">
+                        <div class="pricing-feature">Full widget + CLI</div>
                         <div class="pricing-feature">Unlimited mockups</div>
                         <div class="pricing-feature">Unlimited reviewers</div>
-                        <div class="pricing-feature">Full CLI + widget</div>
                         <div class="pricing-feature">JSON/CSV export</div>
-                        <div class="pricing-feature">Deploy to your Cloudflare</div>
-                        <div class="pricing-feature">MIT licensed</div>
+                        <div class="pricing-feature">Deploy to your infrastructure</div>
+                        <div class="pricing-feature">MIT licensed, no tracking</div>
                     </div>
                     
-                    <a href="#install" class="btn btn-secondary" style="width: 100%;">Get Started</a>
+                    <a href="#install" class="btn btn-primary" style="width: 100%;">Get Started</a>
                 </div>
                 
                 <div class="pricing-card" style="max-width: none; border-color: var(--red);">
                     <div class="pricing-label">Spike Us Back</div>
-                    <div class="pricing-title">$19<span style="font-size: 18px; font-weight: 400; color: var(--text-muted);">+</span></div>
-                    <p class="pricing-subtitle">Pay what you feel (min $9)</p>
+                    <div class="pricing-title" style="font-size: 32px;">Pay what you feel</div>
+                    <p class="pricing-subtitle">$9 / $19 / $29+</p>
                     
                     <div class="pricing-features">
-                        <div class="pricing-feature">💚 Love it — $29+</div>
-                        <div class="pricing-feature">💙 Like it — $19</div>
-                        <div class="pricing-feature">😐 It's fine — $9</div>
+                        <div class="pricing-feature">Same features (you already have them)</div>
                         <div class="pricing-feature">Badge for your site</div>
-                        <div class="pricing-feature">Priority GitHub issues</div>
                         <div class="pricing-feature">Name on supporters page</div>
+                        <div class="pricing-feature">Priority GitHub issues</div>
+                        <div class="pricing-feature">Agency? $149 for whole team + logo</div>
+                        <div class="pricing-feature">Our actual gratitude</div>
                     </div>
                     
-                    <a href="https://buy.stripe.com/spikes-supporter" class="btn btn-primary" style="width: 100%;" target="_blank" rel="noopener">Spike Us Back</a>
-                </div>
-                
-                <div class="pricing-card" style="max-width: none;">
-                    <div class="pricing-label">Agency</div>
-                    <div class="pricing-title">$149</div>
-                    <p class="pricing-subtitle">One-time. Whole team.</p>
-                    
-                    <div class="pricing-features">
-                        <div class="pricing-feature">Everything in Supporter</div>
-                        <div class="pricing-feature">Covers your whole agency</div>
-                        <div class="pricing-feature">Logo on spikes.sh</div>
-                        <div class="pricing-feature">Priority email support</div>
-                        <div class="pricing-feature">Influence roadmap</div>
-                        <div class="pricing-feature">Honor system (we trust you)</div>
-                    </div>
-                    
-                    <a href="https://buy.stripe.com/spikes-agency" class="btn btn-secondary" style="width: 100%;" target="_blank" rel="noopener">Get Agency License</a>
+                    <a href="https://buy.stripe.com/spikes-supporter" class="btn btn-secondary" style="width: 100%;" target="_blank" rel="noopener">Spike Us Back</a>
                 </div>
             </div>
             
-            <p style="margin-top: 48px; color: var(--text-dim); font-size: 14px; text-align: center; max-width: 600px; margin-left: auto; margin-right: auto;">
-                Like Sublime Text: use it free forever, pay when it earns its place. 
-                You deploy to your infrastructure. We have near-zero costs.
+            <p style="margin-top: 48px; color: var(--text-dim); font-size: 14px; text-align: center; max-width: 500px; margin-left: auto; margin-right: auto;">
+                Like Sublime Text: use it free forever, pay when it earns its place.
             </p>
         </div>
     </section>
@@ -1838,13 +1832,12 @@
     
     <section class="try-section">
         <div class="container">
-            <div class="try-hint">
-                <span class="arrow">↘</span>
-                Try it now — click the red button
-            </div>
-            <h2>See it in action</h2>
-            <p class="section-subtitle" style="margin: 0 auto;">
-                This page has Spikes installed. Click the floating button in the corner to leave feedback on any element.
+            <h2>Try it now</h2>
+            <p class="section-subtitle" style="margin: 0 auto 24px;">
+                This page has Spikes installed. Click the 🗡️ in the corner.
+            </p>
+            <p style="color: var(--text-dim); font-size: 14px;">
+                Rate this page, or click any element to spike it.
             </p>
         </div>
     </section>
