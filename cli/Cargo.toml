@@ -1,6 +1,6 @@
 [package]
 name = "spikes"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Drop-in feedback collection for static HTML mockups"
 license = "MIT"
