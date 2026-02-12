@@ -1,4 +1,5 @@
 mod commands;
+mod config;
 mod error;
 mod output;
 mod spike;
@@ -20,7 +21,11 @@ use commands::serve::ServeOptions;
 #[command(version)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
+
+    /// Port for dev server (magic mode)
+    #[arg(long, short, default_value = "3847", global = true)]
+    port: u16,
 }
 
 #[derive(Subcommand)]
@@ -151,6 +156,26 @@ enum Commands {
         json: bool,
     },
 
+    /// Sync with remote (pull then push)
+    Sync {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Manage remote endpoint configuration
+    Remote {
+        #[command(subcommand)]
+        action: RemoteAction,
+    },
+
+    /// Show current configuration
+    Config {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Show version
     Version,
 
@@ -176,24 +201,53 @@ enum DeployBackend {
     },
 }
 
+#[derive(Subcommand)]
+enum RemoteAction {
+    /// Add or update remote endpoint
+    Add {
+        /// Endpoint URL
+        endpoint: String,
+
+        /// Auth token
+        #[arg(long)]
+        token: Option<String>,
+
+        /// Use spikes.sh hosted backend
+        #[arg(long)]
+        hosted: bool,
+    },
+
+    /// Remove remote configuration
+    Remove,
+
+    /// Show current remote configuration
+    Show {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::Init { json } => commands::init::run(json),
-        Commands::List {
+        // Magic mode: no subcommand = auto-serve current directory
+        None => commands::magic::run(cli.port),
+        Some(Commands::Init { json }) => commands::init::run(json),
+        Some(Commands::List {
             json,
             page,
             reviewer,
             rating,
-        } => commands::list::run(ListOptions {
+        }) => commands::list::run(ListOptions {
             json,
             page,
             reviewer,
             rating,
         }),
-        Commands::Show { id, json } => commands::show::run(&id, json),
-        Commands::Export { format } => {
+        Some(Commands::Show { id, json }) => commands::show::run(&id, json),
+        Some(Commands::Export { format }) => {
             let fmt = match format.parse::<ExportFormat>() {
                 Ok(f) => f,
                 Err(e) => {
@@ -203,52 +257,61 @@ fn main() {
             };
             commands::export::run(fmt)
         }
-        Commands::Hotspots { json } => commands::hotspots::run(json),
-        Commands::Reviewers { json } => commands::reviewers::run(json),
-        Commands::Inject {
+        Some(Commands::Hotspots { json }) => commands::hotspots::run(json),
+        Some(Commands::Reviewers { json }) => commands::reviewers::run(json),
+        Some(Commands::Inject {
             directory,
             remove,
             widget_url,
             json,
-        } => commands::inject::run(InjectOptions {
+        }) => commands::inject::run(InjectOptions {
             directory,
             remove,
             widget_url,
             json,
         }),
-        Commands::Serve { port, dir, marked } => commands::serve::run(ServeOptions {
+        Some(Commands::Serve { port, dir, marked }) => commands::serve::run(ServeOptions {
             port,
             directory: dir,
             marked,
         }),
-        Commands::Deploy { backend } => match backend {
+        Some(Commands::Deploy { backend }) => match backend {
             DeployBackend::Cloudflare { dir, json } => {
                 commands::deploy::run(DeployOptions { dir, json })
             }
         },
-        Commands::Pull {
+        Some(Commands::Pull {
             endpoint,
             token,
             json,
-        } => commands::pull::run(PullOptions {
-            endpoint,
-            token,
-            json,
-        }),
-        Commands::Push {
-            endpoint,
-            token,
-            json,
-        } => commands::push::run(PushOptions {
+        }) => commands::pull::run(PullOptions {
             endpoint,
             token,
             json,
         }),
-        Commands::Version => {
+        Some(Commands::Push {
+            endpoint,
+            token,
+            json,
+        }) => commands::push::run(PushOptions {
+            endpoint,
+            token,
+            json,
+        }),
+        Some(Commands::Sync { json }) => commands::sync::run(json),
+        Some(Commands::Remote { action }) => match action {
+            RemoteAction::Add { endpoint, token, hosted } => {
+                commands::remote::add(&endpoint, token, hosted)
+            }
+            RemoteAction::Remove => commands::remote::remove(),
+            RemoteAction::Show { json } => commands::remote::show(json),
+        },
+        Some(Commands::Config { json }) => commands::config_cmd::run(json),
+        Some(Commands::Version) => {
             println!("spikes {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
-        Commands::Dashboard { json } => commands::dashboard::run(json),
+        Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
     };
 
     if let Err(e) = result {

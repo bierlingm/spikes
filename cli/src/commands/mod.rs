@@ -1,3 +1,4 @@
+pub mod config_cmd;
 pub mod dashboard;
 pub mod deploy;
 pub mod export;
@@ -5,8 +6,11 @@ pub mod hotspots;
 pub mod init;
 pub mod inject;
 pub mod list;
+pub mod magic;
 pub mod pull;
 pub mod push;
+pub mod remote;
 pub mod reviewers;
 pub mod serve;
 pub mod show;
+pub mod sync;

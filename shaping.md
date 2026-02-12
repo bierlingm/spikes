@@ -4,9 +4,9 @@ shaping: true
 
 # Spikes — Shaping Document
 
-**Status:** Shaping in progress  
+**Status:** V1-V8 shipped, V9-V10 in shaping  
 **Domain:** spikes.sh  
-**Tagline:** Drop-in feedback for static mockups
+**Tagline:** Feedback your AI agent can act on
 
 ---
 
@@ -28,23 +28,25 @@ shaping: true
 
 ## Frame
 
+### The Shift
+
+Building prototypes is easy now. Claude Code, Cursor, v0 — an agent can build a working UI in an hour. **The bottleneck has moved to the feedback loop.** Turning "I don't like that card thing" into code changes is still manual, slow, and lossy.
+
 ### Problem
 
-- Designers share static HTML mockups with clients for review
-- Feedback arrives scattered across WhatsApp, Slack, email — unstructured and disconnected from the mockups themselves
-- No way to reference specific elements precisely ("the third button" is ambiguous)
-- Feedback isn't programmatically accessible — can't pipe it to other tools or automate workflows
-- Existing tools require accounts, backends, subscriptions — friction for simple mockup reviews
-- Agents can't easily consume or act on the feedback
+- **For solo builders reviewing agent work:** Describing visual issues in chat is imprecise. "Make that card bigger" — which card? How much bigger? The agent needs selectors, not vibes.
+- **For collecting feedback from others:** Feedback arrives scattered across WhatsApp, Slack, email — all screenshots and vague descriptions you have to translate into code.
+- **For agent workflows:** Feedback isn't programmatically accessible. You become the translator between humans and agents.
+- Existing tools require accounts, backends, subscriptions — friction for simple mockup reviews.
 
 ### Outcome
 
-- Reviewers leave structured feedback directly on the mockup with one script tag
-- Page-level AND element-level feedback with precise selector capture
-- All feedback is locally stored (offline-first) with optional cloud sync
+- **Use case 1 (self-review):** Click the element. Leave a comment. Your agent gets the exact CSS selector, bounding box, and context to act on it.
+- **Use case 2 (collect from others):** Share one link. Reviewers click elements and comment. You get structured JSON to paste straight into your agent.
+- All feedback is locally stored (offline-first) with optional hosted sync
 - CLI provides robot-friendly access to all feedback data (JSON output, query commands)
 - Agents can read, filter, and act on feedback programmatically
-- Zero accounts required for basic usage; one-time purchase for commercial/cloud features
+- Zero accounts required for local usage; paid hosting for instant shareable links
 
 ---
 
@@ -127,11 +129,28 @@ A vanilla JS widget (`spikes.js`) that injects a floating button onto any HTML p
 | A6.2 | `spikes pull` — fetch from configured endpoint | |
 | A6.3 | `spikes push` — upload local feedback to endpoint | |
 | A6.4 | Merge strategy: append-only with dedup by ID | |
-| **A7** | **CLI: TUI Dashboard** | ⚠️ |
-| A7.1 | `spikes dashboard` — FrankenTUI interactive view | ⚠️ |
-| A7.2 | Table widget: sortable by page, rating, timestamp, reviewer | ⚠️ |
-| A7.3 | Filter input: search across pages, comments, reviewers | ⚠️ |
-| A7.4 | Detail pane: show full spike with element context | ⚠️ |
+| **A7** | **CLI: TUI Dashboard** | |
+| A7.1 | `spikes dashboard` — ratatui interactive view | |
+| A7.2 | Table widget: sortable by page, rating, timestamp, reviewer | |
+| A7.3 | Filter input: search across pages, comments, reviewers | |
+| A7.4 | Detail pane: show full spike with element context | |
+| **A12** | **CLI: Magic Mode + Config** | |
+| A12.1 | `spikes` (no args) = auto-init + inject + serve | |
+| A12.2 | `.spikes/config.toml` as unified config source | |
+| A12.3 | `spikes sync` = pull + push | |
+| A12.4 | `spikes remote add/remove/show` for endpoint management | |
+| A12.5 | Widget attributes generated from config | |
+| **A13** | **Brand Alignment** | |
+| A13.1 | Dark theme default across widget, dashboard, TUI | |
+| A13.2 | `/` logo mark (not sword emoji) | |
+| A13.3 | Rating symbols: `+ / ~ -` | |
+| A13.4 | Berkeley Mono / system mono fonts | |
+| A13.5 | Brand color palette: red #e74c3c, green #22c55e, blue #3b82f6, yellow #eab308 | |
+| **A14** | **Email Collection (Prospect List)** | |
+| A14.1 | `data-collect-email="true"` widget attribute | |
+| A14.2 | Optional email field in reviewer prompt | |
+| A14.3 | `reviewer_email` column in D1 schema | |
+| A14.4 | `/prospects` API endpoint for email export | |
 | **A8** | **BYO Backend: Cloudflare** | |
 | A8.1 | `spikes deploy cloudflare` — scaffolds Worker + D1 schema | |
 | A8.2 | Detects existing wrangler.toml or creates new | |
@@ -176,7 +195,7 @@ A vanilla JS widget (`spikes.js`) that injects a floating button onto any HTML p
 | R12 | Dashboard with filtering | Must-have | ✅ |
 | R13 | Configurable widget | Nice-to-have | ✅ |
 | R14 | Optional cloud sync | Nice-to-have | ✅ |
-| R15 | TUI dashboard | Nice-to-have | ⚠️ |
+| R15 | TUI dashboard | Nice-to-have | ✅ |
 | R16 | CLI works with pipes/agents | Must-have | ✅ |
 | R17 | One-time purchase (not subscription) | Must-have | ✅ |
 | R18 | Free tier = full functionality | Must-have | ✅ |
@@ -185,8 +204,7 @@ A vanilla JS widget (`spikes.js`) that injects a floating button onto any HTML p
 | R21 | Works fully without any cloud setup | Must-have | ✅ |
 
 **Notes:**
-- R15 depends on A7 (FrankenTUI integration) which is flagged — needs spike to understand FrankenTUI API
-- A9 (Vercel backend) is flagged — needs spike to understand Vercel KV API
+- A9 (Vercel backend) deprioritized — Cloudflare covers the use case
 - All must-haves pass
 
 ---
@@ -276,7 +294,9 @@ interface StoredReviewer {
 | `data-project` | `location.hostname` | Project key for grouping |
 | `data-position` | `bottom-right` | Button position: `bottom-right`, `bottom-left`, `top-right`, `top-left` |
 | `data-color` | `#e74c3c` | Button background color |
+| `data-theme` | `dark` | Widget theme: `dark` or `light` |
 | `data-endpoint` | `null` | Optional POST endpoint for cloud sync |
+| `data-collect-email` | `false` | Ask reviewers for email (prospect list) |
 | `data-reviewer` | `null` | Optional reviewer name to attach to spikes |
 
 ---
@@ -287,7 +307,9 @@ interface StoredReviewer {
 spikes — Feedback collection for static mockups
 
 USAGE:
-    spikes <COMMAND>
+    spikes [COMMAND]
+    
+    (no command = magic mode: auto-init, inject widget, serve current dir)
 
 COMMANDS:
     init        Initialize a .spikes/ directory
@@ -298,73 +320,231 @@ COMMANDS:
     reviewers   List all reviewers who left feedback
     inject      Add widget <script> to HTML files in a directory
     serve       Start local server (static files + POST collector)
+    sync        Pull then push to remote (one command)
     pull        Fetch spikes from configured endpoint
     push        Upload local spikes to configured endpoint
+    remote      Manage remote endpoint configuration
+      add       Add or update remote endpoint
+      remove    Remove remote configuration  
+      show      Show current remote configuration
     deploy      Deploy backend to your infrastructure
       cloudflare  Deploy Cloudflare Worker + D1
-      vercel      Deploy Vercel function + KV
-      --self-hosted  Output standalone server code
-    dashboard   Interactive TUI dashboard (FrankenTUI)
-    config      Show/edit configuration
+    config      Show current configuration
+    dashboard   Interactive TUI dashboard
     version     Show version
 
 OPTIONS:
+    -p, --port  Port for dev server (default: 3847)
     --json      Output as JSON (for piping to jq, agents, etc.)
     --help      Show help
 
 EXAMPLES:
-    # Basic local workflow
-    spikes inject ./mockups/
-    spikes serve
-    # → share localhost URL with reviewer
+    # Zero-config local workflow (magic mode)
+    cd ./mockups/
+    spikes
+    # → auto-init, inject widget, serve on :3847
+    
+    # Configure remote sync
+    spikes remote add https://my-worker.workers.dev --token abc123
+    spikes sync
+    
+    # Query feedback
     spikes list --json | jq '.[] | select(.rating == "no")'
-    
-    # Deploy to Cloudflare (one-time setup)
-    spikes deploy cloudflare
-    # → outputs endpoint URL
-    # → add data-endpoint="..." to your widget script tags
-    
-    # Multi-reviewer workflow
-    spikes pull
-    spikes list --reviewer "Patricia"
     spikes hotspots
+    
+    # Deploy your own backend
+    spikes deploy cloudflare
 ```
 
 ---
 
-## License Model
+## License & Business Model
+
+### What's Free Forever (MIT Licensed)
+
+| Feature | Notes |
+|---------|-------|
+| Full widget | All functionality, no limits |
+| Full CLI | All commands, --json output |
+| Local workflow | `inject` + `serve` + localStorage |
+| BYO backend | Deploy to your own Cloudflare/Vercel |
+| HTML dashboard | Filter, export, manage locally |
+| TUI dashboard | FrankenTUI interactive view |
+
+**Philosophy:** The local workflow is the hook. Self-hostable, no infrastructure cost to us, should stay free.
+
+### The Obvious Paid Value: Hosted Links
+
+The instant-shareable link (`spikes.sh/yourproject` or `yourname.spikes.sh/site`) is the primary commercial opportunity because:
+- Zero config — no wrangler setup, no CF account needed
+- Professional URLs — `acme.spikes.sh/pricing-v2` vs localhost
+- Multi-reviewer persistence — everyone's feedback synced
+- Agent access via API — `curl https://acme.spikes.sh/project/spikes.json`
+- Password protection — simple auth for client work
+- Time-limited links — "Review this in 7 days" creates urgency
+
+### Pricing Model Options (Research)
+
+#### Option A: Appreciation Model (Current)
+
+The "Spike Us Back" / Sublime Text approach. Everything free, payment is gratitude.
 
 | Tier | Price | What You Get |
 |------|-------|--------------|
-| **Free** | $0 | Everything: Widget + CLI + local storage + HTML dashboard + BYO backend deploy + TUI — unlimited, forever |
-| **Spike Us Back** | $19+ (pay what you feel, min $9) | Same features + license badge + priority GitHub issues + name on supporters page |
-| **Agency** | $149 once | Whole agency covered + logo on spikes.sh + priority support + influence roadmap |
-| **Fill the Cup** | Custom | Sponsor features, fund development, name a release |
+| **Free** | $0 | Everything, forever |
+| **Spike Us Back** | $9-$29 (pay what you feel) | Badge + supporters page |
+| **Sponsor** | $149 once | Logo on spikes.sh + influence roadmap |
 
-**Philosophy:** 
-- No feature gating. Free tier is 100% functional.
-- You deploy to YOUR infrastructure (Cloudflare, Vercel) — we don't pay for your hosting, you don't pay us for features.
-- Payment is appreciation, not access. Like Sublime Text or WinRAR.
-- Payment is *reciprocity*: you've collected spikes, now spike us back.
+**Pros:** No friction, goodwill, word of mouth, no support burden
+**Cons:** Revenue depends on generosity, hard to predict/scale
 
-**The "Spike Us Back" Framing:**
+#### Option B: Fizzy Model (37signals, Dec 2025)
+
+Generous free tier with usage-based constraint. Open source, can self-host.
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Free Hosted** | $0 | 1000 spikes, no time limit, no user limit, random URL |
+| **Pro** | $20/mo | Unlimited spikes, custom subdomain, API, webhooks |
+
+**Key insight:** Constraint is usage depth (1000 spikes), not artificial limits (time, users). Deleted items still count. "If you'd prefer not to pay us, run it yourself."
+
+**Reference:** fizzy.do — kanban, 1000 cards free, $20/mo unlimited
+
+**Pros:** Clear upgrade path, generous free tier builds goodwill, predictable revenue
+**Cons:** Need to build/run hosted infrastructure
+
+#### Option C: ONCE Model (37signals, 2024)
+
+Completely free + open source. Revenue from brand/ecosystem, not the product.
+
+| Tier | Price | What You Get |
+|------|-------|--------------|
+| **Free** | $0 | Everything, self-hosted, MIT licensed |
+
+**Reference:** once.com/campfire — group chat, 100% free, you get the code
+
+**Pros:** Zero infrastructure cost, maximum goodwill, developer love
+**Cons:** No direct revenue from product
+
+#### Option D: Hosted SaaS (Classic)
+
+Standard tiered pricing for hosted service.
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Free Hosted** | $0 | 3 projects, 7-day expiry, random URL |
+| **Pro** | $9/mo | Unlimited projects, custom subdomain, no expiry |
+| **Team** | $29/mo | Multiple seats, aggregated dashboard, SSO |
+
+**Pros:** Predictable revenue, clear value exchange
+**Cons:** Feels extractive, competes with self-host option
+
+#### Option E: Tool Suite Bundle (Every.to Model)
+
+Multiple tools under one subscription.
+
 ```
-You've been spiking mockups. Now spike us.
-
-💚 Love it — $29+
-💙 Like it — $19  
-😐 It's fine — $9
+spikes.sh  — Feedback loop for prototypes
+marks.sh   — [future] Annotation for live sites  
+drafts.sh  — [future] Version management for static sites
 ```
 
-Uses the product's own vocabulary. Payment IS feedback.
+**Bundle: $19/mo for access to all tools**
 
-**Why this works:**
-- Cloudflare D1/Workers free tier is generous — most users will never pay Cloudflare anything
-- We have near-zero infrastructure costs (static site + GitHub)
-- Revenue comes from people who *want* to pay, not people forced to
-- The framing makes payment feel like completing a loop, not a transaction
+**Pros:** Multiple acquisition channels, higher LTV, brand identity
+**Cons:** Requires building multiple tools, complex to manage
 
-See `LICENSE-MODEL.md` for full implementation details.
+### Current Recommendation
+
+**Start with Option A (Appreciation) + build toward Option B (Fizzy) for hosted.**
+
+Rationale:
+- Appreciation model is already live and working
+- Hosted links are the obvious paid value, but need to be built (V9)
+- Fizzy model is the most aligned: generous free, simple paid, open source escape hatch
+- Can layer on Option E later as more tools emerge
+
+See `LICENSE-MODEL.md` for implementation details.
+
+---
+
+## Agent Harness Integrations
+
+The deep value proposition: Spikes isn't just a feedback tool, it's a **bridge between human review and agent action**.
+
+### Current Flow
+```
+Agent builds → Human reviews (Spikes) → Human pastes JSON → Agent fixes
+```
+
+### Target Flow (V10+)
+```
+Agent builds → Human reviews (Spikes) → Webhook → Agent context → Agent auto-implements
+```
+
+### Planned Integrations
+
+| Integration | Description | Priority |
+|-------------|-------------|----------|
+| **Cursor context export** | `spikes export --format cursor-context > .cursor/spikes.md` | High |
+| **Claude Code context** | Same format, auto-picked up by CLAUDE.md | High |
+| **MCP server** | Spikes as tool agents can query: `get_spikes`, `get_feedback_for_selector` | High |
+| **GitHub Actions** | Fail deploy if negative feedback exists | Medium |
+| **Webhook on spike** | POST to URL when feedback added → trigger CI, notify Slack, update Linear | Medium |
+| **Factory harness** | Native integration with Factory agent workflows | Medium |
+
+### MCP Server Spec (Draft)
+
+```typescript
+// Tools exposed via MCP
+tools: {
+  get_spikes: {
+    description: "Get all feedback spikes for the project",
+    parameters: { rating?: string, page?: string, reviewer?: string },
+    returns: Spike[]
+  },
+  get_element_feedback: {
+    description: "Get feedback for a specific CSS selector",
+    parameters: { selector: string },
+    returns: Spike[]
+  },
+  get_hotspots: {
+    description: "Get elements with most feedback",
+    parameters: { limit?: number },
+    returns: { selector: string, count: number, ratings: object }[]
+  }
+}
+```
+
+### Agent Workflow Examples
+
+**1. Review Gate in CI:**
+```yaml
+# .github/workflows/deploy.yml
+- name: Check for blocking feedback
+  run: |
+    spikes pull
+    BLOCKERS=$(spikes list --rating no --json | jq 'length')
+    if [ "$BLOCKERS" -gt 0 ]; then
+      echo "::error::$BLOCKERS blocking feedback items found"
+      exit 1
+    fi
+```
+
+**2. Autonomous Implementation:**
+```bash
+# Agent prompt
+"Read spikes.json. For each spike with rating 'no' or 'meh', 
+implement the requested change. The selector field tells you 
+exactly which element to modify."
+```
+
+**3. Context File Generation:**
+```bash
+spikes export --format cursor-context > .cursor/feedback.md
+# Now Cursor sees all feedback in context automatically
+```
 
 ---
 
@@ -455,13 +635,17 @@ Designer runs CLI
 
 | # | Question | Status |
 |---|----------|--------|
-| Q1 | FrankenTUI API — what crates to use, how to structure the dashboard? | Needs spike |
-| Q2 | Selector algorithm — use existing lib (e.g., `finder`, `optimal-select`) or roll our own? | Needs spike |
-| Q3 | Vercel KV API — how does it compare to D1, what's the schema? | Needs spike |
-| Q4 | Widget bundling — esbuild? rollup? hand-rolled IIFE? | Decide |
-| Q5 | How to handle localStorage quota limits on very large feedback sets? | Consider |
-| Q6 | Should `spikes deploy` shell out to wrangler/vercel CLI, or use their APIs directly? | Decide |
-| Q7 | Nanoid vs UUID for IDs — nanoid is smaller, but is it universal enough? | Decide |
+| Q1 | FrankenTUI API — what crates to use, how to structure the dashboard? | RESOLVED: using ratatui |
+| Q2 | Selector algorithm — use existing lib (e.g., `finder`, `optimal-select`) or roll our own? | RESOLVED: rolled our own |
+| Q3 | Vercel KV API — how does it compare to D1, what's the schema? | Deprioritized |
+| Q4 | Widget bundling — esbuild? rollup? hand-rolled IIFE? | RESOLVED: hand-rolled IIFE |
+| Q5 | How to handle localStorage quota limits on very large feedback sets? | Consider for V9 |
+| Q6 | Should `spikes deploy` shell out to wrangler/vercel CLI, or use their APIs directly? | RESOLVED: shell out |
+| Q7 | Nanoid vs UUID for IDs — nanoid is smaller, but is it universal enough? | RESOLVED: nanoid |
+| **Q8** | **Hosted infrastructure — Workers + D1 vs Pages + KV?** | **Needs spike for V9** |
+| **Q9** | **Payment integration — Stripe direct or Lemon Squeezy?** | **Decide for V9** |
+| **Q10** | **MCP SDK — Rust or TypeScript implementation?** | **Needs spike for V10** |
+| **Q11** | **Subdomain routing — Cloudflare Workers with custom domains?** | **Needs spike for V9** |
 
 ---
 
@@ -509,16 +693,18 @@ Designer runs CLI
 
 ### Summary
 
-| # | Slice | Parts | Demo |
-|---|-------|-------|------|
-| V1 | Widget: Page Feedback | A1.1, A1.2, A3.1-A3.3 | "Add script, click button, rate page, see in localStorage" |
-| V2 | Widget: Element Spike Mode | A2.1-A2.7, A1.3, A1.4 | "Enter spike mode, click element, selector captured" |
-| V3 | Widget: Reviewer Identity | A4.1-A4.5 | "First spike prompts name, all spikes tagged" |
-| V4 | HTML Dashboard | A11.1-A11.5 | "Open dashboard.html, filter by page/reviewer/rating" |
-| V5 | CLI: Core Commands | A5.1-A5.5, A6.1 | "`spikes list --json`, `spikes hotspots` work" |
-| V6 | CLI: Inject + Serve | A5.6-A5.7 | "`spikes inject ./mockups/`, `spikes serve` full local flow" |
-| V7 | BYO Backend: Cloudflare | A8.1-A8.7, A3.4, A6.2-A6.4 | "`spikes deploy cloudflare`, multi-reviewer sync" |
-| V8 | CLI: TUI Dashboard | A7.1-A7.4 | "`spikes dashboard` interactive FrankenTUI" |
+| # | Slice | Status | Demo |
+|---|-------|--------|------|
+| V1 | Widget: Page Feedback | SHIPPED | "Add script, click button, rate page, see in localStorage" |
+| V2 | Widget: Element Spike Mode | SHIPPED | "Enter spike mode, click element, selector captured" |
+| V3 | Widget: Reviewer Identity | SHIPPED | "First spike prompts name, all spikes tagged" |
+| V4 | HTML Dashboard | SHIPPED | "Open dashboard.html, filter by page/reviewer/rating" |
+| V5 | CLI: Core Commands | SHIPPED | "`spikes list --json`, `spikes hotspots` work" |
+| V6 | CLI: Inject + Serve | SHIPPED | "`spikes inject ./mockups/`, `spikes serve` full local flow" |
+| V7 | BYO Backend: Cloudflare | SHIPPED | "`spikes deploy cloudflare`, multi-reviewer sync" |
+| V8 | CLI: Magic Mode + Brand | SHIPPED | "`spikes` with no args, dark theme, unified config" |
+| **V9** | **Hosted Links** | **Shaping** | **`spikes share` → instant spikes.sh/yourproject URL** |
+| **V10** | **Agent Integrations** | **Shaping** | **MCP server, context export, webhooks** |
 
 ---
 
@@ -701,31 +887,125 @@ Designer runs CLI
 
 ---
 
-### V8: CLI — TUI Dashboard
+### V8: CLI — Magic Mode + Brand Alignment
 
-**Goal:** Interactive terminal dashboard using FrankenTUI.
+**Goal:** Zero-config workflow, unified config system, brand-aligned UI across all surfaces.
 
 **Affordances:**
-- U19: Table view (sortable columns: page, rating, reviewer, time)
-- U20: Filter input (search across all fields)
-- U21: Detail pane (full spike info when row selected)
-- U22: Keyboard navigation (j/k, enter, q)
-- U23: Rating filter buttons
-- N41: FrankenTUI app setup (Elm architecture)
-- N42: Load spikes from file
-- N43: Table widget with selection state
-- N44: Filter logic (reactive)
-- N45: Detail view renderer
+- N41: `spikes` (no args) = magic mode: auto-init, inject, serve
+- N42: `.spikes/config.toml` as single source of truth
+- N43: `spikes sync` = pull + push in one command
+- N44: `spikes remote add/remove/show` for endpoint management
+- N45: `spikes config` shows effective configuration
+- N46: Widget attributes auto-generated from config
+- N47: Dark theme as default (matching spikes.sh brand)
+- N48: `/` logo mark replaces sword emoji throughout
+- N49: Rating symbols: `+ / ~ -` instead of emoji
+- N50: TUI dashboard with brand colors (ratatui)
+- N51: Email collection option (`data-collect-email="true"`)
+- N52: `/prospects` endpoint for prospect list export
+
+**Config File (`.spikes/config.toml`):**
+```toml
+[project]
+key = "my-project"
+
+[widget]
+theme = "dark"
+position = "bottom-right"
+color = "#e74c3c"
+collect_email = false
+
+[remote]
+endpoint = "https://my-worker.workers.dev"
+token = "abc123"
+# hosted = true  # for future spikes.sh managed backend
+```
 
 **Acceptance:**
-- [ ] `spikes dashboard` opens TUI
-- [ ] Table shows all spikes with columns
-- [ ] Arrow keys / j/k navigate rows
-- [ ] Enter on row → detail pane shows full spike
-- [ ] Typing in filter → table filters live
-- [ ] Rating buttons filter by rating
-- [ ] `q` quits
-- [ ] Handles 1000+ spikes without lag
+- [x] `spikes` with no args serves current directory with widget
+- [x] Auto-init creates `.spikes/` if missing
+- [x] `spikes sync` pulls then pushes
+- [x] `spikes remote add <url> --token <t>` configures endpoint
+- [x] `spikes config --json` shows all settings
+- [x] Widget injection uses config for all attributes
+- [x] Dashboard dark theme with `/` branding
+- [x] Widget dark theme with `/` button
+- [x] TUI uses brand colors (red, green, blue, yellow)
+- [x] Email collection works with D1 backend
+- [x] spikes.sh site has widget integrated for dogfooding
+
+---
+
+### V9: Hosted Links — spikes.sh/yourproject
+
+**Goal:** Instant shareable preview links without any infrastructure setup.
+
+**Why this is the monetization core:**
+- Local workflow is valuable but not monetizable (self-hostable)
+- Hosted links require infrastructure we run → obvious value exchange
+- Zero-config sharing is what people will pay for
+
+**Affordances:**
+- N46: `spikes share ./mockups/` → uploads files + widget to hosted endpoint
+- N47: Returns URL: `spikes.sh/abc123` (free) or `yourname.spikes.sh/project` (pro)
+- N48: Hosted endpoint stores spikes in D1/KV (our infrastructure)
+- N49: API endpoint: `GET /project/spikes.json` returns all feedback
+- N50: Optional expiry (7 days free, configurable for pro)
+- N51: Optional password protection (pro)
+- N52: `spikes pull --from https://spikes.sh/abc123` fetches remote to local
+- U24: Share confirmation with URL and QR code
+
+**Tiers:**
+| Tier | URL Format | Expiry | Features |
+|------|------------|--------|----------|
+| Free | `spikes.sh/random-slug` | 7 days | 1 active project |
+| Pro | `yourname.spikes.sh/*` | None | Unlimited, API, webhooks |
+
+**Acceptance:**
+- [ ] `spikes share ./mockups/` uploads and returns URL
+- [ ] URL is accessible immediately, shows mockups with widget
+- [ ] Feedback from multiple reviewers persists
+- [ ] `spikes pull --from URL` downloads feedback locally
+- [ ] Free tier expires after 7 days
+- [ ] Pro tier requires auth token (Stripe integration)
+
+---
+
+### V10: Agent Integrations — MCP + Context Export
+
+**Goal:** Make Spikes a first-class citizen in agent workflows.
+
+**Affordances:**
+- N53: `spikes export --format cursor-context` → markdown for .cursor/
+- N54: `spikes export --format claude-context` → markdown for CLAUDE.md
+- N55: MCP server binary: `spikes mcp serve`
+- N56: MCP tools: `get_spikes`, `get_element_feedback`, `get_hotspots`
+- N57: Webhook config: `spikes config set webhook https://...`
+- N58: Webhook fires on new spike (POST with spike JSON)
+- N59: GitHub Action: `spikes-action` checks for blocking feedback
+
+**Context Export Format:**
+```markdown
+# Feedback Spikes
+
+## Blocking (rating: no)
+
+### `.pricing-card` on /pricing.html
+> "This card needs more breathing room" — Sarah (Product)
+
+Selector: `.pricing-card`
+Bounding box: {x: 100, y: 200, width: 300, height: 150}
+
+## Needs Attention (rating: meh)
+...
+```
+
+**Acceptance:**
+- [ ] `spikes export --format cursor-context` produces valid markdown
+- [ ] MCP server starts and responds to tool calls
+- [ ] Webhook fires within 1s of new spike
+- [ ] GitHub Action fails build when `--rating no` spikes exist
 
 ---
 
@@ -784,6 +1064,32 @@ mockups:
 ---
 
 **For v1:** Stay focused on the core loop (widget → feedback → CLI → dashboard). These expansions come later, informed by real usage.
+
+---
+
+## Deployed Infrastructure
+
+### spikes.sh Website
+- **Hosting:** Cloudflare Pages (auto-deploy from `main` branch)
+- **Domain:** spikes.sh
+- **Widget:** Integrated on all pages with email collection
+
+### spikes.sh Feedback Backend
+- **Worker:** `spikes-sh-worker.moritzbierling.workers.dev`
+- **Database:** D1 `spikes-sh-db` (WEUR region)
+- **Endpoints:**
+  - `POST /spikes` — public (widget writes)
+  - `GET /spikes?token=X` — authenticated (CLI reads)
+  - `GET /prospects?token=X` — authenticated (email export)
+- **Token:** stored in wrangler.toml (not committed)
+
+### Local Development
+```bash
+cd site/worker
+npm run dev          # Local worker + D1
+npm run db:migrate   # Apply schema changes
+npm run deploy       # Push to production
+```
 
 ---
 

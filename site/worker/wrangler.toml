@@ -1,0 +1,11 @@
+name = "spikes-sh-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+SPIKES_TOKEN = "ae62382b3049563d1719b14995fd9c0260445a242843f87a9e7d8c930b055697"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "spikes-sh-db"
+database_id = "d64ee0ef-8fcf-4cd5-8223-71be656d07a3"

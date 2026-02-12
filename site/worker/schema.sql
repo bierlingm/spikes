@@ -1,5 +1,5 @@
--- Spikes D1 Schema
--- Run: wrangler d1 execute <db-name> --file=schema.sql
+-- Spikes D1 Schema for spikes.sh
+-- Run: wrangler d1 execute spikes-sh-db --file=schema.sql
 
 CREATE TABLE IF NOT EXISTS spikes (
     id TEXT PRIMARY KEY,

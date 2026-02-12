@@ -9,6 +9,14 @@ use ratatui::{
 use super::app::{App, InputMode};
 use crate::spike::Rating;
 
+// Brand colors
+const RED: Color = Color::Rgb(231, 76, 60);      // #e74c3c
+const GREEN: Color = Color::Rgb(34, 197, 94);    // #22c55e
+const BLUE: Color = Color::Rgb(59, 130, 246);    // #3b82f6
+const YELLOW: Color = Color::Rgb(234, 179, 8);   // #eab308
+const TEXT_MUTED: Color = Color::Rgb(161, 161, 170); // #a1a1aa
+const TEXT_DIM: Color = Color::Rgb(82, 82, 91);  // #52525b
+
 pub fn draw(f: &mut Frame, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -35,13 +43,14 @@ pub fn draw(f: &mut Frame, app: &App) {
 fn draw_header(f: &mut Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .style(Style::default().fg(Color::Cyan));
+        .style(Style::default().fg(TEXT_DIM));
 
     let title = Paragraph::new(Line::from(vec![
+        Span::styled("/", Style::default().fg(RED).add_modifier(Modifier::BOLD)),
         Span::styled(
             " Spikes Dashboard ",
             Style::default()
-                .fg(Color::Cyan)
+                .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
         ),
     ]))
@@ -61,8 +70,8 @@ fn draw_filter_bar(f: &mut Frame, app: &App, area: Rect) {
         .split(area);
 
     let filter_style = match app.input_mode {
-        InputMode::Filter => Style::default().fg(Color::Yellow),
-        InputMode::Normal => Style::default().fg(Color::Gray),
+        InputMode::Filter => Style::default().fg(YELLOW),
+        InputMode::Normal => Style::default().fg(TEXT_DIM),
     };
 
     let filter_text = format!(" {} ", app.filter_text);
@@ -78,21 +87,21 @@ fn draw_filter_bar(f: &mut Frame, app: &App, area: Rect) {
         Span::raw(" Rating: "),
         rating_button("All", app.filter_rating.is_none(), Color::White),
         Span::raw(" "),
-        rating_button("1:❤", app.filter_rating == Some(Rating::Love), Color::Green),
+        rating_button("1:+", app.filter_rating == Some(Rating::Love), GREEN),
         Span::raw(" "),
-        rating_button("2:👍", app.filter_rating == Some(Rating::Like), Color::Blue),
+        rating_button("2:/", app.filter_rating == Some(Rating::Like), BLUE),
         Span::raw(" "),
-        rating_button("3:😐", app.filter_rating == Some(Rating::Meh), Color::Yellow),
+        rating_button("3:~", app.filter_rating == Some(Rating::Meh), YELLOW),
         Span::raw(" "),
-        rating_button("4:👎", app.filter_rating == Some(Rating::No), Color::Red),
+        rating_button("4:-", app.filter_rating == Some(Rating::No), RED),
     ]);
 
-    let rating_block = Block::default().borders(Borders::ALL);
+    let rating_block = Block::default().borders(Borders::ALL).border_style(Style::default().fg(TEXT_DIM));
     let rating = Paragraph::new(rating_buttons).block(rating_block);
     f.render_widget(rating, chunks[1]);
 
     let count_text = format!(" {}/{} ", app.filtered.len(), app.spikes.len());
-    let count_block = Block::default().borders(Borders::ALL).title(" Count ");
+    let count_block = Block::default().borders(Borders::ALL).title(" Count ").border_style(Style::default().fg(TEXT_DIM));
     let count = Paragraph::new(count_text).block(count_block);
     f.render_widget(count, chunks[2]);
 }
@@ -113,7 +122,7 @@ fn rating_button<'a>(label: &'a str, selected: bool, color: Color) -> Span<'a> {
 fn draw_table(f: &mut Frame, app: &App, area: Rect) {
     let header_cells = ["ID", "Type", "Page", "Reviewer", "Rating", "Comments"]
         .iter()
-        .map(|h| Cell::from(*h).style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)));
+        .map(|h| Cell::from(*h).style(Style::default().fg(TEXT_MUTED).add_modifier(Modifier::BOLD)));
     let header = Row::new(header_cells).height(1);
 
     let rows: Vec<Row> = app
@@ -129,18 +138,18 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
             let comments = truncate(&spike.comments, 30);
 
             let rating_style = match &spike.rating {
-                Some(Rating::Love) => Style::default().fg(Color::Green),
-                Some(Rating::Like) => Style::default().fg(Color::Blue),
-                Some(Rating::Meh) => Style::default().fg(Color::Yellow),
-                Some(Rating::No) => Style::default().fg(Color::Red),
-                None => Style::default(),
+                Some(Rating::Love) => Style::default().fg(GREEN),
+                Some(Rating::Like) => Style::default().fg(BLUE),
+                Some(Rating::Meh) => Style::default().fg(YELLOW),
+                Some(Rating::No) => Style::default().fg(RED),
+                None => Style::default().fg(TEXT_DIM),
             };
 
             Row::new(vec![
-                Cell::from(id.to_string()),
+                Cell::from(id.to_string()).style(Style::default().fg(TEXT_DIM)),
                 Cell::from(spike_type.to_string()),
                 Cell::from(page),
-                Cell::from(reviewer),
+                Cell::from(reviewer).style(Style::default().fg(TEXT_MUTED)),
                 Cell::from(rating.to_string()).style(rating_style),
                 Cell::from(comments),
             ])
@@ -158,13 +167,14 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
 
     let table = Table::new(rows, widths)
         .header(header)
-        .block(Block::default().borders(Borders::ALL).title(" Spikes "))
+        .block(Block::default().borders(Borders::ALL).title(" / Spikes ").border_style(Style::default().fg(TEXT_DIM)))
         .highlight_style(
             Style::default()
-                .bg(Color::DarkGray)
+                .bg(Color::Rgb(20, 20, 23))
+                .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
         )
-        .highlight_symbol("▶ ");
+        .highlight_symbol("/ ");
 
     let mut state = TableState::default();
     state.select(Some(app.selected));
@@ -175,7 +185,8 @@ fn draw_table(f: &mut Frame, app: &App, area: Rect) {
 fn draw_detail(f: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Detail [Enter to toggle] ");
+        .title(" Detail [Enter] ")
+        .border_style(Style::default().fg(TEXT_DIM));
 
     if let Some(spike) = app.selected_spike() {
         let selector_line = spike
@@ -213,33 +224,33 @@ fn draw_detail(f: &mut Frame, app: &App, area: Rect) {
             .wrap(Wrap { trim: true });
         f.render_widget(paragraph, area);
     } else {
-        let paragraph = Paragraph::new("No spike selected").block(block);
+        let paragraph = Paragraph::new("No spike selected").style(Style::default().fg(TEXT_DIM)).block(block);
         f.render_widget(paragraph, area);
     }
 }
 
 fn draw_help(f: &mut Frame, app: &App, area: Rect) {
     let mode_indicator = match app.input_mode {
-        InputMode::Normal => Span::styled("NORMAL", Style::default().fg(Color::Green)),
-        InputMode::Filter => Span::styled("FILTER", Style::default().fg(Color::Yellow)),
+        InputMode::Normal => Span::styled("NORMAL", Style::default().fg(GREEN)),
+        InputMode::Filter => Span::styled("FILTER", Style::default().fg(YELLOW)),
     };
 
     let help_text = Line::from(vec![
         Span::raw(" "),
         mode_indicator,
-        Span::raw(" | "),
-        Span::styled("j/k", Style::default().fg(Color::Cyan)),
-        Span::raw(":nav "),
-        Span::styled("Enter", Style::default().fg(Color::Cyan)),
-        Span::raw(":detail "),
-        Span::styled("/", Style::default().fg(Color::Cyan)),
-        Span::raw(":filter "),
-        Span::styled("1-4", Style::default().fg(Color::Cyan)),
-        Span::raw(":rating "),
-        Span::styled("0", Style::default().fg(Color::Cyan)),
-        Span::raw(":clear "),
-        Span::styled("q", Style::default().fg(Color::Cyan)),
-        Span::raw(":quit"),
+        Span::styled(" | ", Style::default().fg(TEXT_DIM)),
+        Span::styled("j/k", Style::default().fg(TEXT_MUTED)),
+        Span::styled(":nav ", Style::default().fg(TEXT_DIM)),
+        Span::styled("Enter", Style::default().fg(TEXT_MUTED)),
+        Span::styled(":detail ", Style::default().fg(TEXT_DIM)),
+        Span::styled("/", Style::default().fg(RED)),
+        Span::styled(":filter ", Style::default().fg(TEXT_DIM)),
+        Span::styled("1-4", Style::default().fg(TEXT_MUTED)),
+        Span::styled(":rating ", Style::default().fg(TEXT_DIM)),
+        Span::styled("0", Style::default().fg(TEXT_MUTED)),
+        Span::styled(":clear ", Style::default().fg(TEXT_DIM)),
+        Span::styled("q", Style::default().fg(TEXT_MUTED)),
+        Span::styled(":quit", Style::default().fg(TEXT_DIM)),
     ]);
 
     let help = Paragraph::new(help_text);

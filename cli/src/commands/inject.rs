@@ -3,10 +3,10 @@ use std::path::Path;
 
 use walkdir::WalkDir;
 
+use crate::config::Config;
 use crate::error::{Error, Result};
 
-const SCRIPT_TAG: &str = r#"<script src="/spikes.js" data-project="spikes-local"></script>"#;
-const SCRIPT_MARKER: &str = r#"src="/spikes.js""#;
+const SCRIPT_MARKER: &str = "spikes.js";
 
 pub struct InjectOptions {
     pub directory: String,
@@ -66,11 +66,11 @@ pub fn run(opts: InjectOptions) -> Result<()> {
         } else if has_script {
             skipped.push(path.display().to_string());
         } else {
-            let script_tag = if let Some(ref url) = opts.widget_url {
-                format!(r#"<script src="{}" data-project="spikes-local"></script>"#, url)
-            } else {
-                SCRIPT_TAG.to_string()
-            };
+            // Load config to get widget attributes
+            let config = Config::load().unwrap_or_default();
+            let widget_url = opts.widget_url.as_deref().unwrap_or("/spikes.js");
+            let attrs = config.widget_attributes();
+            let script_tag = format!(r#"<script src="{}" {}></script>"#, widget_url, attrs);
             let new_content = inject_script_tag(&content, &script_tag);
             fs::write(path, new_content)?;
             injected.push(path.display().to_string());
