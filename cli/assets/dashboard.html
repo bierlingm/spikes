@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spikes Dashboard</title>
+    <style>
+        @font-face {
+            font-family: 'Berkeley Mono';
+            src: url('/fonts/BerkeleyMono-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        @font-face {
+            font-family: 'Berkeley Mono';
+            src: url('/fonts/BerkeleyMono-Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-style: normal;
+            font-display: swap;
+        }
+        
+        :root {
+            --red: #e74c3c;
+            --red-dark: #c0392b;
+            --red-glow: rgba(231, 76, 60, 0.4);
+            --bg: #09090b;
+            --bg-subtle: #0f0f11;
+            --bg-card: #141417;
+            --text: #fafafa;
+            --text-muted: #a1a1aa;
+            --text-dim: #52525b;
+            --border: #27272a;
+            --border-subtle: #1f1f23;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --blue: #3b82f6;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Berkeley Mono', ui-monospace, 'SF Mono', Monaco, monospace;
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .logo-mark {
+            color: var(--red);
+            font-weight: 700;
+            font-size: 24px;
+        }
+        
+        .header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        select, button {
+            font-family: inherit;
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        select:hover, button:hover {
+            border-color: var(--text-dim);
+        }
+        
+        select:focus, button:focus {
+            outline: none;
+            border-color: var(--red);
+        }
+        
+        button {
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: var(--red);
+            color: white;
+            border-color: var(--red);
+        }
+        
+        .btn-primary:hover {
+            background: var(--red-dark);
+            border-color: var(--red-dark);
+        }
+        
+        .btn-danger {
+            background: transparent;
+            color: var(--red);
+            border-color: var(--red);
+        }
+        
+        .btn-danger:hover {
+            background: var(--red);
+            color: white;
+        }
+        
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .filter-group label {
+            font-size: 12px;
+            color: var(--text-dim);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .rating-filters {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .rating-btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        
+        .rating-btn.active {
+            background: var(--text);
+            color: var(--bg);
+            border-color: var(--text);
+        }
+        
+        .rating-btn[data-rating="love"].active { background: var(--green); border-color: var(--green); color: white; }
+        .rating-btn[data-rating="like"].active { background: var(--blue); border-color: var(--blue); color: white; }
+        .rating-btn[data-rating="meh"].active { background: var(--yellow); border-color: var(--yellow); color: var(--bg); }
+        .rating-btn[data-rating="no"].active { background: var(--red); border-color: var(--red); color: white; }
+        
+        .spike-count {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-left: auto;
+        }
+        
+        .spikes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .spike-card {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 16px;
+            transition: all 0.15s;
+        }
+        
+        .spike-card:hover {
+            border-color: var(--text-dim);
+        }
+        
+        .spike-rating {
+            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+        }
+        
+        .spike-rating.love { background: var(--green); }
+        .spike-rating.like { background: var(--blue); }
+        .spike-rating.meh { background: var(--yellow); color: var(--bg); }
+        .spike-rating.no { background: var(--red); }
+        .spike-rating.none { background: var(--text-dim); }
+        
+        .spike-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .spike-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .spike-page {
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .spike-type {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--bg);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .spike-type.element { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+        
+        .spike-element {
+            font-family: inherit;
+            font-size: 12px;
+            background: var(--bg);
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            word-break: break-all;
+            border-left: 2px solid var(--red);
+        }
+        
+        .spike-element-text {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+            font-style: italic;
+        }
+        
+        .spike-comments {
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        
+        .spike-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+        
+        .spike-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-dim);
+        }
+        
+        .empty-state h2 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            color: var(--text-muted);
+        }
+        
+        .empty-state p {
+            margin: 0;
+            font-size: 14px;
+        }
+        
+        .empty-state code {
+            background: var(--bg-card);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            border: 1px solid var(--border);
+        }
+        
+        .confirm-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .confirm-dialog.show {
+            display: flex;
+        }
+        
+        .confirm-dialog-content {
+            background: var(--bg-card);
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        
+        .confirm-dialog h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+        
+        .confirm-dialog p {
+            margin: 0 0 20px;
+            color: var(--text-muted);
+        }
+        
+        .confirm-dialog-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        @media (max-width: 640px) {
+            .container { padding: 16px; }
+            header { flex-direction: column; align-items: flex-start; }
+            .filters { flex-direction: column; align-items: flex-start; }
+            .filter-group { width: 100%; }
+            .filter-group select { flex: 1; }
+            .rating-filters { flex-wrap: wrap; }
+            .spike-count { margin-left: 0; width: 100%; text-align: left; }
+            .spike-card { flex-direction: column; }
+            .spike-rating { width: 36px; height: 36px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><span class="logo-mark">/</span> Spikes Dashboard</h1>
+            <div class="header-actions">
+                <select id="project-select">
+                    <option value="">All Projects</option>
+                </select>
+                <button id="export-json" class="btn-primary">Export JSON</button>
+                <button id="export-csv" class="btn-primary">Export CSV</button>
+                <button id="clear-all" class="btn-danger">Clear All</button>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Page</label>
+                <select id="filter-page">
+                    <option value="">All Pages</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Reviewer</label>
+                <select id="filter-reviewer">
+                    <option value="">All Reviewers</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Rating</label>
+                <div class="rating-filters">
+                    <button class="rating-btn active" data-rating="">All</button>
+                    <button class="rating-btn" data-rating="love">Love</button>
+                    <button class="rating-btn" data-rating="like">Like</button>
+                    <button class="rating-btn" data-rating="meh">Meh</button>
+                    <button class="rating-btn" data-rating="no">No</button>
+                </div>
+            </div>
+            <div class="spike-count">
+                <span id="spike-count">0 spikes</span>
+            </div>
+        </div>
+
+        <div id="spikes-list" class="spikes-list"></div>
+    </div>
+
+    <div id="confirm-dialog" class="confirm-dialog">
+        <div class="confirm-dialog-content">
+            <h3>Clear All Spikes?</h3>
+            <p>This will permanently delete all feedback data from localStorage. This cannot be undone.</p>
+            <div class="confirm-dialog-actions">
+                <button id="confirm-cancel">Cancel</button>
+                <button id="confirm-delete" class="btn-danger">Delete All</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        var allSpikes = [];
+        var filteredSpikes = [];
+        var projects = [];
+        var currentProject = '';
+        var filterPage = '';
+        var filterReviewer = '';
+        var filterRating = '';
+
+        var projectSelect = document.getElementById('project-select');
+        var filterPageSelect = document.getElementById('filter-page');
+        var filterReviewerSelect = document.getElementById('filter-reviewer');
+        var ratingBtns = document.querySelectorAll('.rating-btn');
+        var spikesList = document.getElementById('spikes-list');
+        var spikeCountEl = document.getElementById('spike-count');
+        var exportJsonBtn = document.getElementById('export-json');
+        var exportCsvBtn = document.getElementById('export-csv');
+        var clearAllBtn = document.getElementById('clear-all');
+        var confirmDialog = document.getElementById('confirm-dialog');
+        var confirmCancel = document.getElementById('confirm-cancel');
+        var confirmDelete = document.getElementById('confirm-delete');
+
+        function loadSpikes() {
+            allSpikes = [];
+            projects = [];
+
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.startsWith('spikes:') && key !== 'spikes:reviewer') {
+                    var projectKey = key.substring(7);
+                    projects.push(projectKey);
+
+                    try {
+                        var data = JSON.parse(localStorage.getItem(key));
+                        if (Array.isArray(data)) {
+                            data.forEach(function(spike) {
+                                spike.projectKey = spike.projectKey || projectKey;
+                                allSpikes.push(spike);
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse spikes for ' + key, e);
+                    }
+                }
+            }
+
+            allSpikes.sort(function(a, b) {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+
+            updateProjectSelect();
+            updateFilters();
+            applyFilters();
+        }
+
+        function updateProjectSelect() {
+            projectSelect.innerHTML = '<option value="">All Projects</option>';
+            projects.forEach(function(project) {
+                var opt = document.createElement('option');
+                opt.value = project;
+                opt.textContent = project;
+                projectSelect.appendChild(opt);
+            });
+        }
+
+        function updateFilters() {
+            var pages = [];
+            var reviewers = [];
+
+            var spikesToConsider = currentProject
+                ? allSpikes.filter(function(s) { return s.projectKey === currentProject; })
+                : allSpikes;
+
+            spikesToConsider.forEach(function(spike) {
+                if (spike.page && pages.indexOf(spike.page) === -1) {
+                    pages.push(spike.page);
+                }
+                if (spike.reviewer && spike.reviewer.name && reviewers.indexOf(spike.reviewer.name) === -1) {
+                    reviewers.push(spike.reviewer.name);
+                }
+            });
+
+            pages.sort();
+            reviewers.sort();
+
+            filterPageSelect.innerHTML = '<option value="">All Pages</option>';
+            pages.forEach(function(page) {
+                var opt = document.createElement('option');
+                opt.value = page;
+                opt.textContent = page.length > 50 ? page.substring(0, 47) + '...' : page;
+                filterPageSelect.appendChild(opt);
+            });
+
+            filterReviewerSelect.innerHTML = '<option value="">All Reviewers</option>';
+            reviewers.forEach(function(reviewer) {
+                var opt = document.createElement('option');
+                opt.value = reviewer;
+                opt.textContent = reviewer;
+                filterReviewerSelect.appendChild(opt);
+            });
+        }
+
+        function applyFilters() {
+            filteredSpikes = allSpikes.filter(function(spike) {
+                if (currentProject && spike.projectKey !== currentProject) return false;
+                if (filterPage && spike.page !== filterPage) return false;
+                if (filterReviewer && (!spike.reviewer || spike.reviewer.name !== filterReviewer)) return false;
+                if (filterRating && spike.rating !== filterRating) return false;
+                return true;
+            });
+
+            renderSpikes();
+        }
+
+        function renderSpikes() {
+            var count = filteredSpikes.length;
+            spikeCountEl.textContent = count + ' spike' + (count === 1 ? '' : 's');
+
+            if (filteredSpikes.length === 0) {
+                if (allSpikes.length === 0) {
+                    spikesList.innerHTML = '<div class="empty-state">' +
+                        '<h2>No spikes yet</h2>' +
+                        '<p>Add the Spikes widget to your HTML mockups to start collecting feedback.</p>' +
+                        '<p style="margin-top:12px"><code>&lt;script src="spikes.js"&gt;&lt;/script&gt;</code></p>' +
+                        '</div>';
+                } else {
+                    spikesList.innerHTML = '<div class="empty-state">' +
+                        '<h2>No matching spikes</h2>' +
+                        '<p>Try adjusting your filters.</p>' +
+                        '</div>';
+                }
+                return;
+            }
+
+            var html = filteredSpikes.map(function(spike) {
+                return renderSpikeCard(spike);
+            }).join('');
+
+            spikesList.innerHTML = html;
+        }
+
+        function renderSpikeCard(spike) {
+            var ratingClass = spike.rating || 'none';
+            var ratingSymbol = getRatingSymbol(spike.rating);
+            var typeClass = spike.type === 'element' ? 'element' : '';
+
+            var elementHtml = '';
+            if (spike.type === 'element' && spike.selector) {
+                var selector = spike.selector.length > 60 
+                    ? spike.selector.substring(0, 57) + '...' 
+                    : spike.selector;
+                elementHtml = '<div class="spike-element">' + escapeHtml(selector) + '</div>';
+                if (spike.elementText) {
+                    var text = spike.elementText.length > 80 
+                        ? spike.elementText.substring(0, 77) + '...' 
+                        : spike.elementText;
+                    elementHtml += '<div class="spike-element-text">"' + escapeHtml(text) + '"</div>';
+                }
+            }
+
+            var commentsHtml = spike.comments 
+                ? '<div class="spike-comments">' + escapeHtml(spike.comments) + '</div>' 
+                : '';
+
+            var reviewerName = spike.reviewer ? spike.reviewer.name : 'Anonymous';
+            var timeAgo = formatTimeAgo(spike.timestamp);
+
+            return '<div class="spike-card">' +
+                '<div class="spike-rating ' + ratingClass + '">' + ratingSymbol + '</div>' +
+                '<div class="spike-content">' +
+                    '<div class="spike-header">' +
+                        '<span class="spike-page">' + escapeHtml(spike.page || 'Unknown Page') + '</span>' +
+                        '<span class="spike-type ' + typeClass + '">' + spike.type + '</span>' +
+                    '</div>' +
+                    elementHtml +
+                    commentsHtml +
+                    '<div class="spike-meta">' +
+                        '<span>' + escapeHtml(reviewerName) + '</span>' +
+                        '<span>' + timeAgo + '</span>' +
+                        (currentProject === '' && spike.projectKey ? '<span>' + escapeHtml(spike.projectKey) + '</span>' : '') +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        function getRatingSymbol(rating) {
+            switch (rating) {
+                case 'love': return '+';
+                case 'like': return '/';
+                case 'meh': return '~';
+                case 'no': return '-';
+                default: return '?';
+            }
+        }
+
+        function formatTimeAgo(timestamp) {
+            if (!timestamp) return 'Unknown';
+
+            var date = new Date(timestamp);
+            var now = new Date();
+            var seconds = Math.floor((now - date) / 1000);
+
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+            if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+            if (seconds < 604800) return Math.floor(seconds / 86400) + 'd ago';
+
+            return date.toLocaleDateString();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function exportJSON() {
+            var data = filteredSpikes.length > 0 ? filteredSpikes : allSpikes;
+            var json = JSON.stringify(data, null, 2);
+            downloadFile(json, 'spikes-export.json', 'application/json');
+        }
+
+        function exportCSV() {
+            var data = filteredSpikes.length > 0 ? filteredSpikes : allSpikes;
+            
+            var headers = ['id', 'type', 'projectKey', 'page', 'selector', 'elementText', 'rating', 'comments', 'reviewer_name', 'reviewer_id', 'timestamp', 'url'];
+            var rows = [headers.join(',')];
+
+            data.forEach(function(spike) {
+                var row = [
+                    csvEscape(spike.id || ''),
+                    csvEscape(spike.type || ''),
+                    csvEscape(spike.projectKey || ''),
+                    csvEscape(spike.page || ''),
+                    csvEscape(spike.selector || ''),
+                    csvEscape(spike.elementText || ''),
+                    csvEscape(spike.rating || ''),
+                    csvEscape(spike.comments || ''),
+                    csvEscape(spike.reviewer ? spike.reviewer.name : ''),
+                    csvEscape(spike.reviewer ? spike.reviewer.id : ''),
+                    csvEscape(spike.timestamp || ''),
+                    csvEscape(spike.url || '')
+                ];
+                rows.push(row.join(','));
+            });
+
+            var csv = rows.join('\n');
+            downloadFile(csv, 'spikes-export.csv', 'text/csv');
+        }
+
+        function csvEscape(str) {
+            if (!str) return '""';
+            str = String(str);
+            if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+                return '"' + str.replace(/"/g, '""') + '"';
+            }
+            return str;
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            var blob = new Blob([content], { type: mimeType });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function clearAll() {
+            confirmDialog.classList.add('show');
+        }
+
+        function doClearAll() {
+            var keysToRemove = [];
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.startsWith('spikes:') && key !== 'spikes:reviewer') {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(function(key) {
+                localStorage.removeItem(key);
+            });
+
+            confirmDialog.classList.remove('show');
+            loadSpikes();
+        }
+
+        projectSelect.addEventListener('change', function() {
+            currentProject = this.value;
+            filterPage = '';
+            filterReviewer = '';
+            filterPageSelect.value = '';
+            filterReviewerSelect.value = '';
+            updateFilters();
+            applyFilters();
+        });
+
+        filterPageSelect.addEventListener('change', function() {
+            filterPage = this.value;
+            applyFilters();
+        });
+
+        filterReviewerSelect.addEventListener('change', function() {
+            filterReviewer = this.value;
+            applyFilters();
+        });
+
+        ratingBtns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                ratingBtns.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                filterRating = this.getAttribute('data-rating');
+                applyFilters();
+            });
+        });
+
+        exportJsonBtn.addEventListener('click', exportJSON);
+        exportCsvBtn.addEventListener('click', exportCSV);
+        clearAllBtn.addEventListener('click', clearAll);
+
+        confirmCancel.addEventListener('click', function() {
+            confirmDialog.classList.remove('show');
+        });
+
+        confirmDelete.addEventListener('click', doClearAll);
+
+        confirmDialog.addEventListener('click', function(e) {
+            if (e.target === confirmDialog) {
+                confirmDialog.classList.remove('show');
+            }
+        });
+
+        loadSpikes();
+    })();
+    </script>
+</body>
+</html>

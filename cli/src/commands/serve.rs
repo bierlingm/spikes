@@ -17,9 +17,9 @@ use crate::error::Result;
 use crate::spike::Spike;
 
 const DEFAULT_PORT: u16 = 3847;
-const WIDGET_JS: &str = include_str!("../../../widget/spikes.js");
-const DASHBOARD_HTML: &str = include_str!("../../../widget/dashboard.html");
-const REVIEW_JS: &str = include_str!("../../../widget/review.js");
+const WIDGET_JS: &str = include_str!("../../assets/spikes.js");
+const DASHBOARD_HTML: &str = include_str!("../../assets/dashboard.html");
+const REVIEW_JS: &str = include_str!("../../assets/review.js");
 
 pub struct ServeOptions {
     pub port: u16,
