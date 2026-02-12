@@ -4,7 +4,7 @@
 
 set -e
 
-REPO="moritzbierling/spikes"
+REPO="bierlingm/spikes"
 INSTALL_DIR="${SPIKES_INSTALL_DIR:-$HOME/.local/bin}"
 
 # Detect OS and architecture
