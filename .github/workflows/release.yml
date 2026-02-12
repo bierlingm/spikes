@@ -42,15 +42,11 @@ jobs:
 
       - name: Build with cross
         if: matrix.use_cross
-        run: |
-          cd cli
-          cross build --release --target ${{ matrix.target }}
+        run: cross build --release --target ${{ matrix.target }} --manifest-path cli/Cargo.toml
 
       - name: Build with cargo
         if: '!matrix.use_cross'
-        run: |
-          cd cli
-          cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }} --manifest-path cli/Cargo.toml
 
       - name: Package
         run: |
