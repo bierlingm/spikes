@@ -11,9 +11,13 @@ use commands::deploy::DeployOptions;
 use commands::export::ExportFormat;
 use commands::inject::InjectOptions;
 use commands::list::ListOptions;
+use commands::login::LoginOptions;
 use commands::pull::PullOptions;
 use commands::push::PushOptions;
 use commands::serve::ServeOptions;
+use commands::share::ShareOptions;
+use commands::shares::SharesOptions;
+use commands::unshare::UnshareOptions;
 
 #[derive(Parser)]
 #[command(name = "spikes")]
@@ -136,6 +140,10 @@ enum Commands {
         #[arg(long)]
         token: Option<String>,
 
+        /// Pull from a public share URL (e.g., https://spikes.sh/s/project-slug)
+        #[arg(long)]
+        from: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
@@ -179,9 +187,55 @@ enum Commands {
     /// Show version
     Version,
 
+    /// Log in to spikes.sh hosted service
+    Login {
+        /// Auth token (or enter interactively)
+        #[arg(long)]
+        token: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Interactive TUI dashboard
     Dashboard {
         /// Output as JSON (non-interactive)
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Upload a directory to spikes.sh for instant sharing
+    Share {
+        /// Directory to upload
+        directory: String,
+
+        /// Custom name for the share URL
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List your shared projects on spikes.sh
+    Shares {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Delete a shared project from spikes.sh
+    Unshare {
+        /// Share slug to delete
+        slug: String,
+
+        /// Skip confirmation prompt
+        #[arg(long, short)]
+        force: bool,
+
+        /// Output as JSON
         #[arg(long)]
         json: bool,
     },
@@ -283,10 +337,12 @@ fn main() {
         Some(Commands::Pull {
             endpoint,
             token,
+            from,
             json,
         }) => commands::pull::run(PullOptions {
             endpoint,
             token,
+            from,
             json,
         }),
         Some(Commands::Push {
@@ -311,7 +367,15 @@ fn main() {
             println!("spikes {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
+        Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
         Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
+        Some(Commands::Share { directory, name, json }) => {
+            commands::share::run(ShareOptions { directory, name, json })
+        }
+        Some(Commands::Shares { json }) => commands::shares::run(SharesOptions { json }),
+        Some(Commands::Unshare { slug, force, json }) => {
+            commands::unshare::run(UnshareOptions { slug, force, json })
+        }
     };
 
     if let Err(e) = result {

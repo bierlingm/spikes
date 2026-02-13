@@ -9,6 +9,7 @@ use crate::spike::Spike;
 pub struct PullOptions {
     pub endpoint: Option<String>,
     pub token: Option<String>,
+    pub from: Option<String>,
     pub json: bool,
 }
 
@@ -18,6 +19,11 @@ struct RemoteConfig {
 }
 
 pub fn run(options: PullOptions) -> Result<()> {
+    // If --from URL is provided, fetch from public share
+    if let Some(ref url) = options.from {
+        return run_from_share(url, options.json);
+    }
+
     let config = get_remote_config(options.endpoint, options.token)?;
 
     // Fetch remote spikes
@@ -185,4 +191,129 @@ fn load_local_spikes(path: &Path) -> Result<Vec<Spike>> {
     }
 
     Ok(spikes)
+}
+
+fn run_from_share(url: &str, json_output: bool) -> Result<()> {
+    // Parse share slug from URL (e.g., https://spikes.sh/s/governance-x7k2m)
+    let share_id = parse_share_slug(url)?;
+
+    // Fetch spikes from public endpoint
+    let api_url = format!("https://spikes.sh/spikes?project={}", share_id);
+
+    let response = ureq::get(&api_url)
+        .call()
+        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
+    if response.status() == 404 {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("Share '{}' not found", share_id),
+        )));
+    }
+
+    if response.status() != 200 {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Remote returned status {}", response.status()),
+        )));
+    }
+
+    let body = response
+        .into_string()
+        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
+    let remote_spikes: Vec<Spike> = serde_json::from_str(&body)?;
+
+    // Load local spikes and merge
+    let feedback_path = Path::new(".spikes/feedback.jsonl");
+    let local_spikes = load_local_spikes(feedback_path)?;
+
+    let existing_ids: HashSet<String> = local_spikes.iter().map(|s| s.id.clone()).collect();
+
+    let new_spikes: Vec<&Spike> = remote_spikes
+        .iter()
+        .filter(|s| !existing_ids.contains(&s.id))
+        .collect();
+
+    let new_count = new_spikes.len();
+
+    if !new_spikes.is_empty() {
+        // Ensure .spikes directory exists
+        if let Some(parent) = feedback_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(feedback_path)?;
+
+        for spike in &new_spikes {
+            let mut json = serde_json::to_string(spike)?;
+            json.push('\n');
+            file.write_all(json.as_bytes())?;
+        }
+    }
+
+    if json_output {
+        println!(
+            "{}",
+            serde_json::json!({
+                "success": true,
+                "source": url,
+                "share_id": share_id,
+                "fetched": remote_spikes.len(),
+                "new": new_count,
+                "existing": local_spikes.len(),
+                "total": local_spikes.len() + new_count
+            })
+        );
+    } else {
+        println!();
+        println!("  🗡️  Pulled from share");
+        println!();
+        println!("  Source:         {}", url);
+        println!("  Remote spikes:  {}", remote_spikes.len());
+        println!("  New spikes:     {}", new_count);
+        println!("  Local total:    {}", local_spikes.len() + new_count);
+        println!();
+    }
+
+    Ok(())
+}
+
+fn parse_share_slug(url: &str) -> Result<String> {
+    // Handle both full URLs and bare slugs
+    // Full URL: https://spikes.sh/s/governance-x7k2m
+    // Bare slug: governance-x7k2m
+
+    if url.starts_with("http://") || url.starts_with("https://") {
+        // Parse URL to extract slug after /s/
+        if let Some(pos) = url.find("/s/") {
+            let slug = &url[pos + 3..];
+            // Remove any trailing slashes or query params
+            let slug = slug.split(&['/', '?', '#'][..]).next().unwrap_or(slug);
+            if slug.is_empty() {
+                return Err(Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid share URL: no slug found after /s/",
+                )));
+            }
+            return Ok(slug.to_string());
+        }
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Invalid share URL: expected format https://spikes.sh/s/<slug>",
+        )));
+    }
+
+    // Assume it's a bare slug
+    if url.is_empty() {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "Share slug cannot be empty",
+        )));
+    }
+
+    Ok(url.to_string())
 }

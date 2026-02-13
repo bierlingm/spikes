@@ -41,6 +41,7 @@ pub fn run(json: bool) -> Result<()> {
     let pull_result = super::pull::run(PullOptions {
         endpoint: config.remote.endpoint.clone(),
         token: config.remote.token.clone(),
+        from: None,
         json,
     });
 
