@@ -37,8 +37,11 @@ echo "Creating D1 database: $DB_NAME"
 DB_OUTPUT=$(wrangler d1 create "$DB_NAME" 2>&1) || true
 echo "$DB_OUTPUT"
 
-# Extract database_id
-DB_ID=$(echo "$DB_OUTPUT" | grep -o 'database_id = "[^"]*"' | cut -d'"' -f2)
+# Extract database_id (handles both old TOML and new JSON output formats)
+DB_ID=$(echo "$DB_OUTPUT" | grep -o '"database_id": "[^"]*"' | cut -d'"' -f4)
+if [ -z "$DB_ID" ]; then
+    DB_ID=$(echo "$DB_OUTPUT" | grep -o 'database_id = "[^"]*"' | cut -d'"' -f2)
+fi
 if [ -z "$DB_ID" ]; then
     echo "⚠️  Could not extract database_id. Check output above and update wrangler.toml manually."
     DB_ID="YOUR_DATABASE_ID_HERE"
@@ -68,8 +71,8 @@ EOF
 echo "✓ wrangler.toml created"
 
 echo
-echo "Running schema..."
-wrangler d1 execute "$DB_NAME" --file=schema.sql
+echo "Running schema on remote database..."
+wrangler d1 execute "$DB_NAME" --file=schema.sql --remote
 
 echo
 echo "Deploying worker..."
