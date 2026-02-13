@@ -3,6 +3,7 @@
 
 interface Env {
   DB: D1Database;
+  ASSETS: R2Bucket;
   SPIKES_TOKEN: string;
 }
 
@@ -28,8 +29,8 @@ interface Spike {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 function jsonResponse(data: unknown, status = 200): Response {
@@ -50,6 +51,12 @@ function validateToken(request: Request, env: Env): boolean {
   const url = new URL(request.url);
   const token = url.searchParams.get('token');
   return token === env.SPIKES_TOKEN;
+}
+
+function getBearerToken(request: Request): string | null {
+  const auth = request.headers.get('Authorization');
+  if (!auth?.startsWith('Bearer ')) return null;
+  return auth.slice(7);
 }
 
 export default {
@@ -94,6 +101,39 @@ export default {
         return errorResponse('Unauthorized', 401);
       }
       return handleListProspects(env);
+    }
+
+    // POST /shares — create a share (bearer auth, multipart)
+    if (path === '/shares' && request.method === 'POST') {
+      const ownerToken = getBearerToken(request);
+      if (!ownerToken) {
+        return errorResponse('Unauthorized', 401);
+      }
+      return handleCreateShare(request, ownerToken, env);
+    }
+
+    // GET /shares — list user's shares (bearer auth)
+    if (path === '/shares' && request.method === 'GET') {
+      const ownerToken = getBearerToken(request);
+      if (!ownerToken) {
+        return errorResponse('Unauthorized', 401);
+      }
+      return handleListShares(ownerToken, env);
+    }
+
+    // DELETE /shares/:id — delete a share (bearer auth)
+    const shareIdMatch = path.match(/^\/shares\/([^\/]+)$/);
+    if (shareIdMatch && request.method === 'DELETE') {
+      const ownerToken = getBearerToken(request);
+      if (!ownerToken) {
+        return errorResponse('Unauthorized', 401);
+      }
+      return handleDeleteShare(shareIdMatch[1], ownerToken, env);
+    }
+
+    // GET /s/* — serve shared projects
+    if (path.startsWith('/s/')) {
+      return handleShareRoute(path, env);
     }
 
     return errorResponse('Not Found', 404);
@@ -285,5 +325,198 @@ async function handleListProspects(env: Env): Promise<Response> {
   } catch (e) {
     console.error('DB query error:', e);
     return errorResponse('Failed to fetch prospects', 500);
+  }
+}
+
+function getContentType(filepath: string): string {
+  const ext = filepath.split('.').pop()?.toLowerCase() || '';
+  const types: Record<string, string> = {
+    html: 'text/html',
+    css: 'text/css',
+    js: 'application/javascript',
+    json: 'application/json',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    svg: 'image/svg+xml',
+    woff: 'font/woff2',
+    woff2: 'font/woff2',
+  };
+  return types[ext] || 'application/octet-stream';
+}
+
+async function handleShareRoute(path: string, env: Env): Promise<Response> {
+  const segments = path.slice(3).split('/'); // Remove '/s/'
+  const slug = segments[0];
+  if (!slug) {
+    return errorResponse('Not Found', 404);
+  }
+
+  const share = await env.DB.prepare(
+    'SELECT id, slug FROM shares WHERE slug = ?'
+  ).bind(slug).first<{ id: string; slug: string }>();
+
+  if (!share) {
+    return errorResponse('Not Found', 404);
+  }
+
+  const filepath = segments.slice(1).join('/') || 'index.html';
+  const r2Key = `shares/${share.id}/${filepath}`;
+
+  const object = await env.ASSETS.get(r2Key);
+  if (!object) {
+    return errorResponse('Not Found', 404);
+  }
+
+  const contentType = getContentType(filepath);
+  let body: ArrayBuffer | string = await object.arrayBuffer();
+
+  if (contentType === 'text/html') {
+    const html = new TextDecoder().decode(body);
+    const widgetScript = `<script src="https://spikes.sh/widget.js" data-endpoint="https://spikes.sh" data-project="${share.id}"></script>`;
+    body = html.replace('</body>', `${widgetScript}\n</body>`);
+  }
+
+  return new Response(body, {
+    headers: {
+      'Content-Type': contentType,
+      ...corsHeaders,
+    },
+  });
+}
+
+interface ShareRow {
+  id: string;
+  slug: string;
+  owner_token: string;
+  created_at: string;
+  spike_count: number;
+  tier: string;
+}
+
+function generateSlug(name: string): string {
+  const sanitized = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30);
+  const suffix = Math.random().toString(36).slice(2, 7);
+  return sanitized ? `${sanitized}-${suffix}` : suffix;
+}
+
+async function handleCreateShare(request: Request, ownerToken: string, env: Env): Promise<Response> {
+  try {
+    const formData = await request.formData();
+    const metadataField = formData.get('metadata');
+    const metadata = metadataField ? JSON.parse(metadataField as string) : {};
+    
+    const shareId = crypto.randomUUID();
+    const slug = generateSlug(metadata.name || 'share');
+    const createdAt = new Date().toISOString();
+
+    // Upload all files to R2
+    const uploads: Promise<void>[] = [];
+    for (const [key, value] of formData.entries()) {
+      if (key === 'metadata') continue;
+      if (value instanceof File) {
+        const r2Key = `shares/${shareId}/${value.name}`;
+        uploads.push(env.ASSETS.put(r2Key, await value.arrayBuffer()));
+      }
+    }
+    await Promise.all(uploads);
+
+    // Create D1 record
+    await env.DB.prepare(
+      'INSERT INTO shares (id, slug, owner_token, created_at, spike_count, tier) VALUES (?, ?, ?, ?, 0, ?)'
+    ).bind(shareId, slug, ownerToken, createdAt, 'free').run();
+
+    return jsonResponse({
+      ok: true,
+      url: `https://spikes.sh/s/${slug}`,
+      share_id: shareId,
+      slug,
+    }, 201);
+  } catch (e) {
+    console.error('Create share error:', e);
+    return errorResponse('Failed to create share', 500);
+  }
+}
+
+async function handleListShares(ownerToken: string, env: Env): Promise<Response> {
+  try {
+    const result = await env.DB.prepare(
+      'SELECT id, slug, created_at, spike_count FROM shares WHERE owner_token = ? ORDER BY created_at DESC'
+    ).bind(ownerToken).all<ShareRow>();
+
+    const shares = (result.results || []).map(row => ({
+      id: row.id,
+      slug: row.slug,
+      url: `https://spikes.sh/s/${row.slug}`,
+      spike_count: row.spike_count,
+      created_at: row.created_at,
+    }));
+
+    return jsonResponse(shares);
+  } catch (e) {
+    console.error('DB query error:', e);
+    return errorResponse('Failed to fetch shares', 500);
+  }
+}
+
+async function handleDeleteShare(id: string, ownerToken: string, env: Env): Promise<Response> {
+  try {
+    const share = await env.DB.prepare(
+      'SELECT id, owner_token FROM shares WHERE id = ?'
+    ).bind(id).first<ShareRow>();
+
+    if (!share) {
+      return errorResponse('Share not found', 404);
+    }
+
+    if (share.owner_token !== ownerToken) {
+      return errorResponse('Forbidden', 403);
+    }
+
+    // Fetch spikes for export before deletion
+    const spikesResult = await env.DB.prepare(
+      'SELECT * FROM spikes WHERE share_id = ?'
+    ).bind(id).all<Spike>();
+
+    const exportedSpikes = (spikesResult.results || []).map(row => ({
+      id: row.id,
+      type: row.type,
+      projectKey: row.project,
+      page: row.page,
+      url: row.url,
+      reviewer: {
+        id: row.reviewer_id,
+        name: row.reviewer_name,
+        email: row.reviewer_email,
+      },
+      selector: row.selector,
+      xpath: row.xpath,
+      elementText: row.element_text,
+      boundingBox: row.bounding_box ? JSON.parse(row.bounding_box) : null,
+      rating: row.rating,
+      comments: row.comments,
+      timestamp: row.timestamp,
+      viewport: row.viewport ? JSON.parse(row.viewport) : null,
+      userAgent: row.user_agent,
+    }));
+
+    // Delete R2 files under /shares/{id}/
+    const prefix = `shares/${id}/`;
+    const listed = await env.ASSETS.list({ prefix });
+    if (listed.objects.length > 0) {
+      await Promise.all(listed.objects.map(obj => env.ASSETS.delete(obj.key)));
+    }
+
+    // Delete spikes with this share_id
+    await env.DB.prepare('DELETE FROM spikes WHERE share_id = ?').bind(id).run();
+
+    // Delete share record
+    await env.DB.prepare('DELETE FROM shares WHERE id = ?').bind(id).run();
+
+    return jsonResponse({ ok: true, exported_spikes: exportedSpikes });
+  } catch (e) {
+    console.error('Delete share error:', e);
+    return errorResponse('Failed to delete share', 500);
   }
 }

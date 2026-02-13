@@ -946,29 +946,232 @@ token = "abc123"
 - Hosted links require infrastructure we run → obvious value exchange
 - Zero-config sharing is what people will pay for
 
-**Affordances:**
-- N46: `spikes share ./mockups/` → uploads files + widget to hosted endpoint
-- N47: Returns URL: `spikes.sh/abc123` (free) or `yourname.spikes.sh/project` (pro)
-- N48: Hosted endpoint stores spikes in D1/KV (our infrastructure)
-- N49: API endpoint: `GET /project/spikes.json` returns all feedback
-- N50: Optional expiry (7 days free, configurable for pro)
-- N51: Optional password protection (pro)
-- N52: `spikes pull --from https://spikes.sh/abc123` fetches remote to local
-- U24: Share confirmation with URL and QR code
+**Design Philosophy:** "Free tier has full functionality; paid tier adds convenience, not power."
 
-**Tiers:**
-| Tier | URL Format | Expiry | Features |
-|------|------------|--------|----------|
-| Free | `spikes.sh/random-slug` | 7 days | 1 active project |
-| Pro | `yourname.spikes.sh/*` | None | Unlimited, API, webhooks |
+---
 
-**Acceptance:**
-- [ ] `spikes share ./mockups/` uploads and returns URL
-- [ ] URL is accessible immediately, shows mockups with widget
-- [ ] Feedback from multiple reviewers persists
-- [ ] `spikes pull --from URL` downloads feedback locally
-- [ ] Free tier expires after 7 days
-- [ ] Pro tier requires auth token (Stripe integration)
+#### URL Structure
+
+```
+Free:   spikes.sh/s/governance-x7k2m     # User-chosen slug + random suffix
+Paid:   moritz.spikes.sh/governance      # Custom subdomain, clean URLs
+```
+
+**Why this structure:**
+- `/s/` prefix = "shared project" namespace, keeps root clean for marketing pages
+- User picks meaningful name, we append 5-char suffix (collision avoidance without ugly UUIDs)
+- Subdomain for paid = clear premium signal, memorable for clients
+- No expiry on free = links are reliable, builds trust
+
+---
+
+#### CLI Interface
+
+```bash
+# Free (no account needed)
+spikes share ./mockups/
+→ Bundling 5 HTML files + assets...
+→ Injecting widget...
+→ Uploading to spikes.sh...
+
+  ┌────────────────────────────────────────────┐
+  │  /  Your mockups are live                  │
+  │                                            │
+  │  https://spikes.sh/s/mockups-k7x2m         │
+  │                                            │
+  │  Share this link with reviewers.           │
+  │  Feedback syncs automatically.             │
+  │                                            │
+  │  Pull feedback: spikes pull --from <url>   │
+  │  Delete share:  spikes unshare <url>       │
+  └────────────────────────────────────────────┘
+
+# With custom name
+spikes share ./mockups/ --name governance-v2
+→ https://spikes.sh/s/governance-v2-m3k9p
+
+# Paid (after `spikes login`)
+spikes share ./mockups/ --name governance
+→ https://moritz.spikes.sh/governance
+
+# Update existing share
+spikes share ./mockups/ --name governance-v2-m3k9p
+→ Updated https://spikes.sh/s/governance-v2-m3k9p
+
+# List your shares
+spikes shares
+→ governance-v2-m3k9p  https://spikes.sh/s/governance-v2-m3k9p  12 spikes  2 reviewers
+→ pricing-options-k2x   https://spikes.sh/s/pricing-options-k2x  3 spikes   1 reviewer
+
+# Delete a share
+spikes unshare governance-v2-m3k9p
+→ Deleted. Feedback exported to .spikes/governance-v2-m3k9p.jsonl
+```
+
+---
+
+#### Tiers & Limits
+
+| Feature | Free | Pro ($9/mo) |
+|---------|------|-------------|
+| Shares | 5 active | Unlimited |
+| Spikes per share | 1000 | Unlimited |
+| URL format | `spikes.sh/s/name-suffix` | `you.spikes.sh/name` |
+| Expiry | None | None |
+| Password protection | No | Yes |
+| Custom badge/branding | No | Yes (remove "Powered by Spikes") |
+| Webhook on spike | No | Yes |
+| API access | No | Yes (`GET /api/spikes.json`) |
+| Email collection | Yes | Yes |
+| `spikes pull --from` | Yes | Yes |
+
+**The constraint is depth (1000 spikes), not artificial limits.** Most projects won't hit 1000 spikes. If they do, they're getting serious value and should pay.
+
+---
+
+#### What Gets Uploaded
+
+```
+./mockups/
+├── index.html          → uploaded, widget injected
+├── pricing.html        → uploaded, widget injected  
+├── about.html          → uploaded, widget injected
+├── styles.css          → uploaded as-is
+├── logo.png            → uploaded as-is
+└── .spikes/            → NOT uploaded (local config)
+```
+
+**Bundle rules:**
+- All `.html` files get widget injected (idempotent)
+- All assets (CSS, JS, images, fonts) uploaded
+- `.spikes/`, `node_modules/`, `.git/` excluded
+- Widget JS bundled from CDN (not copied from local)
+- Max upload size: 50MB (free), 500MB (pro)
+
+---
+
+#### Infrastructure (Our Side)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Cloudflare Pages (spikes.sh)                           │
+│  ├── Marketing site: spikes.sh/*                        │
+│  └── Shared projects: spikes.sh/s/*                     │
+│      └── Each share = folder in R2, served via Pages    │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Cloudflare Worker (api.spikes.sh)                      │
+│  ├── POST /shares — create/update share                 │
+│  ├── DELETE /shares/:id — delete share                  │
+│  ├── GET /shares — list user's shares                   │
+│  ├── POST /spikes — widget writes (public)              │
+│  ├── GET /spikes/:shareId — fetch spikes (public)       │
+│  └── Auth: Bearer token for write ops                   │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Cloudflare D1 (spikes-hosted-db)                       │
+│  ├── shares: id, owner_id, slug, created_at, spike_count│
+│  ├── spikes: id, share_id, type, selector, rating, ...  │
+│  └── users: id, email, tier, stripe_customer_id         │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│  Cloudflare R2 (spikes-hosted-assets)                   │
+│  └── /shares/{share_id}/* — uploaded HTML/CSS/JS/images │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Custom subdomains (Pro):**
+- Wildcard DNS: `*.spikes.sh → api.spikes.sh`
+- Worker routes by subdomain, looks up user, serves their shares
+- No per-user Cloudflare config needed
+
+---
+
+#### Auth Flow
+
+```bash
+# First-time setup (stores token locally)
+spikes login
+→ Opening browser for authentication...
+→ Logged in as moritz@example.com (Pro tier)
+→ Token saved to ~/.config/spikes/auth.json
+
+# Or use token directly
+spikes login --token sk_live_xxx
+```
+
+**Token storage:**
+- `~/.config/spikes/auth.json` (user-level, not project)
+- Token = API key for spikes.sh, issued via web dashboard
+- Free users get token too (for tracking share ownership)
+
+---
+
+#### Affordances
+
+| ID | Affordance | Type |
+|----|------------|------|
+| **N53** | `spikes share <dir>` — bundle + upload + return URL | CLI |
+| N54 | `spikes share --name X` — custom slug (with suffix for free) | CLI |
+| N55 | `spikes shares` — list active shares | CLI |
+| N56 | `spikes unshare <id>` — delete share, export feedback | CLI |
+| N57 | `spikes login` — authenticate with spikes.sh | CLI |
+| N58 | `spikes pull --from <url>` — download feedback from shared project | CLI |
+| N59 | Auto-inject widget with correct endpoint during upload | CLI |
+| N60 | Bundle assets (HTML, CSS, JS, images) excluding .spikes/ | CLI |
+| **N61** | Worker: POST /shares — create share, return URL | API |
+| N62 | Worker: upload assets to R2 | API |
+| N63 | Worker: POST /spikes — widget writes | API |
+| N64 | Worker: GET /spikes/:shareId — public read | API |
+| N65 | Worker: subdomain routing for pro users | API |
+| N66 | D1 schema: shares, spikes, users tables | API |
+| **N67** | Share confirmation UI (URL, QR code option) | CLI |
+| N68 | Progress indicator during upload | CLI |
+| N69 | `--password` flag for pro users | CLI |
+| N70 | Webhook trigger on new spike (pro) | API |
+
+---
+
+#### Acceptance Criteria
+
+- [ ] `spikes share ./mockups/` uploads and returns working URL
+- [ ] URL shows mockups with widget, no manual setup
+- [ ] Widget posts feedback to spikes.sh backend
+- [ ] Multiple reviewers on same URL → all feedback persists
+- [ ] `spikes pull --from <url>` downloads feedback to local .spikes/
+- [ ] `spikes shares` lists all active shares with spike counts
+- [ ] `spikes unshare` deletes share and exports feedback locally
+- [ ] Free tier: 5 active shares, 1000 spikes each, slug+suffix URL
+- [ ] Pro tier: unlimited shares, custom subdomain, password, webhook
+- [ ] Updating existing share (same name) replaces files, keeps feedback
+- [ ] Share survives CLI update (uses stable API)
+
+---
+
+#### Decisions
+
+| # | Question | Decision |
+|---|----------|----------|
+| Q12 | Payment processor | **Stripe direct** — more control, worth the integration work |
+| Q13 | Share management UI | **CLI-only for V9** — web dashboard deferred |
+| Q14 | Rate limiting (free) | **Generous:** 10 uploads/day, 50MB each |
+| Q15 | GDPR data deletion | **Share owner controls all data** — reviewers contact owner, no self-service |
+
+---
+
+#### Rabbit Holes (Avoid)
+
+- **Custom domains** — subdomains only, no BYOD DNS
+- **Versioning** — updating a share replaces files, no history
+- **Collaboration** — single owner per share, no teams in V9
+- **Analytics** — no view counts, just spike counts
+- **CI/CD integration** — not in V9, maybe V10
 
 ---
 
