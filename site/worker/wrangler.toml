@@ -11,8 +11,7 @@ routes = [
   { pattern = "*.spikes.sh/*", zone_name = "spikes.sh" }
 ]
 
-[vars]
-SPIKES_TOKEN = "ae62382b3049563d1719b14995fd9c0260445a242843f87a9e7d8c930b055697"
+# SPIKES_TOKEN set via `wrangler secret put`
 
 [[d1_databases]]
 binding = "DB"
