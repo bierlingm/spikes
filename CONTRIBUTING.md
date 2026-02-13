@@ -1,5 +1,21 @@
 # Contributing to Spikes
 
+## Repository Structure
+
+This repo contains the **open source tool**:
+- `cli/` — Rust CLI binary  
+- `widget/` — Vanilla JS feedback widget (<10KB)
+- `site/` — Landing page (deploys to CF Pages)
+- `templates/cloudflare/` — Self-hosting scaffold
+
+## What's NOT Here
+
+The hosted service at spikes.sh runs on separate private infrastructure. This keeps billing/ops code separate from the open source tool.
+
+## Self-Hosting
+
+See `templates/cloudflare/README.md` for running your own Spikes instance with your own Cloudflare account.
+
 ## Quality Bar
 
 We welcome issues and PRs from anyone, including AI-assisted ones. Use whatever tools you like.
@@ -26,10 +42,12 @@ Before opening an issue, search existing ones to avoid duplicates.
 
 We welcome PRs for:
 
-- Bug fixes
+- CLI improvements and bug fixes
+- Widget enhancements
 - Documentation improvements
-- Performance improvements
-- New features that align with the project philosophy
+- Self-host template (`templates/cloudflare/`)
+
+**Not accepting PRs for:** Hosted infrastructure — it's not in this repo. The spikes.sh service runs on separate private infrastructure.
 
 ### Before You Start
 

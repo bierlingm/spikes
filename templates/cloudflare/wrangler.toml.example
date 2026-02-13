@@ -1,0 +1,18 @@
+# Spikes Self-Host Worker Configuration
+# Copy to wrangler.toml and fill in your values, or run setup.sh
+
+name = "my-spikes-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database — create with: wrangler d1 create my-spikes-db
+# Then paste the database_id here
+[[d1_databases]]
+binding = "DB"
+database_name = "my-spikes-db"
+database_id = "YOUR_DATABASE_ID_HERE"
+
+# R2 Bucket — create with: wrangler r2 bucket create my-spikes-assets
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "my-spikes-assets"

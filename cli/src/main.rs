@@ -218,6 +218,10 @@ enum Commands {
         #[arg(long)]
         password: Option<String>,
 
+        /// Host URL for the API
+        #[arg(long, default_value = "https://spikes.sh")]
+        host: String,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
@@ -373,8 +377,8 @@ fn main() {
         }
         Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
         Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
-        Some(Commands::Share { directory, name, password, json }) => {
-            commands::share::run(ShareOptions { directory, name, password, json })
+        Some(Commands::Share { directory, name, password, host, json }) => {
+            commands::share::run(ShareOptions { directory, name, password, host, json })
         }
         Some(Commands::Shares { json }) => commands::shares::run(SharesOptions { json }),
         Some(Commands::Unshare { slug, force, json }) => {

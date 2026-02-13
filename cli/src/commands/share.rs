@@ -8,6 +8,7 @@ pub struct ShareOptions {
     pub directory: String,
     pub name: Option<String>,
     pub password: Option<String>,
+    pub host: String,
     pub json: bool,
 }
 
@@ -49,7 +50,7 @@ pub fn run(options: ShareOptions) -> Result<()> {
             .to_string()
     });
 
-    let result = upload_share(&auth, dir_path, &files, &slug, options.password.as_deref())?;
+    let result = upload_share(&auth, dir_path, &files, &slug, options.password.as_deref(), &options.host)?;
 
     if options.json {
         println!(
@@ -182,11 +183,12 @@ fn upload_share(
     files: &[PathBuf],
     slug: &str,
     password: Option<&str>,
+    host: &str,
 ) -> Result<ShareResult> {
     use ureq::Agent;
 
     let agent = Agent::new();
-    let url = "https://spikes.sh/shares";
+    let url = format!("{}/shares", host.trim_end_matches('/'));
 
     // Build multipart form
     let boundary = format!("----SpikesUpload{}", chrono::Utc::now().timestamp_millis());
@@ -228,7 +230,7 @@ fn upload_share(
     body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
 
     let response = agent
-        .post(url)
+        .post(&url)
         .set("Authorization", &format!("Bearer {}", auth.token))
         .set(
             "Content-Type",
