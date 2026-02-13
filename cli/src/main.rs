@@ -214,6 +214,10 @@ enum Commands {
         #[arg(long)]
         name: Option<String>,
 
+        /// Password-protect the share (Pro only)
+        #[arg(long)]
+        password: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
@@ -369,8 +373,8 @@ fn main() {
         }
         Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
         Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
-        Some(Commands::Share { directory, name, json }) => {
-            commands::share::run(ShareOptions { directory, name, json })
+        Some(Commands::Share { directory, name, password, json }) => {
+            commands::share::run(ShareOptions { directory, name, password, json })
         }
         Some(Commands::Shares { json }) => commands::shares::run(SharesOptions { json }),
         Some(Commands::Unshare { slug, force, json }) => {

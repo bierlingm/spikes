@@ -7,18 +7,27 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     tier TEXT DEFAULT 'free',
     stripe_customer_id TEXT,
+    subdomain TEXT UNIQUE,
     created_at TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_subdomain ON users(subdomain);
+CREATE INDEX IF NOT EXISTS idx_users_stripe ON users(stripe_customer_id);
 
 -- V9: Shares table for hosted share links
 CREATE TABLE IF NOT EXISTS shares (
     id TEXT PRIMARY KEY,
     slug TEXT UNIQUE NOT NULL,
     owner_token TEXT NOT NULL,
+    owner_id TEXT,
+    password_hash TEXT,
+    webhook_url TEXT,
     created_at TEXT NOT NULL,
     spike_count INTEGER DEFAULT 0,
     tier TEXT DEFAULT 'free'
 );
+
+CREATE INDEX IF NOT EXISTS idx_shares_owner_id ON shares(owner_id);
 
 CREATE INDEX IF NOT EXISTS idx_shares_slug ON shares(slug);
 CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_token);

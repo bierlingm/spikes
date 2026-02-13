@@ -2,6 +2,15 @@ name = "spikes-sh-worker"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
+# Routes for API and wildcard subdomains (Pro users)
+routes = [
+  { pattern = "spikes.sh/shares*", zone_name = "spikes.sh" },
+  { pattern = "spikes.sh/spikes*", zone_name = "spikes.sh" },
+  { pattern = "spikes.sh/webhooks/*", zone_name = "spikes.sh" },
+  { pattern = "spikes.sh/s/*", zone_name = "spikes.sh" },
+  { pattern = "*.spikes.sh/*", zone_name = "spikes.sh" }
+]
+
 [vars]
 SPIKES_TOKEN = "ae62382b3049563d1719b14995fd9c0260445a242843f87a9e7d8c930b055697"
 

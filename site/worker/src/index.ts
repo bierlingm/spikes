@@ -5,6 +5,7 @@ interface Env {
   DB: D1Database;
   ASSETS: R2Bucket;
   SPIKES_TOKEN: string;
+  STRIPE_WEBHOOK_SECRET?: string;
 }
 
 interface Spike {
@@ -67,6 +68,13 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname;
+    const host = url.hostname;
+
+    // Pro subdomain routing: *.spikes.sh (not spikes.sh or www.spikes.sh)
+    if (host.endsWith('.spikes.sh') && host !== 'spikes.sh' && host !== 'www.spikes.sh') {
+      const subdomain = host.replace('.spikes.sh', '');
+      return handleSubdomainRoute(subdomain, path, env);
+    }
 
     // Health check
     if (path === '/' || path === '/health') {
@@ -133,7 +141,12 @@ export default {
 
     // GET /s/* — serve shared projects
     if (path.startsWith('/s/')) {
-      return handleShareRoute(path, env);
+      return handleShareRoute(path, env, request);
+    }
+
+    // POST /webhooks/stripe — Stripe subscription events
+    if (path === '/webhooks/stripe' && request.method === 'POST') {
+      return handleStripeWebhook(request, env);
     }
 
     return errorResponse('Not Found', 404);
@@ -210,11 +223,36 @@ async function handleCreateSpike(request: Request, env: Env): Promise<Response> 
       spike.user_agent
     ).run();
 
-    // Increment spike count for the share
+    // Increment spike count and fire webhook if configured
     if (shareId) {
+      const shareRow = await env.DB.prepare(
+        'SELECT webhook_url FROM shares WHERE id = ?'
+      ).bind(shareId).first<{ webhook_url: string | null }>();
+
       await env.DB.prepare(
         'UPDATE shares SET spike_count = spike_count + 1 WHERE id = ?'
       ).bind(shareId).run();
+
+      // Fire webhook (Pro feature)
+      if (shareRow?.webhook_url) {
+        fetch(shareRow.webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event: 'spike.created',
+            spike: {
+              id: spike.id,
+              type: spike.type,
+              page: spike.page,
+              rating: spike.rating,
+              comments: spike.comments,
+              selector: spike.selector,
+              reviewer: { id: spike.reviewer_id, name: spike.reviewer_name },
+              timestamp: spike.timestamp,
+            },
+          }),
+        }).catch(() => {});
+      }
     }
 
     return jsonResponse({ ok: true, id: spike.id }, 201);
@@ -350,6 +388,58 @@ async function handleListProspects(env: Env): Promise<Response> {
   }
 }
 
+// Pro subdomain routing: moritz.spikes.sh/project → user's shares
+async function handleSubdomainRoute(subdomain: string, path: string, env: Env): Promise<Response> {
+  const user = await env.DB.prepare(
+    'SELECT id, tier FROM users WHERE subdomain = ?'
+  ).bind(subdomain).first<{ id: string; tier: string }>();
+
+  if (!user || user.tier !== 'pro') {
+    return errorResponse('Not Found', 404);
+  }
+
+  const segments = path.slice(1).split('/');
+  const slug = segments[0];
+
+  if (!slug) {
+    const shares = await env.DB.prepare(
+      'SELECT slug FROM shares WHERE owner_id = ?'
+    ).bind(user.id).all<{ slug: string }>();
+    const links = (shares.results || []).map(s => `<li><a href="/${s.slug}">${s.slug}</a></li>`).join('');
+    return new Response(`<html><body><h1>${subdomain}'s projects</h1><ul>${links}</ul></body></html>`, {
+      headers: { 'Content-Type': 'text/html', ...corsHeaders },
+    });
+  }
+
+  const share = await env.DB.prepare(
+    'SELECT id FROM shares WHERE slug = ? AND owner_id = ?'
+  ).bind(slug, user.id).first<{ id: string }>();
+
+  if (!share) {
+    return errorResponse('Not Found', 404);
+  }
+
+  const filepath = segments.slice(1).join('/') || 'index.html';
+  const r2Key = `shares/${share.id}/${filepath}`;
+  const object = await env.ASSETS.get(r2Key);
+  if (!object) {
+    return errorResponse('Not Found', 404);
+  }
+
+  const contentType = getContentType(filepath);
+  let body: ArrayBuffer | string = await object.arrayBuffer();
+
+  if (contentType === 'text/html') {
+    const html = new TextDecoder().decode(body);
+    const widgetScript = `<script src="https://spikes.sh/widget.js" data-endpoint="https://spikes.sh" data-project="${share.id}" data-no-badge="true"></script>`;
+    body = html.replace('</body>', `${widgetScript}\n</body>`);
+  }
+
+  return new Response(body, {
+    headers: { 'Content-Type': contentType, ...corsHeaders },
+  });
+}
+
 function getContentType(filepath: string): string {
   const ext = filepath.split('.').pop()?.toLowerCase() || '';
   const types: Record<string, string> = {
@@ -368,7 +458,7 @@ function getContentType(filepath: string): string {
   return types[ext] || 'application/octet-stream';
 }
 
-async function handleShareRoute(path: string, env: Env): Promise<Response> {
+async function handleShareRoute(path: string, env: Env, request?: Request): Promise<Response> {
   const segments = path.slice(3).split('/'); // Remove '/s/'
   const slug = segments[0];
   if (!slug) {
@@ -376,11 +466,30 @@ async function handleShareRoute(path: string, env: Env): Promise<Response> {
   }
 
   const share = await env.DB.prepare(
-    'SELECT id, slug FROM shares WHERE slug = ?'
-  ).bind(slug).first<{ id: string; slug: string }>();
+    'SELECT id, slug, password_hash, tier FROM shares WHERE slug = ?'
+  ).bind(slug).first<{ id: string; slug: string; password_hash: string | null; tier: string }>();
 
   if (!share) {
     return errorResponse('Not Found', 404);
+  }
+
+  // Password protection check
+  if (share.password_hash && request) {
+    const url = new URL(request.url);
+    const providedPw = url.searchParams.get('pw');
+    if (providedPw) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(providedPw);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const providedHash = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      if (providedHash !== share.password_hash) {
+        return errorResponse('Invalid password', 401);
+      }
+    } else {
+      return errorResponse('Password required', 401);
+    }
   }
 
   const filepath = segments.slice(1).join('/') || 'index.html';
@@ -396,7 +505,9 @@ async function handleShareRoute(path: string, env: Env): Promise<Response> {
 
   if (contentType === 'text/html') {
     const html = new TextDecoder().decode(body);
-    const widgetScript = `<script src="https://spikes.sh/widget.js" data-endpoint="https://spikes.sh" data-project="${share.id}"></script>`;
+    // Pro users: no badge
+    const noBadge = share.tier === 'pro' ? ' data-no-badge="true"' : '';
+    const widgetScript = `<script src="https://spikes.sh/widget.js" data-endpoint="https://spikes.sh" data-project="${share.id}"${noBadge}></script>`;
     body = html.replace('</body>', `${widgetScript}\n</body>`);
   }
 
@@ -449,6 +560,17 @@ async function handleCreateShare(request: Request, ownerToken: string, env: Env)
     const metadataField = formData.get('metadata');
     const metadata = metadataField ? JSON.parse(metadataField as string) : {};
 
+    // Hash password if provided (Pro feature)
+    let passwordHash: string | null = null;
+    if (metadata.password) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(metadata.password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      passwordHash = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
     // Check total upload size
     let totalSize = 0;
     for (const [key, value] of formData.entries()) {
@@ -482,8 +604,8 @@ async function handleCreateShare(request: Request, ownerToken: string, env: Env)
 
     // Create D1 record
     await env.DB.prepare(
-      'INSERT INTO shares (id, slug, owner_token, created_at, spike_count, tier) VALUES (?, ?, ?, ?, 0, ?)'
-    ).bind(shareId, slug, ownerToken, createdAt, 'free').run();
+      'INSERT INTO shares (id, slug, owner_token, password_hash, webhook_url, created_at, spike_count, tier) VALUES (?, ?, ?, ?, ?, ?, 0, ?)'
+    ).bind(shareId, slug, ownerToken, passwordHash, metadata.webhook_url || null, createdAt, 'free').run();
 
     return jsonResponse({
       ok: true,
@@ -577,4 +699,95 @@ async function handleDeleteShare(id: string, ownerToken: string, env: Env): Prom
     console.error('Delete share error:', e);
     return errorResponse('Failed to delete share', 500);
   }
+}
+
+// Stripe webhook signature verification
+async function verifyStripeSignature(
+  payload: string,
+  signature: string,
+  secret: string
+): Promise<boolean> {
+  const parts = signature.split(',');
+  const timestamp = parts.find(p => p.startsWith('t='))?.slice(2);
+  const v1Sig = parts.find(p => p.startsWith('v1='))?.slice(3);
+
+  if (!timestamp || !v1Sig) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - parseInt(timestamp)) > 300) return false;
+
+  const signedPayload = `${timestamp}.${payload}`;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(signedPayload));
+  const expectedSig = Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  return expectedSig === v1Sig;
+}
+
+interface StripeEvent {
+  type: string;
+  data: {
+    object: {
+      id: string;
+      customer: string;
+      status?: string;
+    };
+  };
+}
+
+async function handleStripeWebhook(request: Request, env: Env): Promise<Response> {
+  if (!env.STRIPE_WEBHOOK_SECRET) {
+    return errorResponse('Stripe not configured', 500);
+  }
+
+  const signature = request.headers.get('stripe-signature');
+  if (!signature) {
+    return errorResponse('Missing signature', 400);
+  }
+
+  const payload = await request.text();
+  const valid = await verifyStripeSignature(payload, signature, env.STRIPE_WEBHOOK_SECRET);
+  if (!valid) {
+    return errorResponse('Invalid signature', 401);
+  }
+
+  let event: StripeEvent;
+  try {
+    event = JSON.parse(payload);
+  } catch {
+    return errorResponse('Invalid JSON', 400);
+  }
+
+  const customerId = event.data.object.customer;
+  if (!customerId) {
+    return jsonResponse({ received: true });
+  }
+
+  try {
+    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated') {
+      const status = event.data.object.status;
+      if (status === 'active' || status === 'trialing') {
+        await env.DB.prepare(
+          'UPDATE users SET tier = ? WHERE stripe_customer_id = ?'
+        ).bind('pro', customerId).run();
+      }
+    } else if (event.type === 'customer.subscription.deleted') {
+      await env.DB.prepare(
+        'UPDATE users SET tier = ? WHERE stripe_customer_id = ?'
+      ).bind('free', customerId).run();
+    }
+  } catch (e) {
+    console.error('Stripe webhook DB error:', e);
+    return errorResponse('Database error', 500);
+  }
+
+  return jsonResponse({ received: true });
 }

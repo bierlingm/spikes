@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 pub struct ShareOptions {
     pub directory: String,
     pub name: Option<String>,
+    pub password: Option<String>,
     pub json: bool,
 }
 
@@ -48,7 +49,7 @@ pub fn run(options: ShareOptions) -> Result<()> {
             .to_string()
     });
 
-    let result = upload_share(&auth, dir_path, &files, &slug)?;
+    let result = upload_share(&auth, dir_path, &files, &slug, options.password.as_deref())?;
 
     if options.json {
         println!(
@@ -180,6 +181,7 @@ fn upload_share(
     base_dir: &Path,
     files: &[PathBuf],
     slug: &str,
+    password: Option<&str>,
 ) -> Result<ShareResult> {
     use ureq::Agent;
 
@@ -190,10 +192,14 @@ fn upload_share(
     let boundary = format!("----SpikesUpload{}", chrono::Utc::now().timestamp_millis());
     let mut body = Vec::new();
 
-    // Add slug field
+    // Add metadata field (includes slug and password)
+    let mut metadata = serde_json::json!({ "name": slug });
+    if let Some(pw) = password {
+        metadata["password"] = serde_json::Value::String(pw.to_string());
+    }
     body.extend_from_slice(format!("--{}\r\n", boundary).as_bytes());
-    body.extend_from_slice(b"Content-Disposition: form-data; name=\"slug\"\r\n\r\n");
-    body.extend_from_slice(slug.as_bytes());
+    body.extend_from_slice(b"Content-Disposition: form-data; name=\"metadata\"\r\n\r\n");
+    body.extend_from_slice(metadata.to_string().as_bytes());
     body.extend_from_slice(b"\r\n");
 
     // Add each file
