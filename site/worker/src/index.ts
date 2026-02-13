@@ -148,6 +148,21 @@ async function handleCreateSpike(request: Request, env: Env): Promise<Response> 
     return errorResponse('Invalid JSON');
   }
 
+  // Check spike limit if this spike belongs to a share
+  const shareId = body.share_id ? String(body.share_id) : (body.projectKey ? String(body.projectKey) : null);
+  if (shareId) {
+    const share = await env.DB.prepare(
+      'SELECT spike_count FROM shares WHERE id = ?'
+    ).bind(shareId).first<{ spike_count: number }>();
+
+    if (share && share.spike_count >= FREE_TIER_LIMITS.maxSpikesPerShare) {
+      return jsonResponse({
+        error: 'Spike limit reached for this share',
+        code: 'SPIKE_LIMIT',
+      }, 429);
+    }
+  }
+
   const spike: Spike = {
     id: String(body.id || crypto.randomUUID()),
     project: String(body.projectKey || body.project || 'spikes.sh'),
@@ -194,6 +209,13 @@ async function handleCreateSpike(request: Request, env: Env): Promise<Response> 
       spike.viewport,
       spike.user_agent
     ).run();
+
+    // Increment spike count for the share
+    if (shareId) {
+      await env.DB.prepare(
+        'UPDATE shares SET spike_count = spike_count + 1 WHERE id = ?'
+      ).bind(shareId).run();
+    }
 
     return jsonResponse({ ok: true, id: spike.id }, 201);
   } catch (e) {
@@ -401,11 +423,47 @@ function generateSlug(name: string): string {
   return sanitized ? `${sanitized}-${suffix}` : suffix;
 }
 
+// Free tier limits
+const FREE_TIER_LIMITS = {
+  maxShares: 5,
+  maxUploadBytes: 50 * 1024 * 1024, // 50MB
+  maxSpikesPerShare: 1000,
+};
+
 async function handleCreateShare(request: Request, ownerToken: string, env: Env): Promise<Response> {
   try {
+    // Check active shares count for free tier
+    const countResult = await env.DB.prepare(
+      'SELECT COUNT(*) as count FROM shares WHERE owner_token = ?'
+    ).bind(ownerToken).first<{ count: number }>();
+
+    if (countResult && countResult.count >= FREE_TIER_LIMITS.maxShares) {
+      return jsonResponse({
+        error: 'Share limit reached',
+        code: 'SHARE_LIMIT',
+        upgrade_url: 'https://spikes.sh/pro',
+      }, 429);
+    }
+
     const formData = await request.formData();
     const metadataField = formData.get('metadata');
     const metadata = metadataField ? JSON.parse(metadataField as string) : {};
+
+    // Check total upload size
+    let totalSize = 0;
+    for (const [key, value] of formData.entries()) {
+      if (key === 'metadata') continue;
+      if (value instanceof File) {
+        totalSize += value.size;
+      }
+    }
+    if (totalSize > FREE_TIER_LIMITS.maxUploadBytes) {
+      return jsonResponse({
+        error: 'Upload too large',
+        code: 'SIZE_LIMIT',
+        max_bytes: FREE_TIER_LIMITS.maxUploadBytes,
+      }, 413);
+    }
     
     const shareId = crypto.randomUUID();
     const slug = generateSlug(metadata.name || 'share');
