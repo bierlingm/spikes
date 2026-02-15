@@ -349,14 +349,14 @@
         return [
             'flex:1',
             'padding:10px 12px',
-            'border:1px solid ' + theme.border,
+            'border:1px solid ' + theme.border + ' !important',
             'border-radius:6px',
             'font-size:13px',
             'font-family:inherit',
             'outline:none',
             'transition:border-color 0.15s',
-            'background:' + theme.bg,
-            'color:' + theme.text
+            'background:' + theme.bg + ' !important',
+            'color:' + theme.text + ' !important'
         ].join(';');
     }
     
@@ -1013,9 +1013,9 @@
     function ratingBtnStyle() {
         return [
             'padding:8px 12px',
-            'border:1px solid ' + theme.border,
-            'background:' + theme.bg,
-            'color:' + theme.textMuted,
+            'border:1px solid ' + theme.border + ' !important',
+            'background:' + theme.bg + ' !important',
+            'color:' + theme.textMuted + ' !important',
             'border-radius:6px',
             'cursor:pointer',
             'font-size:13px',
@@ -1029,14 +1029,14 @@
             'width:100%',
             'height:100px',
             'padding:12px',
-            'border:1px solid ' + theme.border,
+            'border:1px solid ' + theme.border + ' !important',
             'border-radius:8px',
             'font-size:13px',
             'font-family:inherit',
             'resize:none',
             'box-sizing:border-box',
-            'background:' + theme.bg,
-            'color:' + theme.text
+            'background:' + theme.bg + ' !important',
+            'color:' + theme.text + ' !important'
         ].join(';');
     }
 
