@@ -1141,12 +1141,36 @@
     // Inject pulse animation keyframes
     function injectStyles() {
         var style = document.createElement('style');
+        var placeholderColor = theme.textMuted;
         style.textContent = [
             '@keyframes spikes-pulse {',
             '  0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }',
             '  50% { transform: scale(1.1); box-shadow: 0 6px 20px rgba(231,76,60,0.5); }',
+            '}',
+            '#spikes-name-input,',
+            '#spikes-email-input,',
+            '#spikes-comments,',
+            '#spikes-change-name-input,',
+            '#spikes-popover-comments,',
+            '[id*="spikes"][type="text"],',
+            '[id*="spikes"][type="email"],',
+            '[id*="spikes"]:is(textarea) {',
+            '  background-color: ' + theme.bg + ' !important;',
+            '  color: ' + theme.text + ' !important;',
+            '  border-color: ' + theme.border + ' !important;',
+            '}',
+            '#spikes-name-input::placeholder,',
+            '#spikes-email-input::placeholder,',
+            '#spikes-comments::placeholder,',
+            '#spikes-change-name-input::placeholder,',
+            '#spikes-popover-comments::placeholder,',
+            '[id*="spikes"][type="text"]::placeholder,',
+            '[id*="spikes"][type="email"]::placeholder,',
+            '[id*="spikes"]:is(textarea)::placeholder {',
+            '  color: ' + placeholderColor + ' !important;',
+            '  opacity: 1 !important;',
             '}'
-        ].join('');
+        ].join('\n');
         document.head.appendChild(style);
     }
     
