@@ -1,12 +1,21 @@
-# CORS headers for widget.js
+# Widget - very short cache for rapid updates
+/spikes.js
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=60, must-revalidate
+
 /widget.js
   Access-Control-Allow-Origin: *
-  Cache-Control: public, max-age=300
+  Cache-Control: public, max-age=60, must-revalidate
 
+# Install script - short cache
 /install.sh
   Content-Type: text/plain; charset=utf-8
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=300, must-revalidate
 
-# Cache bust for HTML pages
+# HTML pages - never cache
 /*.html
-  Cache-Control: no-cache
+  Cache-Control: no-cache, must-revalidate, max-age=0
+
+# Dashboard and other JS/CSS - moderate cache
+/*.{js,css}
+  Cache-Control: public, max-age=3600, must-revalidate

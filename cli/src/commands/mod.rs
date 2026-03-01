@@ -18,3 +18,4 @@ pub mod shares;
 pub mod show;
 pub mod sync;
 pub mod unshare;
+pub mod update;

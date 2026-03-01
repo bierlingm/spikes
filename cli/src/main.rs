@@ -187,6 +187,9 @@ enum Commands {
     /// Show version
     Version,
 
+    /// Update spikes CLI and widget to the latest version
+    Update,
+
     /// Log in to spikes.sh hosted service
     Login {
         /// Auth token (or enter interactively)
@@ -375,6 +378,7 @@ fn main() {
             println!("spikes {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
+        Some(Commands::Update) => commands::update::run(),
         Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
         Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
         Some(Commands::Share { directory, name, password, host, json }) => {

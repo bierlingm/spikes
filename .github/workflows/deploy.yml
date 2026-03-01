@@ -1,0 +1,40 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get git commit hash
+        id: commit
+        run: echo "short_hash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Inject version into widget
+        run: |
+          COMMIT_HASH="${{ steps.commit.outputs.short_hash }}"
+          # Copy widget to site if not already there
+          if [ ! -f site/spikes.js ] || ! grep -q "window.SpikesVersion" site/spikes.js; then
+            cp widget/spikes.js site/spikes.js
+          fi
+          # Inject version constant at the start (after use strict)
+          sed -i "s/'use strict';/'use strict';\n    \/\/ Version: $COMMIT_HASH/g" site/spikes.js
+          echo "Widget versioned with commit: $COMMIT_HASH"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: spikes-sh
+          directory: site
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

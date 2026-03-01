@@ -3,6 +3,9 @@
 (function() {
     'use strict';
 
+    // Version info (injected during deployment)
+    var VERSION = 'dev';
+
     // Inline nanoid implementation (21 chars, URL-safe)
     var nanoid = (function() {
         var urlAlphabet = 'useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict';
@@ -540,6 +543,7 @@
         btn.id = 'spikes-btn';
         btn.innerHTML = '/';
         btn.setAttribute('aria-label', 'Give Feedback');
+        btn.setAttribute('title', 'Spikes v' + VERSION + ' - Click to give feedback');
         btn.style.cssText = [
             'width:52px',
             'height:52px',
@@ -1191,6 +1195,7 @@
 
     // Expose config for debugging
     window.Spikes = {
+        version: VERSION,
         config: config,
         getSpikes: loadSpikes,
         getReviewer: function() { return currentReviewer; },
@@ -1208,4 +1213,7 @@
             updateReviewerIndicator();
         }
     };
+
+    // Log version info to console for debugging
+    console.log('Spikes widget loaded - version: ' + VERSION);
 })();
