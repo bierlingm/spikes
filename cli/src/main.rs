@@ -122,6 +122,10 @@ enum Commands {
         /// Enable review mode with spike markers on pages
         #[arg(long, short)]
         marked: bool,
+
+        /// Allowed CORS origin (e.g., https://spikes.sh). Without this flag, CORS is disabled (same-origin only).
+        #[arg(long)]
+        cors_allow_origin: Option<String>,
     },
 
     /// Deploy backend to Cloudflare
@@ -335,10 +339,11 @@ fn main() {
             widget_url,
             json,
         }),
-        Some(Commands::Serve { port, dir, marked }) => commands::serve::run(ServeOptions {
+        Some(Commands::Serve { port, dir, marked, cors_allow_origin }) => commands::serve::run(ServeOptions {
             port,
             directory: dir,
             marked,
+            cors_allow_origin,
         }),
         Some(Commands::Deploy { backend }) => match backend {
             DeployBackend::Cloudflare { dir, json } => {

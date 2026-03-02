@@ -6,12 +6,12 @@ use std::path::PathBuf;
 use axum::{
     body::Body,
     extract::State,
-    http::{header, Response, StatusCode},
+    http::{header, HeaderValue, Response, StatusCode},
     routing::{get, post},
     Json, Router,
 };
 use tokio::fs as async_fs;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 use crate::error::Result;
 use crate::spike::Spike;
@@ -25,6 +25,7 @@ pub struct ServeOptions {
     pub port: u16,
     pub directory: String,
     pub marked: bool,
+    pub cors_allow_origin: Option<String>,
 }
 
 #[derive(Clone)]
@@ -62,12 +63,7 @@ pub fn run(opts: ServeOptions) -> Result<()> {
     let runtime = tokio::runtime::Runtime::new()?;
 
     runtime.block_on(async {
-        let cors = CorsLayer::new()
-            .allow_origin(Any)
-            .allow_methods(Any)
-            .allow_headers(Any);
-
-        let app = Router::new()
+        let mut app = Router::new()
             .route("/spikes.js", get(serve_widget))
             .route("/widget.js", get(serve_widget))
             .route("/review.js", get(serve_review))
@@ -75,8 +71,21 @@ pub fn run(opts: ServeOptions) -> Result<()> {
             .route("/spikes", get(get_spikes))
             .route("/spikes", post(save_spike))
             .fallback(serve_static)
-            .layer(cors)
             .with_state(state.clone());
+
+        // Only add CORS layer if --cors-allow-origin is specified
+        // Default is same-origin only (no CORS headers)
+        if let Some(ref origin) = opts.cors_allow_origin {
+            if let Ok(header_value) = HeaderValue::try_from(origin.clone()) {
+                let cors = CorsLayer::new()
+                    .allow_origin(header_value)
+                    .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::OPTIONS])
+                    .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION]);
+                app = app.layer(cors);
+            } else {
+                eprintln!("Warning: Invalid CORS origin '{}', CORS disabled", origin);
+            }
+        }
 
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
@@ -86,6 +95,9 @@ pub fn run(opts: ServeOptions) -> Result<()> {
         println!("  Local:      http://localhost:{}", port);
         println!("  Directory:  {}", serve_dir.display());
         println!("  Dashboard:  http://localhost:{}/dashboard", port);
+        if let Some(ref origin) = opts.cors_allow_origin {
+            println!("  CORS:       {}", origin);
+        }
         if state.marked {
             println!("  Review:     Marked mode enabled - spike markers will appear on pages");
         }
@@ -204,19 +216,48 @@ async fn serve_static(
         path.trim_start_matches('/')
     };
 
+    // Security: Canonicalize the path to resolve any traversal attempts (../, etc.)
+    // This must happen BEFORE checking if the path is within the serve directory
     let file_path = state.serve_dir.join(path);
+    
+    // Try to canonicalize the path. If it fails (e.g., file doesn't exist),
+    // we still need to check for traversal attempts.
+    let canonical_path = match file_path.canonicalize() {
+        Ok(p) => p,
+        Err(_) => {
+            // File doesn't exist or can't be resolved. Check for path traversal
+            // by looking for suspicious patterns before returning 404.
+            // This prevents information leakage about directory structure.
+            if path.contains("..") || path.contains('\\') {
+                return Response::builder()
+                    .status(StatusCode::FORBIDDEN)
+                    .header(header::CONTENT_TYPE, "text/plain")
+                    .body(Body::from("Forbidden"))
+                    .unwrap();
+            }
+            // For non-traversal paths that don't exist, return 404
+            return Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .header(header::CONTENT_TYPE, "text/plain")
+                .body(Body::from("Not Found"))
+                .unwrap();
+        }
+    };
 
-    if !file_path.starts_with(&state.serve_dir) {
+    // Security: Verify the canonical path is still within the serve directory
+    // This is the critical check that prevents path traversal attacks
+    if !canonical_path.starts_with(&state.serve_dir) {
         return Response::builder()
             .status(StatusCode::FORBIDDEN)
+            .header(header::CONTENT_TYPE, "text/plain")
             .body(Body::from("Forbidden"))
             .unwrap();
     }
 
-    let file_path = if file_path.is_dir() {
-        file_path.join("index.html")
+    let file_path = if canonical_path.is_dir() {
+        canonical_path.join("index.html")
     } else {
-        file_path
+        canonical_path
     };
 
     match async_fs::read(&file_path).await {

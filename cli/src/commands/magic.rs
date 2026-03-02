@@ -83,5 +83,6 @@ pub fn run(port: u16) -> Result<()> {
         port,
         directory: ".".to_string(),
         marked: false,
+        cors_allow_origin: None,
     })
 }
