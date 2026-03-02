@@ -597,8 +597,15 @@
     <div class="mobile-sidebar" id="mobileSidebar">
         <div class="sidebar-section">
             <div class="sidebar-title">Getting Started</div>
+            <a href="#what-is-spikes" class="sidebar-link" onclick="closeSidebar()">What is Spikes</a>
             <a href="#installation" class="sidebar-link" onclick="closeSidebar()">Installation</a>
             <a href="#quick-start" class="sidebar-link" onclick="closeSidebar()">Quick Start</a>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">Workflows</div>
+            <a href="#workflow-self-review" class="sidebar-link" onclick="closeSidebar()">Review Agent Work</a>
+            <a href="#workflow-team" class="sidebar-link" onclick="closeSidebar()">Collect Team Feedback</a>
+            <a href="#workflow-agent" class="sidebar-link" onclick="closeSidebar()">Agent Integration</a>
         </div>
         <div class="sidebar-section">
             <div class="sidebar-title">CLI Reference</div>
@@ -630,8 +637,15 @@
         <aside class="sidebar">
             <div class="sidebar-section">
                 <div class="sidebar-title">Getting Started</div>
+                <a href="#what-is-spikes" class="sidebar-link">What is Spikes</a>
                 <a href="#installation" class="sidebar-link">Installation</a>
                 <a href="#quick-start" class="sidebar-link">Quick Start</a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-title">Workflows</div>
+                <a href="#workflow-self-review" class="sidebar-link">Review Agent Work</a>
+                <a href="#workflow-team" class="sidebar-link">Collect Team Feedback</a>
+                <a href="#workflow-agent" class="sidebar-link">Agent Integration</a>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-title">CLI Reference</div>
@@ -662,10 +676,27 @@
         <main class="docs-content">
             <h1>Documentation</h1>
             <p class="intro">
-                Complete reference for Spikes — feedback your AI agent can act on. 
-                CLI commands, widget configuration, and data formats.
+                Complete reference for Spikes — feedback your AI agent can act on.
+                Workflows, CLI commands, widget configuration, and data formats.
             </p>
-            
+
+            <h2 id="what-is-spikes">What is Spikes</h2>
+            <p>Spikes is a feedback tool built for the AI-assisted building workflow. It solves a specific problem: <strong>AI can build a prototype in an hour, but turning feedback into actionable code changes is still slow and manual.</strong></p>
+
+            <p>You add one script tag to any HTML file. A floating button appears. Click any element to "spike" it — rate it, leave a comment. Spikes captures the exact CSS selector, bounding box, text content, and viewport dimensions. Not a screenshot. Not a vague description. Structured data your agent can act on.</p>
+
+            <div class="note">
+                <p><strong>How it works:</strong> Reviewer clicks an element → Spikes records <code>.pricing-card</code>, bounding box <code>{x: 24, y: 120, width: 340, height: 200}</code>, and their comment → You run <code>spikes list --json</code> → Your agent knows exactly what to change and where.</p>
+            </div>
+
+            <p>There are two main use cases:</p>
+            <ul style="margin: 16px 0; padding-left: 24px; color: var(--text-muted);">
+                <li style="padding: 4px 0;"><strong style="color: var(--text);">Reviewing your own agent's work</strong> — You build with Claude Code or Cursor, then spike elements that need changes instead of describing them in chat</li>
+                <li style="padding: 4px 0;"><strong style="color: var(--text);">Collecting feedback from others</strong> — Share a link with your team, client, or friends. They click and comment. You get structured JSON instead of scattered WhatsApp messages</li>
+            </ul>
+
+            <p>The widget is 8KB gzipped, has zero dependencies, works on <code>file://</code>, <code>localhost</code>, and any domain. No accounts needed. Feedback is stored in localStorage by default, or synced to your own backend for multi-reviewer workflows.</p>
+
             <h2 id="installation">Installation</h2>
             
             <h3>Widget</h3>
@@ -724,6 +755,147 @@ spikes list --json | jq '...'         <span class="comment"># Feed to agents</sp
                 <p><strong>Tip:</strong> First-time reviewers are prompted for their name. All spikes are tagged with reviewer identity.</p>
             </div>
             
+            <h2 id="workflow-self-review">Workflow: Review Your Agent's Work</h2>
+            <p>You've asked Claude Code to build a pricing page. It looks mostly right, but a few things are off. Instead of describing the problems in chat, spike them:</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># 1. Add the widget to your mockup</span>
+spikes inject ./mockups/
+
+<span class="comment"># 2. Open it in your browser</span>
+spikes serve
+<span class="comment"># → http://localhost:3847</span></code></pre>
+            </div>
+
+            <p>Now open the page. Click the floating <code>/</code> button to enter spike mode. Your cursor becomes a crosshair. Click any element that needs work — the pricing card that's too cramped, the button with the wrong color, the heading that needs rewording. Rate each one and leave a comment.</p>
+
+            <p>When you're done reviewing, pull the feedback into your agent:</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># 3. See what needs fixing</span>
+spikes list --rating no
+spikes list --rating meh
+
+<span class="comment"># 4. Feed structured data to your agent</span>
+spikes list --json</code></pre>
+            </div>
+
+            <p>Paste the JSON output into Claude Code or Cursor. The agent gets exact CSS selectors, bounding boxes, and your comments — it knows precisely what to change without guessing.</p>
+
+            <div class="note tip">
+                <p><strong>Tip:</strong> Use <code>spikes hotspots</code> to find which elements got the most feedback. These are your highest-priority fixes.</p>
+            </div>
+
+            <h2 id="workflow-team">Workflow: Collect Feedback from Others</h2>
+            <p>You've built a prototype for a client, or you want friends to review your side project. You need their feedback to be structured, not scattered across five messaging apps.</p>
+
+            <h3>Option A: Local server (same network)</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Inject widget and serve locally</span>
+spikes inject ./mockups/
+spikes serve
+<span class="comment"># Share http://your-ip:3847 with people on your network</span></code></pre>
+            </div>
+
+            <h3>Option B: Deploy your own backend (anyone, anywhere)</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Scaffold and deploy a Cloudflare Worker</span>
+spikes deploy cloudflare
+cd spikes-worker && npx wrangler deploy
+
+<span class="comment"># Add the endpoint to your widget</span>
+spikes inject ./mockups/ --endpoint https://your-worker.workers.dev/spikes</code></pre>
+            </div>
+
+            <p>Share the URL. Reviewers see your mockup with a floating <code>/</code> button. First-time reviewers are prompted for their name. They click elements, leave ratings and comments. Everything syncs to your backend.</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Pull feedback from all reviewers</span>
+spikes pull
+
+<span class="comment"># See who reviewed and what they said</span>
+spikes reviewers
+spikes list --reviewer "Sarah"
+
+<span class="comment"># Export everything for your agent</span>
+spikes list --json</code></pre>
+            </div>
+
+            <div class="note tip">
+                <p><strong>Tip:</strong> Non-technical reviewers don't need to install anything. They just open a link and click. Their feedback comes out as structured JSON with exact selectors — technical output from non-technical people.</p>
+            </div>
+
+            <h2 id="workflow-agent">Workflow: Agent Integration</h2>
+            <p>Every Spikes command supports <code>--json</code> output, making it straightforward to pipe feedback into any AI agent or automation tool.</p>
+
+            <h3>Feed feedback directly to Claude Code</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Paste this prompt into your agent:</span>
+Here is the feedback on my mockup. Fix each issue:
+$(spikes list --json)</code></pre>
+            </div>
+            <p>Your agent receives structured data with selectors like <code>.pricing-card</code>, ratings, comments, and exact bounding boxes. It can map each spike to a file and make precise changes.</p>
+
+            <h3>Filter before feeding</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Terminal</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment"># Only fix negative feedback</span>
+spikes list --rating no --json
+
+<span class="comment"># Only fix feedback on a specific page</span>
+spikes list --page pricing.html --json
+
+<span class="comment"># Find the most-spiked elements first</span>
+spikes hotspots --json
+
+<span class="comment"># Export everything as CSV for a spreadsheet</span>
+spikes export --format csv --output feedback.csv</code></pre>
+            </div>
+
+            <h3>Automate with scripts</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Bash</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="comment">#!/bin/bash</span>
+<span class="comment"># Pull latest feedback and process with jq</span>
+spikes pull
+spikes list --json | jq '.[] | select(.rating == "no")' | \
+  jq -s '{issues: length, selectors: [.[].selector]}'</code></pre>
+            </div>
+
+            <div class="note">
+                <p><strong>What your agent gets per spike:</strong> CSS selector (<code>.pricing-card</code>), bounding box (<code>{x, y, width, height}</code>), element text, rating, reviewer comment, page URL, viewport dimensions, and timestamp. Everything needed to locate and fix the issue without asking follow-up questions.</p>
+            </div>
+
             <h2 id="cli-commands">CLI Commands</h2>
             <p>All commands support <code>--json</code> for machine-readable output, making Spikes perfect for scripting and AI agents.</p>
             
