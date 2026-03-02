@@ -69,6 +69,7 @@ pub fn run(opts: ServeOptions) -> Result<()> {
 
         let app = Router::new()
             .route("/spikes.js", get(serve_widget))
+            .route("/widget.js", get(serve_widget))
             .route("/review.js", get(serve_review))
             .route("/dashboard", get(serve_dashboard))
             .route("/spikes", get(get_spikes))

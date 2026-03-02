@@ -6,7 +6,7 @@ use walkdir::WalkDir;
 use crate::config::Config;
 use crate::error::{Error, Result};
 
-const SCRIPT_MARKER: &str = "spikes.js";
+const SCRIPT_MARKER: &str = "spikes";
 
 pub struct InjectOptions {
     pub directory: String,
@@ -68,7 +68,7 @@ pub fn run(opts: InjectOptions) -> Result<()> {
         } else {
             // Load config to get widget attributes
             let config = Config::load().unwrap_or_default();
-            let widget_url = opts.widget_url.as_deref().unwrap_or("/spikes.js");
+            let widget_url = opts.widget_url.as_deref().unwrap_or("https://spikes.sh/widget.js");
             let attrs = config.widget_attributes();
             let script_tag = format!(r#"<script src="{}" {}></script>"#, widget_url, attrs);
             let new_content = inject_script_tag(&content, &script_tag);
@@ -108,6 +108,16 @@ pub fn run(opts: InjectOptions) -> Result<()> {
         }
         if !skipped.is_empty() {
             println!("Skipped {} files (already has widget).", skipped.len());
+        }
+        if !injected.is_empty() {
+            let widget_url = opts.widget_url.as_deref().unwrap_or("https://spikes.sh/widget.js");
+            if opts.widget_url.is_none() {
+                println!();
+                println!("Tip: Using CDN (https://spikes.sh/widget.js). For local-only use: spikes serve");
+            } else if widget_url.starts_with('/') {
+                println!();
+                println!("Note: Using relative path \"{}\". This requires \"spikes serve\" or your own server to host the widget file.", widget_url);
+            }
         }
     }
 

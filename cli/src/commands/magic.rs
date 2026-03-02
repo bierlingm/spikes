@@ -50,7 +50,7 @@ pub fn run(port: u16) -> Result<()> {
     let index_path = cwd.join("index.html");
     let needs_inject = if index_path.exists() {
         let content = std::fs::read_to_string(&index_path)?;
-        !content.contains("spikes.js")
+        !content.contains("spikes.js") && !content.contains("widget.js")
     } else {
         true
     };

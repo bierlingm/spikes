@@ -140,7 +140,7 @@ token = "{}"
         println!("  After deploying, add to your widget:");
         println!();
         println!(
-            r#"    <script src="spikes.js" data-endpoint="https://{}.YOUR_SUBDOMAIN.workers.dev/spikes?token={}"></script>"#,
+            r#"    <script src="widget.js" data-endpoint="https://{}.YOUR_SUBDOMAIN.workers.dev/spikes?token={}"></script>"#,
             project_name, token
         );
         println!();
@@ -244,7 +244,7 @@ Add the `data-endpoint` attribute to your widget script tag:
 
 ```html
 <script 
-  src="spikes.js" 
+  src="widget.js"
   data-endpoint="https://{}.YOUR_SUBDOMAIN.workers.dev/spikes?token={}"
 ></script>
 ```

@@ -130,9 +130,17 @@
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', postUrl, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onerror = function() {
+                    console.warn('[Spikes] Could not sync to endpoint:', postUrl);
+                };
+                xhr.onload = function() {
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        console.warn('[Spikes] Sync failed (HTTP ' + xhr.status + '):', postUrl);
+                    }
+                };
                 xhr.send(JSON.stringify(spike));
             } catch (e) {
-                // Silently fail - localStorage already has the spike
+                console.warn('[Spikes] Could not sync to endpoint:', postUrl, e.message || e);
             }
         }
     }
@@ -600,6 +608,10 @@
         
         container.appendChild(btn);
         container.appendChild(reviewerIndicator);
+        if (!document.body) {
+            console.error('[Spikes] Cannot mount: document.body not found. Is the script in <head> without defer?');
+            return;
+        }
         document.body.appendChild(container);
         
         // Update indicator with current reviewer
