@@ -1,0 +1,36 @@
+{
+  "featureId": "cli-test-infrastructure",
+  "reviewedAt": "2026-03-03T00:12:00Z",
+  "commitId": "52c1a896e19866a87c66880b895b380716ffc9fc",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Comprehensive test infrastructure successfully implemented for the Rust CLI. All required dev-dependencies added (assert_cmd, tempfile, wiremock, predicates, reqwest, tokio-test). Test helpers created in tests/common/mod.rs with TestProject helper for temp directories and sample spike fixtures. Unit tests cover spike model parsing (6 tests), config file handling (14 tests), inject logic (17 tests), and storage module (7 tests). Integration tests cover init, inject, list, show, export, hotspots, reviewers, and config commands (23 tests). All 72+ tests pass without external service dependencies.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The CLI test pattern uses a TEST_MUTEX in storage.rs tests to prevent parallel execution for tests that change the current working directory. This pattern is effective but could be documented in AGENTS.md for future test writers.",
+      "evidence": "cli/src/storage.rs:12-14 - static TEST_MUTEX: Mutex<()> = Mutex::new(()); used in all storage tests"
+    },
+    {
+      "area": "knowledge",
+      "observation": "The feature description mentioned wiremock for HTTP mocking, but the initial test suite focuses on local filesystem operations without HTTP mocking. Wiremock was correctly added as a dev-dependency for future use (e.g., testing push/pull/sync commands that call hosted API), but the current integration tests don't exercise it yet.",
+      "evidence": "cli/Cargo.toml dev-dependencies includes wiremock = '0.6', but tests/integration.rs uses only assert_cmd and predicates for CLI assertions without HTTP mocking"
+    },
+    {
+      "area": "services",
+      "observation": "The services.yaml correctly defines test-cli command, but could benefit from a note about running specific test modules (e.g., 'cargo test --test integration' for just integration tests).",
+      "evidence": ".factory/services.yaml shows 'test-cli: cd cli && cargo test' but doesn't document filtering options"
+    },
+    {
+      "area": "skills",
+      "observation": "The worker-cli skill procedure was followed correctly. Worker added tests FIRST as specified (TDD approach), then implemented dependencies, then verified. The skillFeedback in handoff confirms 'followedProcedure: true'.",
+      "evidence": "Handoff shows skillFeedback.followedProcedure: true with no deviations. Transcript shows test creation before implementation."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The cli-test-infrastructure feature is fully implemented and meets all requirements. The test suite provides solid coverage of spike model parsing, config handling, inject logic, storage operations, and CLI command workflows. All 72+ tests pass. The implementation correctly uses tempfile for isolated test directories, ensuring no external service dependencies. Minor observation: wiremock is available for future HTTP mocking needs when testing remote API commands (push/pull/sync), though current tests focus on local operations."
+}

@@ -1,0 +1,34 @@
+{
+  "milestone": "foundation",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-FOUND-001",
+    "VAL-FOUND-003",
+    "VAL-FOUND-004",
+    "VAL-FOUND-005",
+    "VAL-FOUND-006",
+    "VAL-FOUND-015"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance sections for Hosted Worker API, Browser Subdomain Surface, and CLI Serve isolation rules.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Recorded friction learnings about localhost wildcard subdomain behavior and direct SQLite inspection for password hash/salt evidence.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

@@ -1,0 +1,126 @@
+{
+  "milestone": "foundation",
+  "groupId": "foundation-cli-serve",
+  "surface": "CLI Serve + Worker filesystem",
+  "testedAt": "2026-03-03T00:30:00Z",
+  "credentials": {
+    "account": "utv-foundation-cli-b@example.com",
+    "namespace": "utv-found-b"
+  },
+  "assertions": [
+    {
+      "id": "VAL-FOUND-005",
+      "title": "CLI Serve Path Traversal Protection",
+      "status": "pass",
+      "evidence": [
+        {
+          "type": "command",
+          "description": "Start spikes serve on port 3851",
+          "command": "spikes serve --dir /tmp/spikes-utv-foundation-cli/public --port 3851"
+        },
+        {
+          "type": "curl",
+          "description": "Legitimate file request returns 200",
+          "command": "curl -w \"\\nHTTP %{http_code}\\n\" http://localhost:3851/index.html",
+          "expected": "200",
+          "observed": "200"
+        },
+        {
+          "type": "curl",
+          "description": "Path traversal to secret.txt returns 404",
+          "command": "curl -w \"\\nHTTP %{http_code}\\n\" \"http://localhost:3851/../secret.txt\"",
+          "expected": "403 or 404",
+          "observed": "404"
+        },
+        {
+          "type": "curl",
+          "description": "Windows-style traversal returns 403",
+          "command": "curl -w \"\\nHTTP %{http_code}\\n\" \"http://localhost:3851/..\\\\..\\\\Cargo.toml\"",
+          "expected": "403 or 404",
+          "observed": "403 Forbidden"
+        },
+        {
+          "type": "curl",
+          "description": "Double path traversal returns 404",
+          "command": "curl -w \"\\nHTTP %{http_code}\\n\" \"http://localhost:3851/../../../etc/passwd\"",
+          "expected": "403 or 404",
+          "observed": "404"
+        }
+      ],
+      "reason": "Path traversal attacks are properly blocked. The serve_static function uses canonicalize() to resolve paths and checks that the resolved path is within the serve directory. Both Unix-style (../) and Windows-style (..\\) traversal attempts are rejected."
+    },
+    {
+      "id": "VAL-FOUND-006",
+      "title": "CLI Serve Safe CORS Defaults",
+      "status": "pass",
+      "evidence": [
+        {
+          "type": "curl",
+          "description": "Default server: no CORS headers for evil.com origin",
+          "command": "curl -I -H \"Origin: http://evil.com\" http://localhost:3851/index.html | grep -i access-control",
+          "expected": "No ACAO header",
+          "observed": "No Access-Control headers found"
+        },
+        {
+          "type": "curl",
+          "description": "Default server: no CORS headers on GET with Origin",
+          "command": "curl -H \"Origin: http://evil.com\" http://localhost:3851/index.html | grep -i access-control",
+          "expected": "No ACAO header",
+          "observed": "No CORS headers (correct for default behavior)"
+        },
+        {
+          "type": "command",
+          "description": "Start server with explicit CORS origin on port 3852",
+          "command": "spikes serve --dir /tmp/spikes-utv-foundation-cli/public --port 3852 --cors-allow-origin=\"https://spikes.sh\""
+        },
+        {
+          "type": "curl",
+          "description": "CORS-enabled server: ACAO header present for allowed origin",
+          "command": "curl -v -H \"Origin: https://spikes.sh\" http://localhost:3852/index.html 2>&1 | grep access-control",
+          "expected": "access-control-allow-origin: https://spikes.sh",
+          "observed": "access-control-allow-origin: https://spikes.sh"
+        },
+        {
+          "type": "curl",
+          "description": "CORS-enabled server: preflight OPTIONS works",
+          "command": "curl -X OPTIONS -H \"Origin: https://spikes.sh\" -H \"Access-Control-Request-Method: POST\" -I http://localhost:3852/spikes 2>&1 | grep access-control",
+          "expected": "access-control-allow-origin and allow-methods headers",
+          "observed": "access-control-allow-origin: https://spikes.sh, access-control-allow-methods: GET,POST,OPTIONS, access-control-allow-headers: content-type,authorization"
+        }
+      ],
+      "reason": "Default CORS behavior is restrictive (same-origin only). CORS headers are only emitted when --cors-allow-origin is explicitly specified. The implementation in serve.rs correctly conditionally applies the CorsLayer only when the flag is provided."
+    },
+    {
+      "id": "VAL-FOUND-015",
+      "title": "Worker Modularization - Index.ts Split",
+      "status": "pass",
+      "evidence": [
+        {
+          "type": "command",
+          "description": "Check index.ts line count",
+          "command": "wc -l /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/index.ts",
+          "expected": "Under 200 lines",
+          "observed": "130 lines"
+        },
+        {
+          "type": "command",
+          "description": "List module structure",
+          "command": "find /Users/moritzbierling/werk/repos/spikes-hosted/worker/src -type f -name \"*.ts\" | sort",
+          "expected": "Separate modules for handlers, db, middleware, utils",
+          "observed": "src/index.ts, src/constants.ts, src/types.ts, src/db/queries.ts, src/handlers/spikes.ts, src/handlers/shares.ts, src/handlers/subdomain.ts, src/handlers/prospects.ts, src/handlers/webhooks.ts, src/middleware/auth.ts, src/middleware/rate-limit.ts, src/utils/content.ts, src/utils/crypto.ts, src/utils/response.ts, src/utils/validation.ts"
+        },
+        {
+          "type": "command",
+          "description": "Check for circular imports",
+          "command": "grep -r \"from.*index\" /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/handlers /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/db /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/middleware /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/utils",
+          "expected": "No circular imports found",
+          "observed": "No circular imports to index.ts found"
+        }
+      ],
+      "reason": "The monolithic index.ts has been successfully split into logical modules. The main index.ts is now 130 lines (previously ~800 lines), with clear separation of concerns: handlers for route logic, db for database operations, middleware for cross-cutting concerns (auth, rate limiting), and utils for shared utilities."
+    }
+  ],
+  "toolsUsed": ["cargo build", "curl", "wc", "find", "grep"],
+  "frictions": [],
+  "blockers": []
+}
