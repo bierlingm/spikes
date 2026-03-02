@@ -110,7 +110,11 @@
             min-height: 100vh;
             font-size: 15px;
         }
-        
+
+        html {
+            scroll-padding-top: 80px;
+        }
+
         /* Navigation */
         nav {
             position: fixed;
@@ -686,7 +690,7 @@
             <p>You add one script tag to any HTML file. A floating button appears. Click any element to "spike" it — rate it, leave a comment. Spikes captures the exact CSS selector, bounding box, text content, and viewport dimensions. Not a screenshot. Not a vague description. Structured data your agent can act on.</p>
 
             <div class="note">
-                <p><strong>How it works:</strong> Reviewer clicks an element → Spikes records <code>.pricing-card</code>, bounding box <code>{x: 24, y: 120, width: 340, height: 200}</code>, and their comment → You run <code>spikes list --json</code> → Your agent knows exactly what to change and where.</p>
+                <p><strong>Why structured data?</strong> Screenshots lose context. "Make it bigger" is ambiguous. A spike gives your agent the CSS selector, pixel coordinates, and the reviewer's intent in one JSON object — no interpretation needed.</p>
             </div>
 
             <p>There are two main use cases:</p>
