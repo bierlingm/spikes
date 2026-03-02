@@ -8,82 +8,212 @@
 
 ## Executive Summary
 
-**Who pays:** Freelancers showing work to clients. Solo AI builders are evangelists, not payers.
+**Who is this for:** The solo builder at 2am who needs someone to look at this. The freelancer who needs to look professional before a client meeting. The small team losing feedback in Signal threads.
 
-**The moat:** Workflow integration depth—MCP server, context exports, and CLI/agent ergonomics. Not the widget (trivially cloneable), not the data (easily exportable).
+**The moat isn't technical — it's cultural.** The widget is trivially cloneable. The moat is workflow integration (MCP server, context exports, CLI ergonomics), personality (Spike the hedgehog, the zine energy, the community wall), and the refusal to be yet another SaaS tool. Brand/community is weak early but strong long-term — invest in it now.
 
-**What's broken:** The auth system is fundamentally broken—bearer tokens *are* identity, so there's no recovery, no rotation, and no Stripe linkage. Passwords use unsalted SHA-256. No rate limiting. Pro tier enforcement doesn't actually work.
+**Revenue model: explore, don't lock in.** Six models are analyzed below — from punk zine (free forever, merch + patronage) to Radiohead (pay what you feel) to Sublime Text (one-time license) to 37signals ONCE (free self-host, pay for hosted). The recommended hybrid: pay-what-you-feel for hosted, one-time license for agencies, optional patronage for the community. Every payment should feel like solidarity, not a transaction.
 
-**The priorities:** Security first (unsalted passwords, path traversal, no rate limiting). Then a minimal account system (magic links, not passwords—solo developers hate password management). Then the monetization plumbing actually works. Everything else is polish.
+**What's broken technically:** Auth system is fundamentally broken (bearer tokens *are* identity — no recovery, no rotation, no Stripe linkage). Passwords use unsalted SHA-256. No rate limiting. Pro tier enforcement doesn't work.
 
-**Timeline:** 8 weeks across 6 phases. Don't build the TUI dashboard—remove it. Don't build collaborative features—out of scope. Focus on agent integration (MCP server, context exports) for defensibility.
+**The priorities:** Security first, then a minimal account system (magic links, not passwords), then make the monetization plumbing work, then the personality layer that makes this a *place* and not just a product. Don't build the TUI — remove it. Don't build collaborative features. Focus on agent integration (MCP server, context exports) for defensibility and the personality/community layer for love.
+
+**Timeline:** 8 weeks across 6 phases for the technical overhaul. The personality and business model work is a parallel, ongoing track.
 
 ---
 
-## Part 1: Business Case Analysis
+## Part 1: The Business Case
 
-### 1. Who Actually Pays for This?
+### A. Who Is This Actually For?
 
-| Segment | Size | Willingness to Pay | Verdict |
-|---------|------|-------------------|---------|
-| **Solo AI builders** (Claude Code, Cursor users) | Large | Low | Free tier evangelists |
-| **Freelancers with client work** | Medium | **Medium** | **Primary conversion target** |
-| **Small agencies (2-10 people)** | Small | Medium | Need Team tier |
+Not segments. People. Humans at specific moments of need.
 
-**The honest assessment:** Solo builders reviewing their own work will pay $0-9 as appreciation, not $19/mo as subscription. The conversion target is freelancers who need to look professional sending `clientname.freelancer.spikes.sh` links instead of explaining "open this HTML file."
+**The Solo Builder at 2am.** They've been vibe-coding with Claude Code for six hours. The prototype works. They're proud of it. They need someone to look at it before they go to bed or they'll dream about CSS bugs. Their options are either too heavy (set up a staging site, invite people, manage permissions) or too broken (screenshots with arrows drawn in Preview). They want to say "look at this" and have the looking actually work. *They pay $0-29, depending on whether they remember to pay at all. They're evangelists, not revenue.*
 
-### 2. What's the Moat?
+**The Freelancer Before a Client Meeting.** It's Thursday. The client meeting is Friday. They've built three versions of the checkout flow and need the client to pick one without saying "I don't like it" with no specifics. They've tried Google Docs with screenshots pasted in (client scrolls past), Figma comments (client doesn't have Figma), and email threads with numbered lists ("Issue #7: the button"). They need Spikes because `clientname.freelancer.spikes.sh` lands differently than "open this HTML file on your computer." *They pay $19-29/month without thinking about it, because it's cheaper than one hour of rework.*
 
-**The uncomfortable truth:** The widget is trivially cloneable. The CLI is nice but not defensible. Any competent developer could rebuild the core functionality in a weekend.
+**The Small Team (2-5 People).** Two founders. One designer, one developer. They're in a Signal group sharing screenshots and losing track of what was already fixed. They need the minimal viable coordination tool — not a project management system, just a way to say "this thing, right here, change it" and have that statement survive longer than a chat message. *They pay $29/month for the team, or one person pays and shares the login (honor system — we don't care).*
 
-**Actual moats (ranked):**
+**The Agency.** They've got Jira, Figma, real designers. But the feedback loop between design and dev is still broken. They need Spikes as the bridge — designers spike the built prototype, devs pull structured data. *They pay $149 once, honor system for seat count, because they'd rather pay once than get billed forever for a utility.*
 
-| Moat | Strength | Time to Build |
-|------|----------|---------------|
-| **Workflow integration (CLI + agent context)** | Strong | 6-12 months |
-| **MCP/AI coding tool integrations** | Strong | 6-12 months |
-| **Hosted convenience + network effects** | Medium | 3-6 months |
-| **Data accumulation over time** | Medium | 12+ months |
-| **Brand/community** | Weak (early) | 24+ months |
+### B. Revenue Models — A Creative Exploration
 
-**The lasting value** is in agent integration depth—MCP server (`spikes mcp serve`) and context export formats (`spikes export --format cursor-context`) create dependencies that are harder to replace than a simple data export. The hosted layer is monetizable but not defensible—it's a convenience tax, not a lock-in mechanism.
+We're not picking one. We're exploring the possibility space. Each model is argued with conviction because conviction is what makes a model work.
 
-### 3. Recommended Pricing Model
+#### Model 1: The Zine Model (The Punk Option)
 
-| Tier | Price | Features |
-|------|-------|----------|
-| **Free** | $0 | 5 shares, 1000 spikes each, 50MB, random URL, badge required |
-| **Pro** | $19/mo | Unlimited, custom subdomain, badge removable, password protection, webhooks, API access |
-| **Team** | $29/mo | Everything in Pro + 3 seats, team dashboard, consolidated billing |
-| **+Seats** | $8/mo each | Additional team members |
+**What it is:** Spikes is free. Forever. Full stop. Revenue comes from merchandise, sponsorships, and people who just want the thing to exist.
 
-**The badge is the primary conversion lever.** For freelancers showing work to clients, having a third-party badge on their deliverables feels unprofessional. Lead with: "Remove the 'Powered by Spikes' badge and share with a custom subdomain for a fully branded client experience."
+**What it feels like:** Like walking into a DIY show and grabbing a zine off the table. The zine is free. If you want to support the band, buy a shirt. Or don't. The band plays either way.
 
-**Webhooks are the workflow upgrade trigger**—serious teams need CI integration.
+**How it makes money:** Stickers, shirts, pins with the mascot. Sponsors on spikes.sh (hosting companies, dev tools that want the audience). Patreon for "insiders" who want to see the roadmap and vote on features. Consulting/integration services for agencies who need custom setups.
 
-### 4. What Features Drive Conversion?
+**What it says about Spikes:** We don't need your money. We need your use. We're building infrastructure for a community, not extracting rent from customers.
 
-**Must-have for Pro tier:**
-1. Custom subdomain
-2. Badge removal
-3. Password protection
+**What's risky:** Requires building a real community first. No revenue until you have fans, not users.
 
-**Should-have:**
-4. Webhooks (CI integration)
-5. Unlimited shares
+**What's delightful:** Nobody feels ripped off. Nobody debates whether it's "worth it." The question becomes "do I want this to exist?" instead of "is the price fair?"
 
-**Don't build:** Real-time collaboration, rich text comments, screenshot capture, analytics dashboards, mobile apps. These are scope creep for a tool serving solo developers and small teams.
+#### Model 2: The Radiohead Model (Pay What You Feel)
 
-### 5. Competitive Positioning
+**What it is:** Hosted version exists. You choose what to pay, with a suggested minimum of $19. Some pay $9. Some pay $200. Both are valid.
 
-| Tool | Price | Spikes Differentiation |
-|------|-------|------------------------|
-| **Markup.io** | $25+/mo | Spikes is local-first, CLI-native, agent-readable |
-| **BugHerd** | $41+/mo | Spikes is simpler, no ticketing overhead |
-| **Userback** | $79+/mo | Spikes is for internal/team review, not public feedback |
-| **Hotjar** | $39+/mo | Spikes is developer-focused, not analytics |
+**What it feels like:** Like buying music directly from the artist. There's a suggested price, but you're not locked out if you can't pay it. No guilt trip. The artist trusts you.
 
-**The wedge:** Spikes is built for the AI-assisted development workflow. Zero-dependency widget (~8KB), works on `file://` and localhost, CLI with JSON output, CSS selector capture, self-hostable, MIT licensed.
+**How it makes money:** Hosted convenience (`spikes share` uploads to our infrastructure, gives you a clean URL). Suggested tiers: $9 (it's fine), $19 (like it), $29+ (love it). The tiers don't gate features — they just exist as social signals.
+
+**What it says about Spikes:** We trust humans to be fair.
+
+**What's risky:** Revenue is unpredictable. Month-to-month variance could be extreme.
+
+**What's delightful:** The checkout page is a celebration. "Pay what feels right" instead of "SELECT YOUR PLAN." The confirmation email isn't a receipt — it's a thank you note.
+
+**The twist:** If someone pays more than $50, send them something physical. A handwritten note, a sticker, something real in the mail.
+
+#### Model 3: The Sublime Text Model (Perpetual License)
+
+**What it is:** One-time purchase. $49 for individuals, $149 for agencies. Use it forever. No subscription fatigue.
+
+**What it feels like:** Buying a tool at the hardware store. You own it. It doesn't phone home to check if you're still paying. It doesn't get worse if you stop paying.
+
+**What it says about Spikes:** Software can be a product, not a service.
+
+**What's risky:** No recurring revenue means no predictable cash flow.
+
+**What's delightful:** People *love* software they own. Sublime Text has fans, not just users. The lack of subscription is a feature that gets talked about.
+
+**The variant:** A "support renewal" option after a year. "Want to support continued development?" No pressure, no features locked. Just a human asking other humans for help.
+
+#### Model 4: The 37signals ONCE Model (Free + Open, Pay for Convenience)
+
+**What it is:** Everything is MIT licensed and self-hostable. Free. The hosted version at spikes.sh is a convenience layer you pay for, not a feature gate.
+
+**What it feels like:** Like Campfire or Writebook. The code is yours. We're just running it for you if you don't want to.
+
+**What it says about Spikes:** We're not afraid of our users having power. We're confident enough in our execution that we'll survive even if everyone self-hosts.
+
+**What's risky:** Hosted revenue might be low if self-hosting is too easy.
+
+**What's delightful:** The hosted version can be *better* because we control the infrastructure. Faster, more reliable, zero setup. People pay for that improvement, not for access.
+
+#### Model 5: The Patron Model (Community-Sustained)
+
+**What it is:** Spikes is developed in public, funded by patrons who want it to exist. Like NPR, but for a feedback widget.
+
+**What it feels like:** Being part of something. The tool exists because a community decided it should. Your payment isn't a transaction — it's a vote.
+
+**How it makes money:** Monthly patrons ($5, $10, $25 tiers). No features gated. Annual "fundraiser" campaigns for specific features. Corporate sponsors.
+
+**What's risky:** Requires building a real community with shared identity. High engagement burden.
+
+**What's delightful:** The patron wall becomes a social space. People are proud to be on it. Monthly "state of the spikes" updates — what got built, what didn't, what's next.
+
+#### Model 6: The Generous Free Model (Simple Paid Convenience)
+
+**What it is:** Free tier is genuinely generous (1000 spikes, 5 shares, no time limit). Paid tier removes constraints and adds convenience.
+
+**What it feels like:** Like Buttondown. The free tier isn't a trial — it's a real product. You pay when you grow into it, not because we crippled the free version.
+
+**What's delightful:** Nobody feels bait-and-switched. The upgrade is obvious when you hit limits — no dark patterns needed.
+
+#### Recommended Combination: The Hybrid Punk Model
+
+**Core principle:** Free and open source forever. Revenue from three sources that feel different:
+
+1. **Pay what you feel (hosted)** — Default to $19, minimum $9, no maximum. For individuals who want zero setup.
+2. **One-time license (agencies)** — $149 once, whole team, forever. For businesses who want to budget once and forget.
+3. **Patronage (community)** — Optional $5-25/month for people who want to support the project regardless of usage.
+
+**Why this combination:** It covers different psychologies without forcing anyone into a subscription they don't want. It keeps the open source promise intact. Every payment is an act of solidarity, not a market transaction. The checkout flows should feel like that.
+
+### C. The Personality Layer
+
+This is not marketing. This is product surface. The character of Spikes is something you interact with, not something you read about.
+
+#### Spike the Hedgehog (Mascot Concept)
+
+**Backstory:** Spike was a QA tester at a big enterprise feedback company. He got fired for being "too honest" in his bug reports. Now he runs an underground feedback collective. He believes in telling the truth, even when it's uncomfortable. He lives in a converted shipping container behind a coffee shop. He drinks too much espresso. He cares deeply about whether buttons are actually clickable.
+
+**Visual:** A slightly grumpy but well-meaning hedgehog. Not cute-cartoon. More like a character from an indie comic. Think: Tank Girl meets Animal Crossing.
+
+**Voice:** Dry, slightly sarcastic, ultimately helpful. The kind of tool that says "Saved" instead of "Your feedback has been successfully submitted to our cloud infrastructure!"
+
+**Where he appears:**
+- Loading states: "Spike is foraging for your data..."
+- Error pages: "Spike knocked over the server. He's not sorry. We're fixing it."
+- Empty states: "Nothing here yet. Go break something so Spike has something to do."
+- CLI messages: `Spike says: you might want to run 'spikes list' first.`
+
+#### The Sharing Experience
+
+When someone clicks a spikes.sh link, it should feel like entering a space, not opening a tool.
+
+**Sane default (zero config):** Page loads with a brief, handmade-feeling reveal. Dismissible widget intro: "Click the / to leave feedback. Click anything on the page to be specific. Spike will handle the rest." Toasts feel human: "Spike caught that." Errors feel human: "Spike tripped. Try again?"
+
+**Optional configuration:** Sender can set a custom greeting ("Patricia wants your honest thoughts. Don't hold back." or "This is a rough draft. Be gentle."). Theme/personality customization wizard. Choice of how much personality the recipient sees.
+
+**Full experience (opt-in):** Brief animation on first visit. Character introduction. "You've been invited to spike this." The works — for people who want to make the sharing experience itself memorable.
+
+#### The Vanity Wall (spikes.sh/community)
+
+This is the community surface. Not a marketing page — a place.
+
+- **The Contributors Wall** — Everyone who opened a PR, filed a thoughtful issue, or wrote about Spikes. Not just code — any contribution counts.
+- **The Supporters Gallery** — People who paid. Optional public names or anonymous hashes. No dollar amounts.
+- **Most Hilarious Feedback** — Curated (with permission) funny spikes people have left. "The button looks like it regrets its life choices." Content marketing that doesn't feel like marketing.
+- **Spike's Log** — Development updates in character. "This week I learned that rate limiting is important after someone tried to store their entire MP3 collection as spikes."
+- **The Guestbook** — Anyone can sign. Old-web energy. "Was here. Love the tool. —Sarah from Portland"
+
+#### Small Delights Throughout
+
+**CLI messages:**
+```
+$ spikes share ./mockups/
+Bundling... done
+Uploading... done
+
+Your mockups are live at:
+https://spikes.sh/s/governance-x7k9m
+
+Spike says: share this link wisely. Or recklessly. Your call.
+```
+
+**Error pages:** 404: "Spike searched everywhere. He even checked under the couch. Nothing." 500: "Spike broke something. He's pretending it wasn't him." Rate limited: "Spike needs a coffee break."
+
+**Empty states:** No spikes yet: "Quiet in here. Too quiet." No shares yet: "Your shares would go here, if you had any. No pressure."
+
+### D. What Features Drive Love (Not Just Conversion)
+
+We're not optimizing for conversion. We're optimizing for "holy shit, you gotta try this."
+
+**The "It Just Works" Factor.** `spikes share ./mockups/` works on first try. Because everything else requires setup. Figma requires accounts. Netlify requires config. This just works. Like finding a shortcut you didn't know existed.
+
+**The "They Actually Listened" Factor.** The CLI outputs JSON. Every command. No exceptions. Most tools treat CLI users as second-class. We treat them as primary.
+
+**The "Wait, It Does What?" Factor.** Element selection captures CSS selectors automatically. Turns "that button on the left" into `.pricing-card .btn-primary` without anyone opening DevTools.
+
+**The "They Didn't Have To" Factor.** The widget works on `file://` URLs. Nobody supports `file://` anymore. We do. Because we care about your weird workflow.
+
+**The "This Is Actually Fun" Factor.** Spike the mascot, the voice, the personality layer. Most dev tools are joyless. Spikes feels like it was built by someone who cares about more than just functionality.
+
+**The "I Want To Tell People" Test.** If someone uses Spikes and doesn't tell at least one person about it, we've failed. What creates evangelists: surprising them, delighting them, saving them time, making them look good, respecting their values.
+
+### E. Competitive Positioning
+
+| Tool | What They Do | Why Spikes Instead |
+|------|--------------|-------------------|
+| **Markup.io** | Visual feedback on live sites | Local-first, works on `file://`, CLI-native, agent-readable |
+| **BugHerd** | Bug tracking with screenshots | Simpler, no ticketing overhead, JSON export |
+| **Userback** | User feedback widgets | For internal review, not public feedback, developer-focused |
+| **Hotjar** | Analytics + heatmaps | Gives you the *why*, not just the *where* |
+| **Figma comments** | Design tool feedback | For the built prototype, not the design file |
+| **GitHub Issues** | Structured bug tracking | For the messy pre-bug phase, visual and fast |
+
+**The real competition is doing nothing.** Most people don't use a feedback tool. They text screenshots. They send emails with descriptions. They try to remember what the client said. Spikes wins because it's faster than doing nothing (one script tag, no setup), better than using the wrong tool (designed for this specific problem), and doesn't require changing workflows.
+
+**Why someone would choose Spikes over just texting a screenshot:** You take a screenshot. Open Preview. Draw an arrow. Export. Paste into a message. Type "the thing I circled." They reply "which thing?" You explain. By then you've forgotten what you meant. **With Spikes:** Click the /. Click the thing. Type "this needs more padding." Done. The selector is captured automatically. The context is preserved. The feedback is structured. That's why.
+
+**The positioning (punk version):** "Spikes is how you get feedback without losing your mind. It's a widget, a CLI, and an attitude. It works on `file://` because we know you don't always have a server running. It outputs JSON because we know you're probably piping it somewhere. It's open source because we don't believe in holding your work hostage. And yes, there's a hedgehog."
 
 ---
 
