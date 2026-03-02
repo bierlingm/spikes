@@ -129,30 +129,39 @@ fn get_remote_config(
     });
 
     match (endpoint, token) {
-        (Some(endpoint), Some(token)) => Ok(RemoteConfig { endpoint, token }),
+        (Some(endpoint), Some(token)) => {
+            if endpoint.ends_with("/spikes") {
+                return Err(Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Endpoint should be the base URL (e.g. https://spikes.sh), not the /spikes path",
+                )));
+            }
+            Ok(RemoteConfig { endpoint, token })
+        }
         (None, _) => Err(Error::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "No endpoint configured. Use --endpoint or set [remote].endpoint in .spikes/config.toml",
+            "No remote endpoint. Add [remote] endpoint = \"...\" to .spikes/config.toml",
         ))),
         (_, None) => Err(Error::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "No token configured. Use --token or set [remote].token in .spikes/config.toml",
+            "No token. Add token = \"...\" under [remote] in .spikes/config.toml",
         ))),
     }
 }
 
 fn fetch_remote_spikes(config: &RemoteConfig) -> Result<Vec<Spike>> {
-    let url = format!("{}/spikes?token={}", config.endpoint.trim_end_matches('/'), config.token);
+    let url = format!("{}/spikes", config.endpoint.trim_end_matches('/'));
 
     // Use ureq for synchronous HTTP (simpler than async for CLI)
     let response = ureq::get(&url)
+        .set("Authorization", &format!("Bearer {}", config.token))
         .call()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Request failed: {}. Check that the endpoint URL is correct.", e))))?;
 
     if response.status() == 401 {
         return Err(Error::Io(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
-            "Authentication failed. Check your token.",
+            "Auth failed. Check token matches the Worker's SPIKES_TOKEN secret.",
         )));
     }
 
@@ -166,6 +175,13 @@ fn fetch_remote_spikes(config: &RemoteConfig) -> Result<Vec<Spike>> {
     let body = response
         .into_string()
         .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
+    if body.starts_with('<') {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Got HTML instead of JSON. Check that the endpoint URL is correct.",
+        )));
+    }
 
     let spikes: Vec<Spike> = serde_json::from_str(&body)?;
     Ok(spikes)

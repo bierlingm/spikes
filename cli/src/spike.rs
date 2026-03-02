@@ -80,7 +80,7 @@ pub struct Spike {
     pub rating: Option<Rating>,
     pub comments: String,
     pub timestamp: String,
-    pub viewport: Viewport,
+    pub viewport: Option<Viewport>,
 }
 
 impl Spike {

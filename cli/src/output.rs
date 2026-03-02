@@ -51,10 +51,9 @@ pub fn print_spike_detail(spike: &Spike) {
     println!("Reviewer:   {} ({})", spike.reviewer.name, spike.reviewer.id);
     println!("Rating:     {}", spike.rating_str());
     println!("Timestamp:  {}", spike.timestamp);
-    println!(
-        "Viewport:   {}x{}",
-        spike.viewport.width, spike.viewport.height
-    );
+    if let Some(ref vp) = spike.viewport {
+        println!("Viewport:   {}x{}", vp.width, vp.height);
+    }
 
     if let Some(selector) = &spike.selector {
         println!("Selector:   {}", selector);

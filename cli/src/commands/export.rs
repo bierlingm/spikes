@@ -72,8 +72,8 @@ pub fn run(format: ExportFormat) -> Result<()> {
                     spike.rating_str(),
                     &spike.comments,
                     &spike.timestamp,
-                    &spike.viewport.width.to_string(),
-                    &spike.viewport.height.to_string(),
+                    &spike.viewport.as_ref().map(|v| v.width.to_string()).unwrap_or_default(),
+                    &spike.viewport.as_ref().map(|v| v.height.to_string()).unwrap_or_default(),
                 ])?;
             }
             wtr.flush()?;

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "exclude": [
+    "/spikes",
+    "/spikes/*",
+    "/shares*",
+    "/prospects*",
+    "/webhooks/*",
+    "/s/*",
+    "/widget.js"
+  ]
+}
