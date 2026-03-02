@@ -199,3 +199,209 @@ collect_email = false    # Ask reviewers for email (builds prospect list)
 # token = \"your-token-here\"
 # hosted = false  # Use spikes.sh managed backend instead of self-hosted
 ";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use std::io::Write;
+
+    #[test]
+    fn test_default_config() {
+        let config = Config::default();
+
+        assert!(config.project.key.is_none());
+        assert_eq!(config.widget.theme, "dark");
+        assert_eq!(config.widget.position, "bottom-right");
+        assert_eq!(config.widget.color, "#e74c3c");
+        assert!(!config.widget.collect_email);
+        assert!(config.remote.endpoint.is_none());
+        assert!(config.remote.token.is_none());
+        assert!(!config.remote.hosted);
+    }
+
+    #[test]
+    fn test_load_missing_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let missing_path = temp_dir.path().join("nonexistent/config.toml");
+
+        let config = Config::load_from(&missing_path).unwrap();
+
+        // Should return defaults for missing file
+        assert!(config.project.key.is_none());
+    }
+
+    #[test]
+    fn test_load_valid_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+
+        let content = concat!(
+            "[project]\n",
+            "key = \"my-awesome-project\"\n",
+            "\n",
+            "[widget]\n",
+            "theme = \"light\"\n",
+            "position = \"top-left\"\n",
+            "color = \"#3498db\"\n",
+            "collect_email = true\n",
+            "\n",
+            "[remote]\n",
+            "endpoint = \"https://api.example.com\"\n",
+            "token = \"secret-token\"\n",
+            "hosted = true\n",
+        );
+        std::fs::write(&config_path, content).unwrap();
+
+        let config = Config::load_from(&config_path).unwrap();
+
+        assert_eq!(config.project.key, Some("my-awesome-project".to_string()));
+        assert_eq!(config.widget.theme, "light");
+        assert_eq!(config.widget.position, "top-left");
+        assert_eq!(config.widget.color, "#3498db");
+        assert!(config.widget.collect_email);
+        assert_eq!(config.remote.endpoint, Some("https://api.example.com".to_string()));
+        assert_eq!(config.remote.token, Some("secret-token".to_string()));
+        assert!(config.remote.hosted);
+    }
+
+    #[test]
+    fn test_load_invalid_toml() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+
+        std::fs::write(&config_path, "this is not valid toml [[[[").unwrap();
+
+        let result = Config::load_from(&config_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_save_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+
+        let mut config = Config::default();
+        config.project.key = Some("saved-project".to_string());
+        config.widget.theme = "light".to_string();
+
+        config.save_to(&config_path).unwrap();
+
+        let content = std::fs::read_to_string(&config_path).unwrap();
+        assert!(content.contains("saved-project"));
+        assert!(content.contains("light"));
+    }
+
+    #[test]
+    fn test_save_creates_parent_dirs() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("nested/dir/config.toml");
+
+        let config = Config::default();
+        config.save_to(&config_path).unwrap();
+
+        assert!(config_path.exists());
+    }
+
+    #[test]
+    fn test_effective_endpoint_hosted() {
+        let mut config = Config::default();
+        config.remote.hosted = true;
+
+        assert_eq!(config.effective_endpoint(), Some("https://api.spikes.sh".to_string()));
+    }
+
+    #[test]
+    fn test_effective_endpoint_custom() {
+        let mut config = Config::default();
+        config.remote.endpoint = Some("https://custom.example.com".to_string());
+
+        assert_eq!(config.effective_endpoint(), Some("https://custom.example.com".to_string()));
+    }
+
+    #[test]
+    fn test_effective_endpoint_none() {
+        let config = Config::default();
+        assert!(config.remote.endpoint.is_none());
+        assert!(!config.remote.hosted);
+        // effective_endpoint returns None when neither hosted nor custom endpoint
+        assert!(config.effective_endpoint().is_none());
+    }
+
+    #[test]
+    fn test_effective_project_key_from_config() {
+        let mut config = Config::default();
+        config.project.key = Some("configured-key".to_string());
+
+        assert_eq!(config.effective_project_key(), "configured-key");
+    }
+
+    #[test]
+    fn test_widget_attributes_basic() {
+        let config = Config::default();
+        let attrs = config.widget_attributes();
+
+        assert!(attrs.contains("data-project"));
+        assert!(attrs.contains("data-theme=\"dark\""));
+        assert!(attrs.contains("data-position=\"bottom-right\""));
+        assert!(attrs.contains("data-color=\"#e74c3c\""));
+    }
+
+    #[test]
+    fn test_widget_attributes_with_collect_email() {
+        let mut config = Config::default();
+        config.widget.collect_email = true;
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("data-collect-email=\"true\""));
+    }
+
+    #[test]
+    fn test_widget_attributes_with_hosted() {
+        let mut config = Config::default();
+        config.remote.hosted = true;
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("data-endpoint"));
+        assert!(attrs.contains("spikes.sh"));
+    }
+
+    #[test]
+    fn test_widget_attributes_with_custom_endpoint() {
+        let mut config = Config::default();
+        config.remote.endpoint = Some("https://api.custom.com".to_string());
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("data-endpoint=\"https://api.custom.com/spikes\""));
+    }
+
+    #[test]
+    fn test_widget_attributes_with_token() {
+        let mut config = Config::default();
+        config.remote.endpoint = Some("https://api.custom.com".to_string());
+        config.remote.token = Some("my-token".to_string());
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("token=my-token"));
+    }
+
+    #[test]
+    fn test_partial_config() {
+        // Test that partial configs use defaults for missing fields
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+
+        let content = r#"
+[project]
+key = "partial-project"
+"#;
+        std::fs::write(&config_path, content).unwrap();
+
+        let config = Config::load_from(&config_path).unwrap();
+
+        assert_eq!(config.project.key, Some("partial-project".to_string()));
+        // Widget should use defaults
+        assert_eq!(config.widget.theme, "dark");
+        assert_eq!(config.widget.position, "bottom-right");
+    }
+}

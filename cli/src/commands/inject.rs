@@ -161,3 +161,276 @@ fn remove_script_tag(content: &str) -> String {
 
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_inject_script_tag_before_body() {
+        let html = r#"<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body><h1>Hello</h1></body>
+</html>"#;
+
+        let script_tag = r#"<script src="https://spikes.sh/widget.js" data-project="test"></script>"#;
+        let result = inject_script_tag(html, script_tag);
+
+        assert!(result.contains("</script>\n</body>"));
+        assert!(result.contains("spikes.sh/widget.js"));
+    }
+
+    #[test]
+    fn test_inject_script_tag_before_html() {
+        // HTML without </body> tag
+        let html = r#"<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body><h1>Hello</h1>
+</html>"#;
+
+        let script_tag = r#"<script src="/spikes.js"></script>"#;
+        let result = inject_script_tag(html, script_tag);
+
+        assert!(result.contains("</script>\n</html>"));
+    }
+
+    #[test]
+    fn test_inject_script_tag_no_closing_tags() {
+        // Minimal HTML without proper closing tags
+        let html = r#"<h1>Hello World</h1>"#;
+
+        let script_tag = r#"<script src="/widget.js"></script>"#;
+        let result = inject_script_tag(html, script_tag);
+
+        // Should append at the end
+        assert!(result.ends_with("</script>"));
+    }
+
+    #[test]
+    fn test_remove_script_tag() {
+        let html = r#"<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<h1>Hello</h1>
+<script src="https://spikes.sh/widget.js" data-project="test"></script>
+</body>
+</html>"#;
+
+        let result = remove_script_tag(html);
+
+        assert!(!result.contains("spikes.sh/widget.js"));
+        assert!(result.contains("<h1>Hello</h1>"));
+        assert!(result.contains("</body>"));
+    }
+
+    #[test]
+    fn test_remove_script_tag_preserves_original_newlines() {
+        let html = "<html><body>Content</body></html>\n"; // Has trailing newline
+
+        let result = remove_script_tag(html);
+        assert!(result.ends_with('\n'));
+    }
+
+    #[test]
+    fn test_inject_into_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: Some("https://test.widget.js".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(content.contains("test.widget.js"));
+    }
+
+    #[test]
+    fn test_inject_skips_files_with_widget() {
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        // File already has widget
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body>
+<h1>Test</h1>
+<script src="https://spikes.sh/widget.js"></script>
+</body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        // Content should be unchanged
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        // Should still have exactly one script tag
+        assert_eq!(content.matches("spikes").count(), 1);
+    }
+
+    #[test]
+    fn test_remove_from_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body>
+<h1>Test</h1>
+<script src="https://spikes.sh/widget.js" data-project="test"></script>
+</body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: true,
+            widget_url: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(!content.contains("spikes.sh/widget.js"));
+        assert!(content.contains("<h1>Test</h1>"));
+    }
+
+    #[test]
+    fn test_remove_skips_files_without_widget() {
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: true,
+            widget_url: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        // Content should be unchanged
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(content.contains("<h1>Test</h1>"));
+    }
+
+    #[test]
+    fn test_inject_nonexistent_directory() {
+        let opts = InjectOptions {
+            directory: "/nonexistent/path".to_string(),
+            remove: false,
+            widget_url: None,
+            json: true,
+        };
+
+        let result = run(opts);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inject_file_path() {
+        // Should reject a file path (not a directory)
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.html");
+        std::fs::write(&file_path, "<html></html>").unwrap();
+
+        let opts = InjectOptions {
+            directory: file_path.to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            json: true,
+        };
+
+        let result = run(opts);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inject_nested_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested_path = temp_dir.path().join("subdir/nested.html");
+        std::fs::create_dir_all(nested_path.parent().unwrap()).unwrap();
+        std::fs::write(&nested_path, r#"<html><body>Nested</body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&nested_path).unwrap();
+        assert!(content.contains("spikes.sh/widget.js"));
+    }
+
+    #[test]
+    fn test_inject_skips_non_html_files() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let html_path = temp_dir.path().join("test.html");
+        let css_path = temp_dir.path().join("style.css");
+        let js_path = temp_dir.path().join("script.js");
+
+        std::fs::write(&html_path, "<html><body>HTML</body></html>").unwrap();
+        std::fs::write(&css_path, "body { color: red; }").unwrap();
+        std::fs::write(&js_path, "console.log('test');").unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let css_content = std::fs::read_to_string(&css_path).unwrap();
+        let js_content = std::fs::read_to_string(&js_path).unwrap();
+
+        // CSS and JS should be unchanged
+        assert!(!css_content.contains("spikes"));
+        assert!(!js_content.contains("spikes"));
+
+        // HTML should be modified
+        let html_content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(html_content.contains("spikes.sh/widget.js"));
+    }
+
+    #[test]
+    fn test_inject_htm_extension() {
+        let temp_dir = TempDir::new().unwrap();
+        let htm_path = temp_dir.path().join("test.htm");
+
+        std::fs::write(&htm_path, r#"<html><body>HTM file</body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&htm_path).unwrap();
+        assert!(content.contains("spikes.sh/widget.js"));
+    }
+}

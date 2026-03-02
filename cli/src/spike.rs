@@ -103,3 +103,250 @@ impl Spike {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rating_from_str() {
+        assert_eq!("love".parse::<Rating>().unwrap(), Rating::Love);
+        assert_eq!("LIKE".parse::<Rating>().unwrap(), Rating::Like);
+        assert_eq!("Meh".parse::<Rating>().unwrap(), Rating::Meh);
+        assert_eq!("no".parse::<Rating>().unwrap(), Rating::No);
+        assert!("invalid".parse::<Rating>().is_err());
+    }
+
+    #[test]
+    fn test_rating_display() {
+        assert_eq!(format!("{}", Rating::Love), "love");
+        assert_eq!(format!("{}", Rating::Like), "like");
+        assert_eq!(format!("{}", Rating::Meh), "meh");
+        assert_eq!(format!("{}", Rating::No), "no");
+    }
+
+    #[test]
+    fn test_spike_type_serialization() {
+        let page = SpikeType::Page;
+        let element = SpikeType::Element;
+
+        assert_eq!(serde_json::to_string(&page).unwrap(), "\"page\"");
+        assert_eq!(serde_json::to_string(&element).unwrap(), "\"element\"");
+    }
+
+    #[test]
+    fn test_spike_type_deserialization() {
+        let page: SpikeType = serde_json::from_str("\"page\"").unwrap();
+        let element: SpikeType = serde_json::from_str("\"element\"").unwrap();
+
+        assert_eq!(page, SpikeType::Page);
+        assert_eq!(element, SpikeType::Element);
+    }
+
+    #[test]
+    fn test_rating_serialization() {
+        assert_eq!(serde_json::to_string(&Rating::Love).unwrap(), "\"love\"");
+        assert_eq!(serde_json::to_string(&Rating::Like).unwrap(), "\"like\"");
+        assert_eq!(serde_json::to_string(&Rating::Meh).unwrap(), "\"meh\"");
+        assert_eq!(serde_json::to_string(&Rating::No).unwrap(), "\"no\"");
+    }
+
+    #[test]
+    fn test_rating_deserialization() {
+        let love: Rating = serde_json::from_str("\"love\"").unwrap();
+        let like: Rating = serde_json::from_str("\"like\"").unwrap();
+        let meh: Rating = serde_json::from_str("\"meh\"").unwrap();
+        let no: Rating = serde_json::from_str("\"no\"").unwrap();
+
+        assert_eq!(love, Rating::Love);
+        assert_eq!(like, Rating::Like);
+        assert_eq!(meh, Rating::Meh);
+        assert_eq!(no, Rating::No);
+    }
+
+    #[test]
+    fn test_spike_deserialization() {
+        let json = r#"{
+            "id": "test-id-123",
+            "type": "page",
+            "projectKey": "my-project",
+            "page": "index.html",
+            "url": "http://localhost:3000/index.html",
+            "reviewer": {"id": "r1", "name": "Alice"},
+            "rating": "like",
+            "comments": "Great work!",
+            "timestamp": "2024-01-15T10:30:00Z",
+            "viewport": {"width": 1920, "height": 1080}
+        }"#;
+
+        let spike: Spike = serde_json::from_str(json).unwrap();
+
+        assert_eq!(spike.id, "test-id-123");
+        assert_eq!(spike.spike_type, SpikeType::Page);
+        assert_eq!(spike.project_key, "my-project");
+        assert_eq!(spike.page, "index.html");
+        assert_eq!(spike.reviewer.id, "r1");
+        assert_eq!(spike.reviewer.name, "Alice");
+        assert_eq!(spike.rating, Some(Rating::Like));
+        assert_eq!(spike.comments, "Great work!");
+        assert!(spike.selector.is_none());
+        assert!(spike.element_text.is_none());
+        assert!(spike.bounding_box.is_none());
+    }
+
+    #[test]
+    fn test_element_spike_deserialization() {
+        let json = concat!(
+            "{",
+            "\"id\": \"elem-456\",",
+            "\"type\": \"element\",",
+            "\"projectKey\": \"my-project\",",
+            "\"page\": \"index.html\",",
+            "\"url\": \"http://localhost:3000/index.html\",",
+            "\"reviewer\": {\"id\": \"r1\", \"name\": \"Bob\"},",
+            "\"selector\": \".hero-title\",",
+            "\"elementText\": \"Welcome\",",
+            "\"boundingBox\": {\"x\": 100.0, \"y\": 50.0, \"width\": 200.0, \"height\": 40.0},",
+            "\"rating\": \"love\",",
+            "\"comments\": \"Love this headline!\",",
+            "\"timestamp\": \"2024-01-15T10:31:00Z\",",
+            "\"viewport\": {\"width\": 1920, \"height\": 1080}",
+            "}"
+        );
+
+        let spike: Spike = serde_json::from_str(json).unwrap();
+
+        assert_eq!(spike.spike_type, SpikeType::Element);
+        assert_eq!(spike.selector, Some(".hero-title".to_string()));
+        assert_eq!(spike.element_text, Some("Welcome".to_string()));
+        assert!(spike.bounding_box.is_some());
+
+        let bbox = spike.bounding_box.unwrap();
+        assert_eq!(bbox.x, 100.0);
+        assert_eq!(bbox.y, 50.0);
+        assert_eq!(bbox.width, 200.0);
+        assert_eq!(bbox.height, 40.0);
+    }
+
+    #[test]
+    fn test_spike_serialization_roundtrip() {
+        let spike = Spike {
+            id: "test-789".to_string(),
+            spike_type: SpikeType::Page,
+            project_key: "test-project".to_string(),
+            page: "about.html".to_string(),
+            url: "http://localhost:3000/about.html".to_string(),
+            reviewer: Reviewer {
+                id: "reviewer-1".to_string(),
+                name: "Charlie".to_string(),
+            },
+            selector: None,
+            element_text: None,
+            bounding_box: None,
+            rating: Some(Rating::Meh),
+            comments: "Could be better".to_string(),
+            timestamp: "2024-01-15T11:00:00Z".to_string(),
+            viewport: Some(Viewport {
+                width: 1280,
+                height: 720,
+            }),
+        };
+
+        let json = serde_json::to_string(&spike).unwrap();
+        let deserialized: Spike = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.id, spike.id);
+        assert_eq!(deserialized.spike_type, spike.spike_type);
+        assert_eq!(deserialized.project_key, spike.project_key);
+        assert_eq!(deserialized.rating, spike.rating);
+    }
+
+    #[test]
+    fn test_spike_rating_str() {
+        let mut spike = Spike {
+            id: "test".to_string(),
+            spike_type: SpikeType::Page,
+            project_key: "p".to_string(),
+            page: "page".to_string(),
+            url: "url".to_string(),
+            reviewer: Reviewer { id: "r".to_string(), name: "R".to_string() },
+            selector: None,
+            element_text: None,
+            bounding_box: None,
+            rating: Some(Rating::Love),
+            comments: "".to_string(),
+            timestamp: "".to_string(),
+            viewport: None,
+        };
+
+        assert_eq!(spike.rating_str(), "love");
+        spike.rating = Some(Rating::No);
+        assert_eq!(spike.rating_str(), "no");
+        spike.rating = None;
+        assert_eq!(spike.rating_str(), "-");
+    }
+
+    #[test]
+    fn test_spike_type_str() {
+        let mut spike = Spike {
+            id: "test".to_string(),
+            spike_type: SpikeType::Page,
+            project_key: "p".to_string(),
+            page: "page".to_string(),
+            url: "url".to_string(),
+            reviewer: Reviewer { id: "r".to_string(), name: "R".to_string() },
+            selector: None,
+            element_text: None,
+            bounding_box: None,
+            rating: None,
+            comments: "".to_string(),
+            timestamp: "".to_string(),
+            viewport: None,
+        };
+
+        assert_eq!(spike.type_str(), "page");
+        spike.spike_type = SpikeType::Element;
+        assert_eq!(spike.type_str(), "element");
+    }
+
+    #[test]
+    fn test_spike_null_rating() {
+        // Spikes can have null rating
+        let json = r#"{
+            "id": "no-rating",
+            "type": "page",
+            "projectKey": "proj",
+            "page": "page.html",
+            "url": "http://example.com",
+            "reviewer": {"id": "r1", "name": "Test"},
+            "rating": null,
+            "comments": "Just a comment",
+            "timestamp": "2024-01-15T12:00:00Z"
+        }"#;
+
+        let spike: Spike = serde_json::from_str(json).unwrap();
+        assert!(spike.rating.is_none());
+    }
+
+    #[test]
+    fn test_spike_missing_optional_fields() {
+        // Optional fields can be missing entirely
+        let json = r#"{
+            "id": "minimal",
+            "type": "page",
+            "projectKey": "proj",
+            "page": "page.html",
+            "url": "http://example.com",
+            "reviewer": {"id": "r1", "name": "Test"},
+            "comments": "A comment",
+            "timestamp": "2024-01-15T12:00:00Z"
+        }"#;
+
+        let spike: Spike = serde_json::from_str(json).unwrap();
+        assert!(spike.rating.is_none());
+        assert!(spike.selector.is_none());
+        assert!(spike.element_text.is_none());
+        assert!(spike.bounding_box.is_none());
+        assert!(spike.viewport.is_none());
+    }
+}

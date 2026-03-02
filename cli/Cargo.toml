@@ -28,3 +28,11 @@ ureq = { version = "2", features = ["json"] }
 dirs = "5"
 ratatui = "0.28"
 crossterm = "0.28"
+
+[dev-dependencies]
+assert_cmd = "2"
+tempfile = "3"
+wiremock = "0.6"
+predicates = "3"
+reqwest = { version = "0.12", features = ["json"] }
+tokio-test = "0.4"
