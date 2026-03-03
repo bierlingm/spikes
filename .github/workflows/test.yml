@@ -1,0 +1,21 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+      - name: Build
+        run: cargo build --manifest-path cli/Cargo.toml
+      - name: Test
+        run: cargo test --manifest-path cli/Cargo.toml --jobs 2
+      - name: Clippy
+        run: cargo clippy --manifest-path cli/Cargo.toml --all-targets -- -D warnings
