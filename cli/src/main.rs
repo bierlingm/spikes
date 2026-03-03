@@ -20,6 +20,7 @@ use commands::serve::ServeOptions;
 use commands::share::ShareOptions;
 use commands::shares::SharesOptions;
 use commands::unshare::UnshareOptions;
+use commands::usage::UsageOptions;
 
 #[derive(Parser)]
 #[command(name = "spikes")]
@@ -302,6 +303,13 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Display current usage statistics
+    Usage {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -451,6 +459,7 @@ fn main() {
             commands::resolve::run(ResolveOptions { id, unresolve, json })
         }
         Some(Commands::Billing { json }) => commands::billing::run(json),
+        Some(Commands::Usage { json }) => commands::usage::run(UsageOptions { json }),
     };
 
     if let Err(e) = result {
