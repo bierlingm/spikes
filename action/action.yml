@@ -1,0 +1,128 @@
+# Spikes Feedback Gate — GitHub Action
+#
+# A composite action that gates CI on feedback quality.
+# Downloads the spikes binary, loads feedback, and fails if blocking issues exceed threshold.
+#
+# Usage:
+#   - uses: moritzbierling/spikes/action@v0.3.0
+#     with:
+#       threshold: 0
+#       ignore-paths: |
+#         /docs/**
+#         /legacy/**
+#       require-resolution: false
+
+name: "Spikes Feedback Gate"
+description: "Gate CI on feedback quality — fail builds when unresolved negative feedback exceeds threshold"
+
+inputs:
+  threshold:
+    description: "Maximum allowed blocking spikes before failure (default: 0)"
+    required: false
+    default: "0"
+
+  ignore-paths:
+    description: "Newline-separated glob patterns for pages to ignore (e.g., /docs/**, /legacy/**)"
+    required: false
+    default: ""
+
+  require-resolution:
+    description: "When true, any unresolved spike is blocking regardless of rating"
+    required: false
+    default: "false"
+
+outputs:
+  blocking_count:
+    description: "Number of blocking spikes found"
+    value: ${{ steps.check.outputs.blocking_count }}
+
+  status:
+    description: "Result status: 'passed' or 'failed'"
+    value: ${{ steps.check.outputs.status }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Detect platform"
+      id: platform
+      shell: bash
+      run: |
+        # Map runner.os and runner.arch to release asset names
+        OS="${{ runner.os }}"
+        ARCH="${{ runner.arch }}"
+
+        case "$OS" in
+          Linux)
+            case "$ARCH" in
+              X64)  TARGET="x86_64-unknown-linux-gnu" ;;
+              ARM64) TARGET="aarch64-unknown-linux-gnu" ;;
+              *)
+                echo "::error::💀 Unsupported architecture: $ARCH on $OS"
+                echo "Spikes doesn't run here yet. Open an issue if you need this platform."
+                exit 1
+                ;;
+            esac
+            ;;
+          macOS)
+            case "$ARCH" in
+              X64)  TARGET="x86_64-apple-darwin" ;;
+              ARM64) TARGET="aarch64-apple-darwin" ;;
+              *)
+                echo "::error::💀 Unsupported architecture: $ARCH on $OS"
+                echo "Spikes doesn't run here yet. Open an issue if you need this platform."
+                exit 1
+                ;;
+            esac
+            ;;
+          Windows)
+            echo "::error::💀 Windows is not supported yet."
+            echo "Spikes needs Unix vibes. Use WSL or wait for native support."
+            exit 1
+            ;;
+          *)
+            echo "::error::💀 Unknown OS: $OS"
+            echo "Spikes doesn't know this platform. What are you running on?"
+            exit 1
+            ;;
+        esac
+
+        echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+        echo "Detected platform: $OS/$ARCH -> $TARGET"
+
+    - name: "Download spikes binary"
+      shell: bash
+      run: |
+        TARGET="${{ steps.platform.outputs.target }}"
+        DOWNLOAD_URL="https://github.com/moritzbierling/spikes/releases/latest/download/spikes-${TARGET}.tar.gz"
+
+        echo "Downloading spikes for $TARGET..."
+        curl -fsSL "$DOWNLOAD_URL" -o spikes.tar.gz
+
+        # Extract
+        tar -xzf spikes.tar.gz
+
+        # Make executable
+        chmod +x spikes
+
+        # Verify
+        ./spikes version
+
+        echo "✅ Spikes binary ready"
+
+    - name: "Check feedback gate"
+      id: check
+      shell: bash
+      env:
+        SPIKES_BIN: ./spikes
+      run: |
+        # Run the gate check
+        chmod +x "${{ github.action_path }}/check.sh"
+
+        "${{ github.action_path }}/check.sh" \
+          "${{ inputs.threshold }}" \
+          "${{ inputs.ignore-paths }}" \
+          "${{ inputs.require-resolution }}"
+
+branding:
+  icon: "alert-triangle"
+  color: "red"
