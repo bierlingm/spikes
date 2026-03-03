@@ -5,7 +5,7 @@ use std::path::Path;
 
 use crate::auth::get_api_base;
 use crate::error::{map_http_error, map_network_error, Error, Result};
-use crate::spike::Spike;
+use crate::spike::{PaginatedResponse, Spike};
 
 pub struct PullOptions {
     pub endpoint: Option<String>,
@@ -184,8 +184,9 @@ fn fetch_remote_spikes(config: &RemoteConfig) -> Result<Vec<Spike>> {
         ));
     }
 
-    let spikes: Vec<Spike> = serde_json::from_str(&body)?;
-    Ok(spikes)
+    // API returns paginated response: { data: [...spikes], next_cursor: string|null }
+    let response: PaginatedResponse<Spike> = serde_json::from_str(&body)?;
+    Ok(response.data)
 }
 
 fn load_local_spikes(path: &Path) -> Result<Vec<Spike>> {
@@ -237,7 +238,9 @@ fn run_from_share(url: &str, json_output: bool) -> Result<()> {
         .into_string()
         .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
-    let remote_spikes: Vec<Spike> = serde_json::from_str(&body)?;
+    // API returns paginated response: { data: [...spikes], next_cursor: string|null }
+    let response: PaginatedResponse<Spike> = serde_json::from_str(&body)?;
+    let remote_spikes = response.data;
 
     // Load local spikes and merge
     let feedback_path = Path::new(".spikes/feedback.jsonl");

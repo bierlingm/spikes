@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+/// Generic paginated response from the API
+/// The worker returns { data: [...items], next_cursor: string|null }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaginatedResponse<T> {
+    pub data: Vec<T>,
+    pub next_cursor: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Reviewer {
     pub id: String,
@@ -409,5 +417,101 @@ mod tests {
         assert_eq!(spike.resolved, Some(false));
         assert!(spike.resolved_at.is_none());
         assert!(!spike.is_resolved());
+    }
+
+    #[test]
+    fn test_paginated_response_with_spikes() {
+        let json = r#"{
+            "data": [
+                {
+                    "id": "spike-1",
+                    "type": "page",
+                    "projectKey": "proj",
+                    "page": "index.html",
+                    "url": "http://example.com",
+                    "reviewer": {"id": "r1", "name": "Alice"},
+                    "comments": "First spike",
+                    "timestamp": "2024-01-15T10:00:00Z"
+                },
+                {
+                    "id": "spike-2",
+                    "type": "element",
+                    "projectKey": "proj",
+                    "page": "index.html",
+                    "url": "http://example.com",
+                    "reviewer": {"id": "r2", "name": "Bob"},
+                    "selector": ".btn",
+                    "comments": "Second spike",
+                    "timestamp": "2024-01-15T11:00:00Z"
+                }
+            ],
+            "next_cursor": "2024-01-15T11:00:00Z"
+        }"#;
+
+        let response: PaginatedResponse<Spike> = serde_json::from_str(json).unwrap();
+        assert_eq!(response.data.len(), 2);
+        assert_eq!(response.data[0].id, "spike-1");
+        assert_eq!(response.data[1].id, "spike-2");
+        assert_eq!(response.next_cursor, Some("2024-01-15T11:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_paginated_response_null_cursor() {
+        let json = r#"{
+            "data": [
+                {
+                    "id": "spike-last",
+                    "type": "page",
+                    "projectKey": "proj",
+                    "page": "index.html",
+                    "url": "http://example.com",
+                    "reviewer": {"id": "r1", "name": "Alice"},
+                    "comments": "Last spike",
+                    "timestamp": "2024-01-15T12:00:00Z"
+                }
+            ],
+            "next_cursor": null
+        }"#;
+
+        let response: PaginatedResponse<Spike> = serde_json::from_str(json).unwrap();
+        assert_eq!(response.data.len(), 1);
+        assert_eq!(response.data[0].id, "spike-last");
+        assert!(response.next_cursor.is_none());
+    }
+
+    #[test]
+    fn test_paginated_response_empty_data() {
+        let json = r#"{
+            "data": [],
+            "next_cursor": null
+        }"#;
+
+        let response: PaginatedResponse<Spike> = serde_json::from_str(json).unwrap();
+        assert!(response.data.is_empty());
+        assert!(response.next_cursor.is_none());
+    }
+
+    #[test]
+    fn test_paginated_response_missing_cursor() {
+        // next_cursor is optional, can be missing
+        let json = r#"{
+            "data": [
+                {
+                    "id": "spike-x",
+                    "type": "page",
+                    "projectKey": "proj",
+                    "page": "page.html",
+                    "url": "http://example.com",
+                    "reviewer": {"id": "r1", "name": "Test"},
+                    "comments": "Comment",
+                    "timestamp": "2024-01-15T13:00:00Z"
+                }
+            ]
+        }"#;
+
+        let response: PaginatedResponse<Spike> = serde_json::from_str(json).unwrap();
+        assert_eq!(response.data.len(), 1);
+        // next_cursor should be None when missing
+        assert!(response.next_cursor.is_none());
     }
 }
