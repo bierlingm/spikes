@@ -295,6 +295,13 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Open Stripe billing portal in browser
+    Billing {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -443,6 +450,7 @@ fn main() {
         Some(Commands::Resolve { id, unresolve, json }) => {
             commands::resolve::run(ResolveOptions { id, unresolve, json })
         }
+        Some(Commands::Billing { json }) => commands::billing::run(json),
     };
 
     if let Err(e) = result {

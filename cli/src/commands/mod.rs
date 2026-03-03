@@ -1,3 +1,4 @@
+pub mod billing;
 pub mod config_cmd;
 pub mod delete;
 pub mod deploy;
