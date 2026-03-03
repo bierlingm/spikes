@@ -105,13 +105,15 @@ spikes export [OPTIONS]
 **Options:**
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-f, --format <FORMAT>` | Output format: json, csv, or jsonl | json |
+| `-f, --format <FORMAT>` | Output format: json, csv, jsonl, cursor-context, claude-context | json |
 
 **Examples:**
 ```bash
 spikes export
 spikes export --format csv > feedback.csv
 spikes export --format jsonl > feedback.jsonl
+spikes export --format cursor-context > cursor-feedback.md
+spikes export --format claude-context > claude-feedback.md
 ```
 
 ---
@@ -547,6 +549,91 @@ spikes unshare <SLUG> [OPTIONS]
 ```bash
 spikes unshare my-project
 spikes unshare my-project --force
+```
+
+---
+
+## MCP
+
+### spikes mcp serve
+
+Start the MCP (Model Context Protocol) server for AI agent integration.
+
+```bash
+spikes mcp serve
+```
+
+**Description:** Exposes three tools for agents: `get_spikes`, `get_element_feedback`, and `get_hotspots`. Uses stdio transport. All logging goes to stderr; stdout is reserved for JSON-RPC.
+
+**Examples:**
+```bash
+spikes mcp serve
+spikes mcp serve 2> mcp.log
+```
+
+See [MCP Server Guide](./mcp.md) for configuration details.
+
+---
+
+## Billing
+
+### spikes billing
+
+Open Stripe Customer Portal to manage subscription.
+
+```bash
+spikes billing [OPTIONS]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON |
+
+**Examples:**
+```bash
+spikes billing
+```
+
+---
+
+### spikes upgrade
+
+Upgrade to Pro subscription via Stripe Checkout.
+
+```bash
+spikes upgrade [OPTIONS]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON |
+
+**Examples:**
+```bash
+spikes upgrade
+```
+
+---
+
+### spikes usage
+
+Display current usage statistics.
+
+```bash
+spikes usage [OPTIONS]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON |
+
+**Examples:**
+```bash
+spikes usage
+spikes usage --json
 ```
 
 ---

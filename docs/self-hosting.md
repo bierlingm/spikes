@@ -26,11 +26,23 @@ wrangler login
 
 ---
 
+## Overview
+
+Self-hosting is for advanced users who want full control over their feedback data. The hosted backend at spikes.sh uses this same architecture:
+
+- **Cloudflare Worker** — API endpoints and request handling
+- **D1 Database** — Structured feedback storage
+- **R2 Storage** — Static file serving for shares
+
+The reference implementation lives in [`spikes-hosted`](https://github.com/bierlingm/spikes-hosted) — a separate repo you can fork or reference.
+
+---
+
 ## Quick Start
 
 ### Step 1: Scaffold the Worker
 
-Use the CLI to generate a Worker project:
+One command generates a complete Worker project:
 
 ```bash
 spikes deploy cloudflare --dir ./my-spikes-worker
@@ -174,10 +186,10 @@ Set `data-endpoint` to your Worker URL with the token:
 
 ### Configure the CLI
 
-Add your remote endpoint:
+Add your remote endpoint with token:
 
 ```bash
-spikes remote add https://spikes-worker.YOUR_SUBDOMAIN.workers.dev --token YOUR_TOKEN
+spikes remote add https://spikes-worker.YOUR_SUBDOMAIN.workers.dev --token <YOUR_TOKEN>
 ```
 
 Then sync spikes:
@@ -185,6 +197,19 @@ Then sync spikes:
 ```bash
 spikes pull   # Fetch from your Worker
 spikes push   # Upload to your Worker
+```
+
+**Managing remote configuration:**
+
+```bash
+spikes remote show              # View current endpoint
+spikes remote remove            # Remove configuration
+```
+
+The CLI stores endpoint and token in `.spikes/config.toml`. You can also use environment variables to override:
+
+```bash
+SPIKES_API_URL=https://your-worker.workers.dev SPIKES_TOKEN=your-token spikes pull
 ```
 
 ### Use Environment Variable Override
