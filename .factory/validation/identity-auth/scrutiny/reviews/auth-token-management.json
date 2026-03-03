@@ -1,0 +1,57 @@
+{
+  "featureId": "auth-token-management",
+  "reviewedAt": "2026-03-03T08:00:00.000Z",
+  "commitId": "aa77679",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Critical mismatch: The implemented feature is auth-magic-link-endpoints (VAL-AUTH-001/002/003), not auth-token-management (VAL-AUTH-005/006/007). The commit aa77679 adds POST /auth/login and POST /auth/verify for magic link authentication, but the auth-token-management feature requires POST /auth/rotate-token, POST /auth/recover, and stripe_customer_id storage. None of the token lifecycle management endpoints are implemented.",
+    "issues": [
+      {
+        "file": "worker/src/handlers/auth.ts",
+        "line": 1,
+        "severity": "blocking",
+        "description": "Missing token rotation endpoint (VAL-AUTH-005). Expected: POST /auth/rotate-token that issues new token, revokes old token (sets revoked_at), migrates user associations. Actual: Only magic link login/verify endpoints exist."
+      },
+      {
+        "file": "worker/src/handlers/auth.ts",
+        "line": 1,
+        "severity": "blocking",
+        "description": "Missing account recovery endpoint (VAL-AUTH-006). Expected: POST /auth/recover that accepts registered email and sends magic link for account recovery. Actual: No recovery endpoint implemented."
+      },
+      {
+        "file": "worker/src/handlers/auth.ts",
+        "line": 1,
+        "severity": "blocking",
+        "description": "Missing stripe_customer_id storage (VAL-AUTH-007). Expected: Store stripe_customer_id in users table when user subscribes. Actual: No webhook handler or logic to populate stripe_customer_id."
+      },
+      {
+        "file": "worker/src/index.ts",
+        "line": 100,
+        "severity": "blocking",
+        "description": "Missing route registration for /auth/rotate-token and /auth/recover. Only /auth/login and /auth/verify routes are registered."
+      },
+      {
+        "file": "worker/src/handlers/auth.ts",
+        "line": 136,
+        "severity": "non_blocking",
+        "description": "Bearer token generation uses crypto.randomUUID() but there's no mechanism to revoke tokens (revoked_at is inserted as NULL but never updated). The user_tokens table has revoked_at column but no rotate/revoke logic."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Feature tracking mismatch in mission system. The worker session 9e3356a6-dd91-4c1c-b29e-4657f5b848fd was assigned auth-magic-link-endpoints but the handoff was labeled auth-token-management. This caused the wrong feature to be marked complete in features.json.",
+      "evidence": "features.json shows auth-token-management.completedWorkerSessionId = 9e3356a6-dd91-4c1c-b29e-4657f5b848fd, but the commit aa77679 message clearly states 'implement magic link authentication endpoints (VAL-AUTH-001, VAL-AUTH-002, VAL-AUTH-003)'"
+    },
+    {
+      "area": "conventions",
+      "observation": "The auth-token-management feature was marked complete without implementing the expected behavior. The validation contract assertions VAL-AUTH-005, VAL-AUTH-006, and VAL-AUTH-007 are not satisfied.",
+      "evidence": "features.json expectedBehavior lists: POST /auth/rotate-token returns new token, POST /auth/recover creates recovery login attempt, stripe_customer_id stored. None of these exist in the codebase."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "FAIL: The auth-token-management feature was incorrectly marked as complete. The implemented code (commit aa77679) is auth-magic-link-endpoints (login/verify), not auth-token-management (rotate-token/recover/stripe_customer_id). The assertions VAL-AUTH-005, VAL-AUTH-006, and VAL-AUTH-007 from the validation contract are NOT fulfilled. The feature requires complete re-implementation with the correct endpoints."
+}

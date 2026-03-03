@@ -1,0 +1,61 @@
+{
+  "featureId": "cli-auth-commands",
+  "reviewedAt": "2026-03-03T08:30:00Z",
+  "commitId": "2bc8ec33011b538267770f8cf16925e6c033f23a",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The CLI authentication commands implementation is well-structured and follows the project conventions. The auth.rs module provides secure token storage with XDG-compliant paths, proper file permissions (0600), and SPIKES_TOKEN environment variable override. The login, logout, and whoami commands are cleanly implemented with both human-readable and --json output modes. All existing share/shares/unshare commands have been updated to use the new auth module.",
+    "issues": [
+      {
+        "file": "cli/src/auth.rs",
+        "line": 295,
+        "severity": "non_blocking",
+        "description": "test_spike_token_env_override modifies global environment variable which can cause race conditions in parallel test runs. The test uses env::set_var/remove_var without isolation. This is tracked as feature 'misc-flaky-test-fix' for a follow-up fix using serial_test or temp_env crate."
+      },
+      {
+        "file": "cli/src/commands/login.rs",
+        "line": 162,
+        "severity": "non_blocking",
+        "description": "Email validation is basic (only checks for @ and .). Consider using a more robust validation or the email_address crate for production use. Currently accepts invalid emails like 'a@b.c' which will fail at the API level anyway."
+      },
+      {
+        "file": "cli/src/commands/login.rs",
+        "line": 200,
+        "severity": "non_blocking",
+        "description": "URL encoding for email in poll_verification is hand-rolled. Consider using urlencoding crate for proper percent-encoding to handle edge cases like Unicode characters in email addresses."
+      },
+      {
+        "file": "cli/src/commands/whoami.rs",
+        "line": 42,
+        "severity": "non_blocking",
+        "description": "whoami command calls /me endpoint but error handling uses generic map_http_error. Consider adding specific error message for 401 to suggest running 'spikes login' when token is invalid or expired."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "AGENTS.md documents 'Data file: .spikes/feedback.jsonl' but doesn't mention the new auth.toml storage location. The auth module introduces a new pattern for secure credential storage that should be documented in AGENTS.md for future CLI feature development.",
+      "evidence": "AGENTS.md line under 'CLI (Rust)' section only mentions .spikes/feedback.jsonl, doesn't document ~/.config/spikes/auth.toml pattern introduced by this feature."
+    },
+    {
+      "area": "conventions",
+      "observation": "The skill file for worker-cli doesn't document auth patterns or the AuthConfig module structure. Future auth-related features would benefit from guidance on using AuthConfig::token() vs AuthConfig::load() and when to check SPIKES_TOKEN env var.",
+      "evidence": "Skill file at .factory/skills/worker-cli/SKILL.md describes general CLI work procedure but doesn't mention auth.rs module patterns, secure file permissions, or XDG directory usage."
+    },
+    {
+      "area": "services",
+      "observation": "services.yaml defines test-cli command but doesn't specify environment variable handling for SPIKES_TOKEN during tests. Tests that use env vars should ideally be documented to run with specific env isolation.",
+      "evidence": "services.yaml command 'test-cli: cd cli && cargo test' - doesn't document that tests modify environment variables which could affect parallel test execution."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The poll_verification function assumes a /auth/poll endpoint that takes an email query parameter. This endpoint contract is not documented in the mission's validation-contract.md under the auth endpoints section (which documents /auth/login and /auth/verify but not /auth/poll).",
+      "evidence": "login.rs:190-210 calls GET /auth/poll?email={encoded_email} expecting 200 with token, 204/202 for pending, or error. validation-contract.md VAL-AUTH-001/002/003 document login and verify but don't mention polling mechanism."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The cli-auth-commands feature is complete and passes review. The implementation includes: (1) auth.rs module with secure XDG-compliant token storage at ~/.config/spikes/auth.toml (or platform equivalent) with 0600 file permissions, (2) SPIKES_TOKEN environment variable override support, (3) login command with magic link flow and 5-minute polling, (4) logout command that clears authentication, (5) whoami command that calls /me endpoint, and (6) comprehensive unit and integration tests (127 tests pass). Non-blocking issues identified: test env var race condition (tracked separately as misc-flaky-test-fix), basic email validation, hand-rolled URL encoding, and missing documentation updates in AGENTS.md and skill files."
+}

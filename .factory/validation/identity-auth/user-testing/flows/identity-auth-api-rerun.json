@@ -1,0 +1,91 @@
+{
+  "groupId": "identity-auth-api-rerun",
+  "testedAt": "2026-03-03T09:45:00.000Z",
+  "credentials": {
+    "account": "ia-r2-api-94bc@example.com",
+    "namespace": "ia-r2-api-94bc"
+  },
+  "toolsUsed": ["curl", "sqlite3"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-005",
+      "title": "Token Rotation API",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /auth/rotate-token with valid bearer token",
+          "expected": "HTTP 200 with new token in response, old token revoked in DB",
+          "observed": "HTTP 200 with {ok: true, token: '...', user: {...}}, old token has revoked_at timestamp set"
+        },
+        {
+          "action": "Verify old token returns 401",
+          "expected": "GET /me with old token returns 401 AUTH_FAILED",
+          "observed": "GET /me with old token returned 401 {error: 'Invalid or revoked bearer token', code: 'AUTH_FAILED'}"
+        },
+        {
+          "action": "Database verification of token rotation",
+          "expected": "Old token has revoked_at timestamp, new token active",
+          "observed": "Old token (ia-r2-api-94bc-token) has revoked_at='2026-03-03T09:41:14.142Z', new token (56c43e7f-...) has revoked_at=NULL"
+        }
+      ],
+      "evidence": {
+        "apiRequests": [
+          {
+            "request": "POST http://localhost:8787/auth/rotate-token\nAuthorization: Bearer ia-r2-api-94bc-test-token-12345",
+            "response": "HTTP 200\n{\"ok\":true,\"token\":\"************************************\",\"user\":{\"id\":\"ia-r2-api-94bc-user\",\"email\":\"ia-r2-api-94bc@example.com\",\"tier\":\"free\"}}"
+          },
+          {
+            "request": "GET http://localhost:8787/me\nAuthorization: Bearer ia-r2-api-94bc-test-token-12345",
+            "response": "HTTP 401\n{\"error\":\"Invalid or revoked bearer token\",\"code\":\"AUTH_FAILED\"}"
+          }
+        ],
+        "database": "SELECT id, token_hash, revoked_at FROM user_tokens WHERE user_id='ia-r2-api-94bc-user':\n- ia-r2-api-94bc-token | fe7c64b75ffb67f09bdbd44a99c944164884162e310eb6857af7753071096675 | 2026-03-03T09:41:14.142Z (revoked)\n- 56c43e7f-052f-4f55-a667-ed2fe6d94c95 | a9e878bb0a7249dc422532451cdd571aa1b8ce65c6e96cc3f8c0e9943fa5e3c2 | NULL (active)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "title": "Account Recovery via Email",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /auth/recover with registered email",
+          "expected": "HTTP 202/200 with {ok: true, message: 'Recovery email sent'}, login attempt created in DB",
+          "observed": "HTTP 200 with {ok: true, message: 'Recovery email sent'}, login_attempts table has new row with email, token_hash, expires_at, used=0"
+        },
+        {
+          "action": "POST /auth/recover with non-existing email",
+          "expected": "Same response to prevent user enumeration",
+          "observed": "HTTP 200 with identical {ok: true, message: 'Recovery email sent'} - no user enumeration possible"
+        },
+        {
+          "action": "Verify recovery login attempt created",
+          "expected": "login_attempts table contains new row for ia-r2-api-94bc@example.com with used=0, future expires_at",
+          "observed": "Latest login attempt: c0fd3822-5f0f-41e6-8917-7ce8e03ecfd2 | ia-r2-api-94bc@example.com | expires_at=2026-03-03T09:57:02.520Z | used=0"
+        },
+        {
+          "action": "Verify existing shares remain accessible after recovery flow",
+          "expected": "User's shares persist in database for post-recovery access",
+          "observed": "Share a19ce184-9f76-459b-a16d-1ca1edc4a241 (slug: share-5vnv3) owned by ia-r2-api-94bc-user persists in DB"
+        }
+      ],
+      "evidence": {
+        "apiRequests": [
+          {
+            "request": "POST http://localhost:8787/auth/recover\nContent-Type: application/json\n{\"email\":\"ia-r2-api-94bc@example.com\"}",
+            "response": "HTTP 200\n{\"ok\":true,\"message\":\"Recovery email sent\"}"
+          },
+          {
+            "request": "POST http://localhost:8787/auth/recover\nContent-Type: application/json\n{\"email\":\"nonexistent-user@example.com\"}",
+            "response": "HTTP 200\n{\"ok\":true,\"message\":\"Recovery email sent\"}"
+          }
+        ],
+        "database": "Recent login_attempts for ia-r2-api-94bc@example.com:\n- c0fd3822-5f0f-41e6-8917-7ce8e03ecfd2 | expires_at=2026-03-03T09:57:02.520Z | used=0\n- 15764ee6-8828-4ca6-8dac-c3b088652e94 | expires_at=2026-03-03T09:56:34.990Z | used=0\n\nUser shares:\n- a19ce184-9f76-459b-a16d-1ca1edc4a241 | share-5vnv3 | owner_id=ia-r2-api-94bc-user"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Both VAL-AUTH-005 and VAL-AUTH-006 assertions pass. Token rotation endpoint (/auth/rotate-token) correctly revokes old tokens and issues new ones. Account recovery endpoint (/auth/recover) creates login attempts and prevents user enumeration. Previous implementation blockers are resolved."
+}

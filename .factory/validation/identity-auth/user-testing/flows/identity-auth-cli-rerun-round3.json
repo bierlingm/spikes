@@ -1,0 +1,107 @@
+{
+  "groupId": "identity-auth-cli-rerun-round3",
+  "testedAt": "2026-03-03T11:02:00Z",
+  "credentials": {
+    "account": "ia-r3-cli-fbcb@example.com",
+    "namespace": "ia-r3-cli-fbcb"
+  },
+  "toolsUsed": ["curl", "spikes-cli", "sqlite3"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-014",
+      "title": "spikes login Command",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Set up isolated HOME directory",
+          "expected": "Clean environment at /tmp/spikes-utv-ia-r3-cli-fbcb-home",
+          "observed": "Directory created, no pre-existing auth files"
+        },
+        {
+          "action": "Insert test bearer token into local worker database",
+          "expected": "Token hash stored in user_tokens table linked to user",
+          "observed": "Token inserted for user ia-r3-cli-fbcb@example.com (tier: pro)"
+        },
+        {
+          "action": "Run spikes login --token <bearer_token> with isolated HOME",
+          "expected": "Token stored in auth.toml, success message displayed",
+          "observed": "Command succeeded with '🗡️  Logged in successfully' message"
+        },
+        {
+          "action": "Verify auth.toml location and permissions",
+          "expected": "File at ~/Library/Application Support/spikes/auth.toml with 0600 permissions",
+          "observed": "File created at /tmp/spikes-utv-ia-r3-cli-fbcb-home/Library/Application Support/spikes/auth.toml with -rw------- (0600) permissions"
+        },
+        {
+          "action": "Verify auth.toml content format",
+          "expected": "TOML format with [auth] section and token field",
+          "observed": "File contains: [auth]\\ntoken = \"***\" (token masked in output)"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "export HOME=/tmp/spikes-utv-ia-r3-cli-fbcb-home",
+          "mkdir -p $HOME",
+          "spikes login --token ia-r3-cli-fbcb-test-token-12345",
+          "ls -la $HOME/Library/Application\\ Support/spikes/auth.toml",
+          "stat -f \"%Lp\" $HOME/Library/Application\\ Support/spikes/auth.toml"
+        ],
+        "outputs": [
+          "🗡️  Logged in successfully",
+          "-rw------- 49 Mar 3 11:02 auth.toml",
+          "600 (octal permissions)"
+        ],
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-016",
+      "title": "spikes whoami Command",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify /me endpoint works with test token via curl",
+          "expected": "JSON response with email and tier fields",
+          "observed": "curl -H 'Authorization: Bearer ia-r3-cli-fbcb-test-token-12345' http://localhost:8787/me returned: {\"email\":\"ia-r3-cli-fbcb@example.com\",\"tier\":\"pro\"}"
+        },
+        {
+          "action": "Run whoami with stored token using SPIKES_API_URL pointing to local worker",
+          "expected": "Displays email and tier (e.g., 'user@example.com (pro)')",
+          "observed": "SPIKES_API_URL=http://localhost:8787 spikes whoami displayed: Email: ia-r3-cli-fbcb@example.com, Tier: pro"
+        },
+        {
+          "action": "Run whoami with --json flag",
+          "expected": "Machine-readable JSON output with email and tier",
+          "observed": "Output in JSON format: {\"email\":\"ia-r3-cli-fbcb@example.com\",\"tier\":\"pro\"}"
+        },
+        {
+          "action": "Test whoami without authentication (after logout)",
+          "expected": "Error message: 'Not logged in. Run 'spikes login' first.'",
+          "observed": "Error: IO error: Not logged in. Run 'spikes login' first."
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "curl -s http://localhost:8787/me -H 'Authorization: Bearer ia-r3-cli-fbcb-test-token-12345'",
+          "SPIKES_API_URL=http://localhost:8787 spikes whoami",
+          "SPIKES_API_URL=http://localhost:8787 spikes whoami --json",
+          "spikes logout",
+          "SPIKES_API_URL=http://localhost:8787 spikes whoami"
+        ],
+        "outputs": [
+          "{\"email\":\"ia-r3-cli-fbcb@example.com\",\"tier\":\"pro\"}",
+          "  Email: ia-r3-cli-fbcb@example.com\\n  Tier:  pro",
+          "{\"email\":\"ia-r3-cli-fbcb@example.com\",\"tier\":\"pro\"}",
+          "🗡️  Logged out successfully",
+          "Error: IO error: Not logged in. Run 'spikes login' first."
+        ],
+        "consoleErrors": "none"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 2 assertions: 2 passed (VAL-AUTH-014, VAL-AUTH-016). VAL-AUTH-014 confirms spikes login --token correctly stores bearer token in platform-appropriate config directory (~/Library/Application Support/spikes/auth.toml on macOS) with 0600 permissions. VAL-AUTH-016 confirms spikes whoami correctly displays email and tier when authenticated, and shows appropriate error when unauthenticated. Using SPIKES_API_URL=http://localhost:8787 allowed testing against local worker which returns proper JSON from /me endpoint, enabling full end-to-end validation."
+}

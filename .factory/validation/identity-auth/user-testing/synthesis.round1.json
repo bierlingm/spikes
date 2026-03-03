@@ -1,0 +1,53 @@
+{
+  "milestone": "identity-auth",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 16,
+    "passed": 12,
+    "failed": 2,
+    "blocked": 2
+  },
+  "passedAssertions": [
+    "VAL-AUTH-001",
+    "VAL-AUTH-002",
+    "VAL-AUTH-003",
+    "VAL-AUTH-007",
+    "VAL-AUTH-008",
+    "VAL-AUTH-009",
+    "VAL-AUTH-010",
+    "VAL-AUTH-011",
+    "VAL-AUTH-012",
+    "VAL-AUTH-013",
+    "VAL-AUTH-015",
+    "VAL-AUTH-017"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-AUTH-014",
+      "reason": "`spikes login` can store token via `--token`, but `spikes whoami` does not work immediately after login (JSON parse error from /me response)."
+    },
+    {
+      "id": "VAL-AUTH-016",
+      "reason": "`spikes whoami` fails with JSON parse error instead of displaying email and tier."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-AUTH-005",
+      "blockedBy": "`POST /auth/rotate-token` endpoint is not implemented (404 Not Found)."
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "blockedBy": "`POST /auth/recover` endpoint is not implemented (404 Not Found)."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added flow-validator guidance sections for Identity Auth API and CLI Auth Commands, including isolation and evidence requirements.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}
