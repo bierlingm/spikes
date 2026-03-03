@@ -1,0 +1,237 @@
+{
+  "milestone": "agent-integration",
+  "groupId": "export-cross",
+  "testedAt": "2026-03-03T19:02:00Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "a4385-export"
+  },
+  "toolsUsed": ["cli-terminal", "cargo-test"],
+  "assertions": [
+    {
+      "id": "VAL-EXPORT-001",
+      "title": "cursor-context format produces valid markdown",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create fixture data in /tmp/spikes-utv-a4385-export/.spikes/feedback.jsonl",
+          "expected": "8 spikes with mixed ratings and resolutions",
+          "observed": "File created with 8 spikes (4 blocking, 2 resolved, 2 positive)"
+        },
+        {
+          "action": "Run `spikes export --format cursor-context`",
+          "expected": "Structured markdown with sections for blocking, hotspots, element notes",
+          "observed": "Output contains # 🎯 FEEDBACK INTEL header, BLOCKING ISSUES with 4 items, HOTSPOTS sorted by count, ELEMENT-SPECIFIC NOTES grouped by selector"
+        }
+      ],
+      "evidence": {
+        "outputSections": [
+          "# 🎯 FEEDBACK INTEL",
+          "Project: a4385-export-project",
+          "Total Spikes: 8",
+          "BLOCKING ISSUES with 4 entries (unresolved meh/no)",
+          "FEEDBACK HOTSPOTS with 4 selectors ranked by count",
+          "ELEMENT-SPECIFIC NOTES grouped by selector"
+        ],
+        "consoleErrors": "none",
+        "command": "spikes export --format cursor-context"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-EXPORT-002",
+      "title": "claude-context format produces valid markdown",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `spikes export --format claude-context` with same fixture data",
+          "expected": "Structured markdown distinct from cursor-context with critical issues, hotspots, element feedback sections",
+          "observed": "Output contains # ⚡ SPIKES FEEDBACK REPORT header with different section organization"
+        }
+      ],
+      "evidence": {
+        "outputSections": [
+          "# ⚡ SPIKES FEEDBACK REPORT",
+          "CRITICAL ISSUES section with 4 blocking items",
+          "FEEDBACK HOTSPOTS ranked list",
+          "ELEMENT FEEDBACK organized by selector",
+          "Distinct header style from cursor-context"
+        ],
+        "consoleErrors": "none",
+        "command": "spikes export --format claude-context"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-EXPORT-003",
+      "title": "Context exports handle empty and positive-only data",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create workspace with empty feedback.jsonl",
+          "expected": "Empty-state messages in output",
+          "observed": "cursor-context shows '✨ Clean slate! No blocking issues found' and 'No element feedback'"
+        },
+        {
+          "action": "Create workspace with positive-only spikes (love, like)",
+          "expected": "Valid markdown with no blocking issues section populated",
+          "observed": "claude-context shows '✅ All clear. No critical issues blocking progress'"
+        }
+      ],
+      "evidence": {
+        "emptyStateMessages": [
+          "cursor-context: '✨ Clean slate! No blocking issues found'",
+          "cursor-context: '📊 No element feedback. Nothing's hot yet'",
+          "claude-context: '✅ All clear. No critical issues blocking progress'",
+          "claude-context: 'No element hotspots. Reviewers haven't targeted specific elements yet'"
+        ],
+        "consoleErrors": "none",
+        "commands": [
+          "spikes export --format cursor-context (empty)",
+          "spikes export --format claude-context (positive-only)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-EXPORT-004",
+      "title": "Context exports correctly identify blocking feedback",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify blocking criteria in source code",
+          "expected": "is_blocking() checks !resolved && (Meh || No)",
+          "observed": "export.rs: is_blocking() = !spike.is_resolved() && matches!(Some(Rating::Meh) | Some(Rating::No))"
+        },
+        {
+          "action": "Check fixture data against export output",
+          "expected": "4 blocking spikes (unresolved meh/no), resolved negative excluded, positive excluded",
+          "observed": "Blocking section contains exactly: a4385-export-001 (no), a4385-export-002 (no), a4385-export-003 (meh), a4385-export-004 (meh). Excludes resolved a4385-export-005 (meh), resolved a4385-export-008 (no), and positive a4385-export-006/007"
+        }
+      ],
+      "evidence": {
+        "blockingSpikes": [
+          "a4385-export-001: unresolved 'no' on header nav",
+          "a4385-export-002: unresolved 'no' on header nav",
+          "a4385-export-003: unresolved 'meh' on .pricing-table",
+          "a4385-export-004: unresolved 'meh' on /contact page"
+        ],
+        "excludedSpikes": [
+          "a4385-export-005: resolved 'meh' (excluded correctly)",
+          "a4385-export-008: resolved 'no' (excluded correctly)",
+          "a4385-export-006: unresolved 'love' (excluded correctly)",
+          "a4385-export-007: unresolved 'like' (excluded correctly)"
+        ],
+        "codeReference": "export.rs: is_blocking() function at line 289-295"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-EXPORT-005",
+      "title": "Context exports use punk/zine tone in headers",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Analyze header and tagline text in both formats",
+          "expected": "Punk/zine energy in section headers, not generic business language",
+          "observed": "Multiple punk/zine phrases identified in both formats"
+        }
+      ],
+      "evidence": {
+        "cursorContextPhrases": [
+          "Your roadmap to glory or ruin",
+          "The vibes are off. Fix these before shipping",
+          "Where the action is. Elements with the most heat",
+          "Deep cuts on specific elements",
+          "feedback that talks back"
+        ],
+        "claudeContextPhrases": [
+          "The raw truth, served fresh",
+          "demanding attention. The must-fix list",
+          "Where reviewers clustered. The conversation starters",
+          "Granular feedback on specific components"
+        ],
+        "consoleErrors": "none"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-EXPORT-006",
+      "title": "Context export tests exist and pass",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `cargo test export`",
+          "expected": "32 export-related tests passing",
+          "observed": "32 tests passed: format parsing, is_blocking logic, hotspots, empty states, positive-only, mixed ratings, element grouping, punk/zine tone, metadata"
+        }
+      ],
+      "evidence": {
+        "testCount": 32,
+        "testCategories": [
+          "ExportFormat parsing: 5 tests (json, csv, jsonl, cursor-context, claude-context, invalid format)",
+          "is_blocking logic: 7 tests (meh/no unresolved are blocking; love/like/resolved/no-rating are not)",
+          "hotspots: 4 tests (empty, page-only, single element, sorted descending)",
+          "cursor-context: 8 tests (empty state, positive-only, mixed ratings, resolved negative not blocking, element grouping, hotspots, punk tone, metadata)",
+          "claude-context: 7 tests (empty state, positive-only, mixed ratings, distinct from cursor, resolved marker, punk tone)"
+        ],
+        "cargoTestOutput": "test result: ok. 32 passed; 0 failed"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-001",
+      "title": "MCP tools and context exports use same data source",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify both use load_spikes() from storage.rs",
+          "expected": "Same data loading function called by both",
+          "observed": "export.rs calls load_spikes() at line 42; mcp.rs calls load_spikes() in get_spikes, get_element_feedback, get_hotspots"
+        },
+        {
+          "action": "Compare blocking criteria between export and MCP",
+          "expected": "Same unresolved + negative (meh/no) logic",
+          "observed": "Export: is_blocking() = !resolved && (Meh || No). MCP: unresolved_only filter excludes resolved; rating filter matches Meh/No separately"
+        },
+        {
+          "action": "Verify data source file path",
+          "expected": "Both read from .spikes/feedback.jsonl via same storage function",
+          "observed": "storage.rs load_spikes() reads PROJECT_ROOT/.spikes/feedback.jsonl for both export and MCP"
+        }
+      ],
+      "evidence": {
+        "sharedFunction": "storage::load_spikes()",
+        "exportBlockingCriteria": "!spike.is_resolved() && matches!(spike.rating, Some(Meh) | Some(No))",
+        "mcpFilteringLogic": [
+          "unresolved_only: if true, filters out s.is_resolved()",
+          "rating filter: if provided, matches spike.rating against parsed Rating"
+        ],
+        "blockingParity": "MCP get_spikes with unresolved_only=true + rating='no' OR rating='meh' returns same subset as export blocking section. Both use is_resolved() from spike.rs and rating matching."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "Export format error message lists all formats",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `spikes export --format invalid`",
+          "expected": "Error lists all 5 supported formats, exit code 1",
+          "observed": "Error: Invalid format: invalid. Use json, csv, jsonl, cursor-context, or claude-context | Exit code: 1"
+        }
+      ],
+      "evidence": {
+        "errorMessage": "Invalid format: invalid. Use json, csv, jsonl, cursor-context, or claude-context",
+        "formatsListed": ["json", "csv", "jsonl", "cursor-context", "claude-context"],
+        "exitCode": 1,
+        "testExists": "test_invalid_format_lists_all_five in export.rs confirms all 5 formats in error message"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 8 assertions: all 8 passed. cursor-context and claude-context formats produce valid markdown with correct structure. Blocking criteria correctly identifies unresolved meh/no spikes. Both formats handle empty and positive-only states gracefully. Punk/zine tone confirmed in headers. 32 export-related tests pass. MCP and export share the same data source (load_spikes) and blocking logic (unresolved + negative rating). Invalid format error correctly lists all 5 supported formats."
+}

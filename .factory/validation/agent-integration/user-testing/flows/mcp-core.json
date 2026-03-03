@@ -1,0 +1,158 @@
+{
+  "milestone": "agent-integration",
+  "groupId": "mcp-core",
+  "testedAt": "2026-03-03T19:45:00Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "a4385-mcp-core"
+  },
+  "toolsUsed": ["cargo", "stdio-pipe"],
+  "assertionsTested": [
+    {
+      "id": "VAL-MCP-001",
+      "title": "MCP server starts and responds to initialize",
+      "status": "pass",
+      "reason": "Server responds to initialize with protocolVersion, capabilities.tools, and serverInfo with name 'spikes-mcp' and version '0.3.0'",
+      "evidence": [
+        {
+          "type": "command",
+          "value": "echo '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{...}}' | cargo run -- mcp serve"
+        },
+        {
+          "type": "stdout",
+          "value": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"spikes-mcp\",\"version\":\"0.3.0\"}}}"
+        }
+      ]
+    },
+    {
+      "id": "VAL-MCP-002",
+      "title": "Tools list returns all three tools",
+      "status": "pass",
+      "reason": "tools/list returns exactly 3 tools with valid inputSchema: get_spikes, get_element_feedback, get_hotspots",
+      "evidence": [
+        {
+          "type": "command",
+          "value": "printf 'initialize\\nnotifications/initialized\\ntools/list' | cargo run -- mcp serve"
+        },
+        {
+          "type": "stdout",
+          "value": "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"get_element_feedback\",\"description\":\"Target lock...\",\"inputSchema\":{...}},{\"name\":\"get_hotspots\",...},{\"name\":\"get_spikes\",...}]}}"
+        }
+      ]
+    },
+    {
+      "id": "VAL-MCP-003",
+      "title": "get_spikes returns all spikes with no filters",
+      "status": "pass",
+      "reason": "Calling get_spikes with empty arguments returns formatted text listing all 7 spikes with id, type, page, rating, comments, reviewer, timestamp",
+      "evidence": [
+        {
+          "type": "command",
+          "value": "stdio pipe with initialize + notifications/initialized + tools/call get_spikes {}"
+        },
+        {
+          "type": "stdout",
+          "value": "Found 7 spike(s): [a4385-mc] page on index.html (Rating: love...), [a4385-mc] element on index.html (Rating: no, Selector: .hero-title...), etc."
+        }
+      ]
+    },
+    {
+      "id": "VAL-MCP-004",
+      "title": "get_spikes filters by page, rating, and unresolved",
+      "status": "pass",
+      "reason": "All filter combinations work correctly: page filter returns 4 spikes on index.html; rating='no' returns 2 spikes; unresolved_only returns 6 unresolved; combined filters AND correctly; non-matching returns 'No spikes found'",
+      "evidence": [
+        {
+          "type": "command",
+          "value": "tools/call get_spikes with {page:'index.html'}, {rating:'no'}, {unresolved_only:true}, combined filters, and non-matching page"
+        },
+        {
+          "type": "stdout_filtered_page",
+          "value": "Found 4 spike(s) on index.html"
+        },
+        {
+          "type": "stdout_filtered_rating",
+          "value": "Found 2 spike(s) with rating 'no'"
+        },
+        {
+          "type": "stdout_filtered_unresolved",
+          "value": "Found 6 spike(s) unresolved (1 resolved excluded)"
+        },
+        {
+          "type": "stdout_filtered_combined",
+          "value": "Found 1 spike(s) matching page='index.html' AND rating='no' AND unresolved_only=true"
+        },
+        {
+          "type": "stdout_no_match",
+          "value": "No spikes found matching the criteria. Clean slate, or wrong filters?"
+        }
+      ]
+    },
+    {
+      "id": "VAL-MCP-005",
+      "title": "get_element_feedback returns feedback for CSS selector",
+      "status": "pass",
+      "reason": "Selector match returns element-type spikes for that selector; non-matching returns 'No feedback found'; missing selector returns JSON-RPC error -32602 (invalid params)",
+      "evidence": [
+        {
+          "type": "command",
+          "value": "tools/call get_element_feedback with {selector:'.hero-title'}, {selector:'.nonexistent'}, and {}"
+        },
+        {
+          "type": "stdout_matching",
+          "value": "Found 3 feedback item(s) for '.hero-title': [a4385-mc] element on index.html..."
+        },
+        {
+          "type": "stdout_no_match",
+          "value": "No feedback found for selector '.nonexistent'. Ghost town."
+        },
+        {
+          "type": "stdout_missing_selector",
+          "value": "{\"jsonrpc\":\"2.0\",\"id\":5,\"error\":{\"code\":-32602,\"message\":\"failed to deserialize parameters: missing field `selector`\"}}"
+        }
+      ]
+    },
+    {
+      "id": "VAL-MCP-006",
+      "title": "get_hotspots returns elements sorted by feedback count",
+      "status": "pass",
+      "reason": "Returns hotspots sorted by descending count; limit parameter works (default 10, limit=1 returns only top); shows correct feedback item counts",
+      "evidence": [
+        {
+          "type": "command",
+          "value": "tools/call get_hotspots with {} and {limit:1}"
+        },
+        {
+          "type": "stdout_default",
+          "value": "Top 3 hotspot(s): 1. .hero-title (3 feedback items), 2. .submit-btn (1 feedback item), 3. .nav-button (1 feedback item)"
+        },
+        {
+          "type": "stdout_limited",
+          "value": "Top 1 hotspot(s): 1. .hero-title (3 feedback items)"
+        }
+      ]
+    }
+  ],
+  "frictions": [
+    {
+      "description": "MCP stdio transport requires staggered delays between JSON-RPC messages when piping via shell - pipe closing too early causes server to stop before processing subsequent requests",
+      "resolved": true,
+      "resolution": "Added 0.3s delays between messages and 2s sleep at end to keep pipe open until all responses received",
+      "affectedAssertions": ["VAL-MCP-002", "VAL-MCP-003", "VAL-MCP-004", "VAL-MCP-005", "VAL-MCP-006"]
+    },
+    {
+      "description": "Fixture data initially used snake_case field names but Spike struct expects camelCase due to #[serde(rename_all = \"camelCase\")]",
+      "resolved": true,
+      "resolution": "Updated fixture to use camelCase: projectKey, elementText, resolvedAt",
+      "affectedAssertions": ["VAL-MCP-003", "VAL-MCP-004", "VAL-MCP-005", "VAL-MCP-006"]
+    },
+    {
+      "description": "Fixture data used 'spike_type' field name but Spike struct expects 'type' with #[serde(rename = \"type\")]",
+      "resolved": true,
+      "resolution": "Updated fixture to use 'type' field with lowercase values 'page' and 'element'",
+      "affectedAssertions": ["VAL-MCP-003", "VAL-MCP-004", "VAL-MCP-005", "VAL-MCP-006"]
+    }
+  ],
+  "blockers": [],
+  "summary": "All 6 MCP core assertions passed. Server correctly implements JSON-RPC protocol with proper initialize handshake, returns 3 tools with valid schemas, and all tool operations (get_spikes with filters, get_element_feedback, get_hotspots) function as specified. Error handling returns appropriate JSON-RPC error codes for invalid params."
+}

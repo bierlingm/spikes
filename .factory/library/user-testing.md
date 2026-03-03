@@ -43,6 +43,8 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - CLI `whoami` currently calls `https://spikes.sh/me` directly. If production routing serves static HTML at that path, CLI identity assertions can be blocked even when local worker `GET /me` works at `http://localhost:8787/me`.
 - `spikes pull --from <share-url>` respects `SPIKES_API_URL` and now parses paginated worker responses (`{ "data": [...], "next_cursor": ... }`) correctly (validated in monetization rerun round 3).
 - Share HTML currently injects widget script with `data-endpoint="https://spikes.sh"`; local widget submissions may not hit `localhost:8787` unless endpoint behavior is overridden.
+- MCP (rmcp SDK) requires `notifications/initialized` after `initialize` before `tools/list` / `tools/call`; skipping it can yield protocol-state errors.
+- When piping multiple JSON-RPC lines into `spikes mcp serve`, keep stdin open long enough for all responses (small inter-line delays help avoid premature pipe close).
 
 ## Flow Validator Guidance: Hosted Worker API
 
@@ -119,3 +121,17 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Do not share `.spikes/` state, auth files, or uploaded share slugs between validators.
 - Keep all end-to-end flows scoped to local worker (`http://localhost:8787`) and local serve surface (`http://localhost:3847`) only.
 - For widget/browser checks, use namespaced reviewer labels and comments so pulled feedback can be attributed unambiguously.
+
+## Flow Validator Guidance: MCP Server (CLI stdio)
+
+- Use an isolated temp workspace per namespace (e.g. `/tmp/spikes-utv-<namespace>-mcp`) with a namespace-scoped `.spikes/feedback.jsonl` fixture file.
+- Run `cargo run -- mcp serve` from `cli/` and keep stdout clean for JSON-RPC; redirect stderr separately for evidence when validating stdout purity assertions.
+- For multi-request checks, use a single stdin stream with multiple JSON-RPC lines in your namespace workspace; do not reuse another validator's fixture data.
+- Capture exact request and response JSON for initialize, tools/list, and tools/call, including error cases.
+
+## Flow Validator Guidance: Context Exports (CLI)
+
+- Use a separate isolated temp workspace per namespace (e.g. `/tmp/spikes-utv-<namespace>-export`) and create all fixture spikes locally in that workspace.
+- Validate both `cursor-context` and `claude-context` from the same fixture dataset before cross-checking with MCP-derived blocking output.
+- Keep assertions deterministic by using explicit IDs/selectors/comments in fixture data and recording exact markdown excerpts as evidence.
+- Do not modify repo source files for export validation; only run CLI commands against fixture data.
