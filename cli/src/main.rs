@@ -304,6 +304,13 @@ enum Commands {
         json: bool,
     },
 
+    /// Upgrade to Pro subscription via Stripe checkout
+    Upgrade {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Display current usage statistics
     Usage {
         /// Output as JSON
@@ -459,6 +466,7 @@ fn main() {
             commands::resolve::run(ResolveOptions { id, unresolve, json })
         }
         Some(Commands::Billing { json }) => commands::billing::run(json),
+        Some(Commands::Upgrade { json }) => commands::upgrade::run(json),
         Some(Commands::Usage { json }) => commands::usage::run(UsageOptions { json }),
     };
 

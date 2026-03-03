@@ -22,5 +22,6 @@ pub mod show;
 pub mod sync;
 pub mod unshare;
 pub mod update;
+pub mod upgrade;
 pub mod usage;
 pub mod whoami;
