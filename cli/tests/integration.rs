@@ -416,3 +416,192 @@ fn test_version() {
         .success()
         .stdout(predicate::str::contains("spikes"));
 }
+
+// ============================================================================
+// Delete command tests
+// ============================================================================
+
+#[test]
+fn test_delete_spike_with_force() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"delete-test-123\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("delete")
+        .arg("delete-test-123")
+        .arg("--force")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Deleted spike"));
+
+    // Verify spike was removed
+    let spikes = project.read_spikes();
+    assert!(spikes.is_empty(), "Spike should be deleted");
+}
+
+#[test]
+fn test_delete_spike_json_output() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"delete-json-test\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("delete")
+        .arg("delete-json-test")
+        .arg("--force")
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"deleted\": true"))
+        .stdout(predicate::str::contains("\"id\": \"delete-json-test\""));
+}
+
+#[test]
+fn test_delete_nonexistent_spike() {
+    let project = TestProject::new();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("delete")
+        .arg("nonexistent-id-xyz")
+        .arg("--force")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Spike not found"));
+}
+
+#[test]
+fn test_delete_prefix_too_short() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"prefix-test-123\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("delete")
+        .arg("abc")  // Only 3 characters
+        .arg("--force")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("at least 4 characters"));
+}
+
+#[test]
+fn test_delete_by_prefix() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"unique-prefix-test\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("delete")
+        .arg("uniq")  // 5-char unique prefix
+        .arg("--force")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Deleted spike"));
+
+    let spikes = project.read_spikes();
+    assert!(spikes.is_empty(), "Spike should be deleted");
+}
+
+// ============================================================================
+// Resolve command tests
+// ============================================================================
+
+#[test]
+fn test_resolve_spike() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"resolve-test-123\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("resolve")
+        .arg("resolve-test-123")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Resolved spike"));
+
+    // Verify spike has resolved field
+    let spikes = project.read_spikes();
+    assert!(spikes[0].contains("\"resolved\":true"), "Spike should be resolved");
+    assert!(spikes[0].contains("\"resolvedAt\""), "Spike should have resolvedAt timestamp");
+}
+
+#[test]
+fn test_resolve_spike_json_output() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"resolve-json-test\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("resolve")
+        .arg("resolve-json-test")
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"resolved\": true"))
+        .stdout(predicate::str::contains("\"resolvedAt\""));
+}
+
+#[test]
+fn test_unresolve_spike() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"unresolve-test\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\",\"resolved\":true,\"resolvedAt\":\"2024-01-02T00:00:00Z\"}");
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("resolve")
+        .arg("unresolve-test")
+        .arg("--unresolve")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Unresolved spike"));
+
+    // Verify spike no longer has resolved field
+    let spikes = project.read_spikes();
+    assert!(!spikes[0].contains("\"resolved\":true"), "Spike should not be resolved");
+}
+
+#[test]
+fn test_list_unresolved_filter() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"resolved-spike\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"like\",\"comments\":\"Resolved\",\"timestamp\":\"2024-01-01T00:00:00Z\",\"resolved\":true,\"resolvedAt\":\"2024-01-02T00:00:00Z\"}");
+    project.add_spike("{\"id\":\"unresolved-spike\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"about.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r2\",\"name\":\"Test2\"},\"rating\":\"love\",\"comments\":\"Unresolved\",\"timestamp\":\"2024-01-01T00:01:00Z\"}");
+
+    // Should only show unresolved spike
+    let output = cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("list")
+        .arg("--unresolved")
+        .arg("--json")
+        .assert()
+        .success()
+        .get_output()
+        .to_owned();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // Note: "unresolved-spike" contains "resolved-spike" as a substring, so we need to check for the full ID with quotes
+    assert!(stdout.contains("\"id\": \"unresolved-spike\""), "Should contain unresolved-spike ID");
+    assert!(!stdout.contains("\"id\": \"resolved-spike\""), "Should not contain resolved-spike ID");
+}
+
+#[test]
+fn test_list_unresolved_composes_with_other_filters() {
+    let project = TestProject::new();
+    project.add_spike("{\"id\":\"spike-page-a\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"page-a.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Alice\"},\"rating\":\"like\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
+    project.add_spike("{\"id\":\"spike-page-b\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"page-b.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r2\",\"name\":\"Bob\"},\"rating\":\"love\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:01:00Z\",\"resolved\":true,\"resolvedAt\":\"2024-01-02T00:00:00Z\"}");
+    project.add_spike("{\"id\":\"spike-page-c\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"page-a.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r3\",\"name\":\"Charlie\"},\"rating\":\"meh\",\"comments\":\"Test\",\"timestamp\":\"2024-01-01T00:02:00Z\",\"resolved\":true,\"resolvedAt\":\"2024-01-02T00:00:00Z\"}");
+
+    // --page filter + --unresolved should only show unresolved spikes from page-a
+    cargo_bin_cmd!("spikes")
+        .current_dir(project.path())
+        .arg("list")
+        .arg("--page")
+        .arg("page-a")
+        .arg("--unresolved")
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("spike-page-a"))
+        .stdout(predicate::str::contains("spike-page-c").not());  // Resolved, should be filtered out
+}

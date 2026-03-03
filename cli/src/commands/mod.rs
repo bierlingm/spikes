@@ -1,5 +1,6 @@
 pub mod config_cmd;
 pub mod dashboard;
+pub mod delete;
 pub mod deploy;
 pub mod export;
 pub mod hotspots;
@@ -12,6 +13,7 @@ pub mod magic;
 pub mod pull;
 pub mod push;
 pub mod remote;
+pub mod resolve;
 pub mod reviewers;
 pub mod serve;
 pub mod share;

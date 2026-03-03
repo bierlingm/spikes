@@ -81,6 +81,12 @@ pub struct Spike {
     pub comments: String,
     pub timestamp: String,
     pub viewport: Option<Viewport>,
+    /// Whether this spike has been resolved
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved: Option<bool>,
+    /// ISO 8601 timestamp when spike was resolved
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resolved_at: Option<String>,
 }
 
 impl Spike {
@@ -101,6 +107,11 @@ impl Spike {
             SpikeType::Page => "page",
             SpikeType::Element => "element",
         }
+    }
+
+    /// Check if this spike is resolved
+    pub fn is_resolved(&self) -> bool {
+        self.resolved.unwrap_or(false)
     }
 }
 
@@ -250,6 +261,8 @@ mod tests {
                 width: 1280,
                 height: 720,
             }),
+            resolved: None,
+            resolved_at: None,
         };
 
         let json = serde_json::to_string(&spike).unwrap();
@@ -277,6 +290,8 @@ mod tests {
             comments: "".to_string(),
             timestamp: "".to_string(),
             viewport: None,
+            resolved: None,
+            resolved_at: None,
         };
 
         assert_eq!(spike.rating_str(), "love");
@@ -302,6 +317,8 @@ mod tests {
             comments: "".to_string(),
             timestamp: "".to_string(),
             viewport: None,
+            resolved: None,
+            resolved_at: None,
         };
 
         assert_eq!(spike.type_str(), "page");
@@ -348,5 +365,49 @@ mod tests {
         assert!(spike.element_text.is_none());
         assert!(spike.bounding_box.is_none());
         assert!(spike.viewport.is_none());
+        assert!(spike.resolved.is_none());
+        assert!(spike.resolved_at.is_none());
+        assert!(!spike.is_resolved());
+    }
+
+    #[test]
+    fn test_spike_resolved() {
+        let json = r#"{
+            "id": "resolved-spike",
+            "type": "page",
+            "projectKey": "proj",
+            "page": "page.html",
+            "url": "http://example.com",
+            "reviewer": {"id": "r1", "name": "Test"},
+            "comments": "A comment",
+            "timestamp": "2024-01-15T12:00:00Z",
+            "resolved": true,
+            "resolvedAt": "2024-01-16T10:00:00Z"
+        }"#;
+
+        let spike: Spike = serde_json::from_str(json).unwrap();
+        assert_eq!(spike.resolved, Some(true));
+        assert_eq!(spike.resolved_at, Some("2024-01-16T10:00:00Z".to_string()));
+        assert!(spike.is_resolved());
+    }
+
+    #[test]
+    fn test_spike_resolved_false() {
+        let json = r#"{
+            "id": "unresolved-spike",
+            "type": "page",
+            "projectKey": "proj",
+            "page": "page.html",
+            "url": "http://example.com",
+            "reviewer": {"id": "r1", "name": "Test"},
+            "comments": "A comment",
+            "timestamp": "2024-01-15T12:00:00Z",
+            "resolved": false
+        }"#;
+
+        let spike: Spike = serde_json::from_str(json).unwrap();
+        assert_eq!(spike.resolved, Some(false));
+        assert!(spike.resolved_at.is_none());
+        assert!(!spike.is_resolved());
     }
 }

@@ -8,6 +8,7 @@ mod storage;
 mod tui;
 
 use clap::{Parser, Subcommand};
+use commands::delete::DeleteOptions;
 use commands::deploy::DeployOptions;
 use commands::export::ExportFormat;
 use commands::inject::InjectOptions;
@@ -15,6 +16,7 @@ use commands::list::ListOptions;
 use commands::login::LoginOptions;
 use commands::pull::PullOptions;
 use commands::push::PushOptions;
+use commands::resolve::ResolveOptions;
 use commands::serve::ServeOptions;
 use commands::share::ShareOptions;
 use commands::shares::SharesOptions;
@@ -59,6 +61,10 @@ enum Commands {
         /// Filter by rating (love, like, meh, no)
         #[arg(long)]
         rating: Option<String>,
+
+        /// Show only unresolved spikes
+        #[arg(long)]
+        unresolved: bool,
     },
 
     /// Show a single spike by ID
@@ -269,6 +275,34 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// Delete a spike from local storage
+    Delete {
+        /// Spike ID or prefix (minimum 4 characters)
+        id: String,
+
+        /// Skip confirmation prompt
+        #[arg(long, short)]
+        force: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Mark a spike as resolved
+    Resolve {
+        /// Spike ID or prefix (minimum 4 characters)
+        id: String,
+
+        /// Mark as unresolved instead
+        #[arg(long)]
+        unresolve: bool,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -324,11 +358,13 @@ fn main() {
             page,
             reviewer,
             rating,
+            unresolved,
         }) => commands::list::run(ListOptions {
             json,
             page,
             reviewer,
             rating,
+            unresolved,
         }),
         Some(Commands::Show { id, json }) => commands::show::run(&id, json),
         Some(Commands::Export { format }) => {
@@ -409,6 +445,12 @@ fn main() {
         Some(Commands::Shares { json }) => commands::shares::run(SharesOptions { json }),
         Some(Commands::Unshare { slug, force, json }) => {
             commands::unshare::run(UnshareOptions { slug, force, json })
+        }
+        Some(Commands::Delete { id, force, json }) => {
+            commands::delete::run(DeleteOptions { id, force, json })
+        }
+        Some(Commands::Resolve { id, unresolve, json }) => {
+            commands::resolve::run(ResolveOptions { id, unresolve, json })
         }
     };
 

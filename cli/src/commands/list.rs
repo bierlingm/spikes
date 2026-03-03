@@ -8,6 +8,7 @@ pub struct ListOptions {
     pub page: Option<String>,
     pub reviewer: Option<String>,
     pub rating: Option<String>,
+    pub unresolved: bool,
 }
 
 pub fn run(options: ListOptions) -> Result<()> {
@@ -39,6 +40,10 @@ pub fn run(options: ListOptions) -> Result<()> {
                 } else {
                     return false;
                 }
+            }
+            // Filter for unresolved spikes only
+            if options.unresolved && s.is_resolved() {
+                return false;
             }
             true
         })

@@ -12,7 +12,7 @@ pub fn print_spikes_table(spikes: &[Spike]) {
     table
         .load_preset(UTF8_FULL_CONDENSED)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["ID", "Type", "Page", "Reviewer", "Rating", "Comments"]);
+        .set_header(vec!["ID", "Type", "Page", "Reviewer", "Rating", "Resolved", "Comments"]);
 
     for spike in spikes {
         let rating_cell = match &spike.rating {
@@ -21,6 +21,12 @@ pub fn print_spikes_table(spikes: &[Spike]) {
             Some(Rating::Meh) => Cell::new("meh").fg(Color::Yellow),
             Some(Rating::No) => Cell::new("no").fg(Color::Red),
             None => Cell::new("-"),
+        };
+
+        let resolved_cell = if spike.is_resolved() {
+            Cell::new("✓").fg(Color::Green)
+        } else {
+            Cell::new("")
         };
 
         let comments = if spike.comments.len() > 40 {
@@ -35,6 +41,7 @@ pub fn print_spikes_table(spikes: &[Spike]) {
             Cell::new(&spike.page),
             Cell::new(&spike.reviewer.name),
             rating_cell,
+            resolved_cell,
             Cell::new(comments),
         ]);
     }
@@ -51,6 +58,11 @@ pub fn print_spike_detail(spike: &Spike) {
     println!("Reviewer:   {} ({})", spike.reviewer.name, spike.reviewer.id);
     println!("Rating:     {}", spike.rating_str());
     println!("Timestamp:  {}", spike.timestamp);
+    if spike.is_resolved() {
+        println!("Resolved:   {}", spike.resolved_at.as_deref().unwrap_or("unknown"));
+    } else {
+        println!("Resolved:   No");
+    }
     if let Some(ref vp) = spike.viewport {
         println!("Viewport:   {}x{}", vp.width, vp.height);
     }
