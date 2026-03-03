@@ -1,0 +1,31 @@
+{
+  "featureId": "cli-error-handling",
+  "reviewedAt": "2026-03-03T09:00:00Z",
+  "commitId": "17f5205a2e175e44ad3cf32b7a4904700a0f8126",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The CLI error handling feature is comprehensively implemented. The worker added error mapping functions in error.rs that map HTTP status codes to actionable error messages, updated all HTTP client commands (pull, push, share, shares, unshare) to use the new error handling, and added extensive unit and integration tests.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The implementation correctly follows the Rust CLI conventions documented in AGENTS.md - uses thiserror for error types, follows the existing module structure, and all commands support the --json flag (the error handling integrates cleanly with existing patterns).",
+      "evidence": "cli/src/error.rs uses #[derive(Error)] from thiserror, matches existing Error enum patterns, and integrates with --json output through the Display implementations."
+    },
+    {
+      "area": "conventions",
+      "observation": "The API error code pattern documented in AGENTS.md is correctly implemented - the code uses standardized error codes (SPIKE_LIMIT, SHARE_LIMIT) from the API contract and follows the {error, code} response shape.",
+      "evidence": "cli/src/error.rs: ApiErrorCode enum maps 'SPIKE_LIMIT' and 'SHARE_LIMIT' strings, and parse_api_error() handles the standardized error response format."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The implementation discovered that ureq embeds HTTP status codes in error messages (format: 'status code NNN') and built extract_status_code() to parse these. This is useful knowledge for future HTTP client work in the CLI.",
+      "evidence": "cli/src/error.rs: extract_status_code() function with documented ureq error message format pattern matching."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The cli-error-handling feature is fully implemented and meets all requirements. The error mapping function in error.rs correctly handles all specified HTTP status codes: 401 (auth failed with login hint), 429 SPIKE_LIMIT (upgrade CTA), 429 SHARE_LIMIT (free tier limit message), 413 (payload too large), and 500-599 (server error). Network errors are mapped to connection failed messages. All HTTP client commands (pull, push, share, shares, unshare) were updated to use the new error handling. The implementation includes 23 unit tests covering all error scenarios and 6 wiremock integration tests verifying end-to-end behavior. The code follows Rust best practices and integrates cleanly with existing CLI patterns. No blocking or non-blocking issues found."
+}

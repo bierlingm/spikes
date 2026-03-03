@@ -36,3 +36,10 @@ Split `index.ts` (~824 lines) into:
 - `src/middleware/validation.ts` — Zod schemas
 - `src/db/queries.ts` — D1 query helpers
 - `src/utils/crypto.ts` — Password hashing, HMAC
+
+## Reliability Scrutiny Notes (2026-03-03)
+
+- D1 foreign key violation behavior can vary by local runtime details; tests should assert constraint failure using message/code pattern matching rather than one exact error string.
+- For Worker IP-based rate limiting, prioritize `CF-Connecting-IP`, then `X-Forwarded-For`, then local fallback for development.
+- In the CLI (`ureq`), HTTP status often appears inside transport errors as `status code NNN`; parsing this pattern enables actionable error messaging even when no structured body is available.
+- For Worker background tasks (e.g., webhooks), pass `ExecutionContext` through handlers and use `ctx.waitUntil(...)` for delivery/retry work that must survive response completion.

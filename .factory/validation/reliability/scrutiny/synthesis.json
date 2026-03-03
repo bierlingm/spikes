@@ -1,0 +1,65 @@
+{
+  "milestone": "reliability",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd cli && cargo test; cd ../spikes-hosted/worker && npx vitest run",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd ../spikes-hosted/worker && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd ../spikes-hosted/worker && npx eslint src test",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Added reliability implementation notes to .factory/library/architecture.md covering D1 FK test nuance, Worker IP extraction order, ureq status parsing, and ExecutionContext/waitUntil guidance.",
+      "sourceFeature": "multiple"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Document a Worker convention that handlers requiring asynchronous post-response work must accept and use ExecutionContext with ctx.waitUntil(...).",
+      "evidence": "webhook-reliability review found retries implemented but noted fetch signature currently omits ExecutionContext, making guaranteed background completion harder.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add worker-specific guidance for request schema conventions (e.g., centralized Zod schemas, standardized ErrorCodes, and validation error formatting) to reduce drift across backend features.",
+      "evidence": "request-validation-zod review observed conventions are followed in code but not explicitly documented for future workers.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "No new services or commands needed",
+      "reason": "duplicate across multiple reviews and no action required"
+    },
+    {
+      "observation": "Worker followed skill procedure correctly",
+      "reason": "expected behavior, not a shared-state update candidate"
+    },
+    {
+      "observation": "Implementation follows existing conventions",
+      "reason": "already-documented and non-actionable without a gap"
+    }
+  ],
+  "previousRound": null
+}
