@@ -1,0 +1,147 @@
+{
+  "milestone": "ci-integration",
+  "groupId": "action-runtime-gates",
+  "testedAt": "2026-03-03T20:30:00Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "utv-ci-a8b317-g1"
+  },
+  "toolsUsed": ["bash", "spikes CLI"],
+  "assertionsTested": [
+    {
+      "id": "VAL-ACTION-002",
+      "title": "Action passes when no negative feedback exists",
+      "status": "pass",
+      "reason": "With only positive/like ratings, action exits 0 and sets status=passed",
+      "evidence": [
+        {
+          "type": "command",
+          "command": "cd /tmp/spikes-utv-utv-ci-a8b317-g1-action/positive_only && SPIKES_BIN=/Users/moritzbierling/werk/repos/spikes/cli/target/release/spikes bash /Users/moritzbierling/werk/repos/spikes/action/check.sh 0 \"\" false",
+          "exitCode": 0,
+          "output": "[SPIKES] Found 0 blocking spike(s) / [SPIKES] ✨ CLEAN SLATE! No blocking feedback. Ship it."
+        },
+        {
+          "type": "github_output",
+          "file": "/tmp/spikes-utv-utv-ci-a8b317-g1-action/gh_output_val_action_002.txt",
+          "content": "blocking_count=0\nstatus=passed"
+        }
+      ]
+    },
+    {
+      "id": "VAL-ACTION-003",
+      "title": "Action fails when negative feedback exceeds threshold",
+      "status": "pass",
+      "reason": "With 3 blocking spikes (meh/no ratings) and threshold=0, action exits 1 and sets status=failed",
+      "evidence": [
+        {
+          "type": "command",
+          "command": "cd /tmp/spikes-utv-utv-ci-a8b317-g1-action && SPIKES_BIN=... bash check.sh 0 \"\" false",
+          "exitCode": 1,
+          "output": "[SPIKES] Found 3 blocking spike(s) / ::error::💀 THE VIBES ARE OFF! 3 blocking spike(s) exceed threshold of 0"
+        },
+        {
+          "type": "github_output",
+          "file": "/tmp/gh_output_val_action_003.txt",
+          "content": "blocking_count=3\nstatus=failed"
+        },
+        {
+          "type": "command",
+          "command": "bash check.sh 3 \"\" false (threshold=3)",
+          "exitCode": 0,
+          "output": "[SPIKES] Found 3 blocking spike(s) / [SPIKES] ✅ PASSED: 3 blocking spike(s) within threshold of 3"
+        }
+      ]
+    },
+    {
+      "id": "VAL-ACTION-004",
+      "title": "Action respects ignore-paths filtering",
+      "status": "pass",
+      "reason": "Glob patterns in ignore-paths correctly exclude matching pages from blocking count",
+      "evidence": [
+        {
+          "type": "command",
+          "command": "bash check.sh 1 \"/docs/**\" false",
+          "exitCode": 1,
+          "output": "[SPIKES] Ignoring spike on page: /docs/api / [SPIKES] Found 2 blocking spike(s)"
+        },
+        {
+          "type": "github_output",
+          "file": "/tmp/gh_output_val_action_004.txt",
+          "content": "blocking_count=2\nstatus=failed"
+        },
+        {
+          "type": "command",
+          "command": "bash check.sh 1 \"/contact\" false (exact match)",
+          "exitCode": 1,
+          "output": "[SPIKES] Ignoring spike on page: /contact / [SPIKES] Found 2 blocking spike(s)"
+        },
+        {
+          "type": "note",
+          "text": "Fixture has 3 blocking: /contact(meh), /index(no), /docs/api(no). With /docs/** filter, /docs/api excluded -> 2 blocking. With /contact filter, /contact excluded -> 2 blocking."
+        }
+      ]
+    },
+    {
+      "id": "VAL-ACTION-005",
+      "title": "Action require-resolution mode fails on unresolved spikes",
+      "status": "pass",
+      "reason": "With require-resolution=true, ALL unresolved spikes (regardless of rating) count as blocking",
+      "evidence": [
+        {
+          "type": "command",
+          "command": "bash check.sh 0 \"\" true (require-resolution=true, threshold=0)",
+          "exitCode": 1,
+          "output": "[SPIKES] Require resolution: true / [SPIKES] Found 5 blocking spike(s) / ::error::💀 THE VIBES ARE OFF!"
+        },
+        {
+          "type": "github_output",
+          "file": "/tmp/gh_output_val_action_005.txt",
+          "content": "blocking_count=5\nstatus=failed"
+        },
+        {
+          "type": "command",
+          "command": "bash check.sh 5 \"\" true (threshold=5)",
+          "exitCode": 0,
+          "output": "[SPIKES] Found 5 blocking spike(s) / [SPIKES] ✅ PASSED: 5 blocking spike(s) within threshold of 5"
+        },
+        {
+          "type": "note",
+          "text": "Fixture has 5 unresolved spikes (1-love, 1-like, 1-meh, 2-no) and 1 resolved. In require-resolution mode, all 5 unresolved are blocking regardless of positive/negative rating."
+        }
+      ]
+    },
+    {
+      "id": "VAL-ACTION-006",
+      "title": "Action handles missing .spikes/ directory gracefully",
+      "status": "pass",
+      "reason": "When .spikes/ directory doesn't exist, action passes with warning (default permissive behavior)",
+      "evidence": [
+        {
+          "type": "command",
+          "command": "cd /tmp/spikes-utv-utv-ci-a8b317-g1-action/no_spikes && bash check.sh 0 \"\" false",
+          "exitCode": 0,
+          "output": "::warning::🔥 No .spikes/ directory found. Clean slate — passing by default."
+        },
+        {
+          "type": "github_output",
+          "file": "/tmp/gh_output_val_action_006.txt",
+          "content": "blocking_count=0\nstatus=passed"
+        },
+        {
+          "type": "command",
+          "command": "cd /tmp/spikes-utv-utv-ci-a8b317-g1-action/empty_file && bash check.sh 0 \"\" false (empty feedback.jsonl)",
+          "exitCode": 0,
+          "output": "::warning::🔥 No spikes data found. Clean slate."
+        },
+        {
+          "type": "github_output",
+          "file": "/tmp/gh_output_val_action_006b.txt",
+          "content": "blocking_count=0\nstatus=passed"
+        }
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: all passed (VAL-ACTION-002 through VAL-ACTION-006). GitHub Action runtime gate logic correctly implements: positive-only passing, threshold-based failure, ignore-paths glob filtering, require-resolution mode (all unresolved blocking), and graceful handling of missing .spikes/ directory."
+}

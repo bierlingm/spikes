@@ -1,0 +1,36 @@
+{
+  "milestone": "ci-integration",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-ACTION-001",
+    "VAL-ACTION-002",
+    "VAL-ACTION-003",
+    "VAL-ACTION-004",
+    "VAL-ACTION-005",
+    "VAL-ACTION-006",
+    "VAL-ACTION-007",
+    "VAL-ACTION-008",
+    "VAL-CROSS-002"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added flow-validator isolation guidance sections for GitHub Action CI surface and CLI build verification surface.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/ci-integration/user-testing/flows/action-runtime-gates.json",
+    ".factory/validation/ci-integration/user-testing/flows/action-static-cross.json"
+  ]
+}

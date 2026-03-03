@@ -135,3 +135,16 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Validate both `cursor-context` and `claude-context` from the same fixture dataset before cross-checking with MCP-derived blocking output.
 - Keep assertions deterministic by using explicit IDs/selectors/comments in fixture data and recording exact markdown excerpts as evidence.
 - Do not modify repo source files for export validation; only run CLI commands against fixture data.
+
+## Flow Validator Guidance: GitHub Action CI Surface
+
+- Use an isolated temp workspace per namespace (e.g. `/tmp/spikes-utv-<namespace>-action`) and create fixture `.spikes/feedback.jsonl` data only inside that workspace.
+- Execute gate checks via `bash action/check.sh` with per-command environment variables (`INPUT_THRESHOLD`, `INPUT_IGNORE_PATHS`, `INPUT_REQUIRE_RESOLUTION`, `GITHUB_OUTPUT`) to avoid shared state.
+- When validating install mapping logic, treat `action/action.yml` and `action/check.sh` as read-only artifacts; do not edit source files during validation.
+- Capture evidence for exit codes and output file values (`blocking_count`, `status`) for each assertion scenario.
+
+## Flow Validator Guidance: CLI Build Verification
+
+- Run `cargo build` and `cargo test` from `cli/` in an isolated namespace workspace or direct repo root without mutating tracked files.
+- Record concrete evidence: command, exit code, and key output snippets (compiled target summary and total tests passed).
+- If build/test fails, capture first failing test or compiler error line verbatim and mark assertion as failed or blocked with root cause.

@@ -1,0 +1,167 @@
+{
+  "milestone": "ci-integration",
+  "groupId": "action-static-cross",
+  "testedAt": "2026-03-03T20:30:00Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "utv-ci-a8b317-g2"
+  },
+  "toolsUsed": ["shell", "cargo", "python3"],
+  "assertionsTested": [
+    {
+      "id": "VAL-ACTION-001",
+      "title": "action.yml is valid with correct inputs and outputs",
+      "status": "pass",
+      "reason": "action.yml is valid composite action YAML with all required inputs, outputs, and run steps",
+      "evidence": [
+        {
+          "type": "file_validation",
+          "command": "python3 -c \"import yaml; yaml.safe_load(open('action/action.yml'))\"",
+          "exitCode": 0,
+          "output": "✅ action.yml is valid YAML"
+        },
+        {
+          "type": "structure_check",
+          "findings": {
+            "name": "Spikes Feedback Gate",
+            "description": "Gate CI on feedback quality",
+            "using": "composite",
+            "inputs": ["threshold", "ignore-paths", "require-resolution"],
+            "outputs": ["blocking_count", "status"],
+            "steps": 3
+          }
+        },
+        {
+          "type": "input_spec",
+          "details": "All 3 inputs have descriptions and default values where optional"
+        },
+        {
+          "type": "output_spec",
+          "details": "Both outputs have descriptions and value expressions referencing steps.check.outputs"
+        }
+      ]
+    },
+    {
+      "id": "VAL-ACTION-007",
+      "title": "Action downloads correct binary for platform",
+      "status": "pass",
+      "reason": "Platform detection step maps all 4 supported OS/arch combinations to correct release asset names",
+      "evidence": [
+        {
+          "type": "platform_mapping",
+          "findings": {
+            "Linux/X64": "x86_64-unknown-linux-gnu",
+            "Linux/ARM64": "aarch64-unknown-linux-gnu",
+            "macOS/X64": "x86_64-apple-darwin",
+            "macOS/ARM64": "aarch64-apple-darwin"
+          }
+        },
+        {
+          "type": "error_handling",
+          "findings": [
+            "Windows explicitly rejected with clear error message",
+            "Unknown OS/arch combinations fail with exit code 1",
+            "Error messages use punk/zine tone consistent with brand"
+          ]
+        },
+        {
+          "type": "download_logic",
+          "details": "Download URL constructs from: https://github.com/moritzbierling/spikes/releases/latest/download/spikes-{target}.tar.gz"
+        }
+      ]
+    },
+    {
+      "id": "VAL-ACTION-008",
+      "title": "Action README exists with usage documentation",
+      "status": "pass",
+      "reason": "README.md exists with comprehensive documentation including all required sections",
+      "evidence": [
+        {
+          "type": "file_check",
+          "path": "action/README.md",
+          "exists": true,
+          "sizeBytes": 4919
+        },
+        {
+          "type": "sections_present",
+          "sections": [
+            "Quick Start",
+            "How It Works",
+            "Inputs (threshold, ignore-paths, require-resolution)",
+            "Outputs (blocking_count, status)",
+            "Configuration Example",
+            "Blocking Criteria",
+            "Edge Cases",
+            "Supported Platforms table",
+            "The Philosophy"
+          ]
+        },
+        {
+          "type": "usage_yaml",
+          "details": "README contains valid YAML workflow example with actions/checkout and feedback-gate step"
+        }
+      ]
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "All new features compile and existing tests pass",
+      "status": "pass",
+      "reason": "cargo build succeeds with 0 errors, cargo test passes 231+ tests across all test suites with no failures",
+      "evidence": [
+        {
+          "type": "build_result",
+          "command": "cargo build",
+          "exitCode": 0,
+          "warnings": 8,
+          "warningDetails": [
+            "auth_path_display unused",
+            "LoginResponse never constructed",
+            "get_stored_token never used",
+            "remove_spike never used",
+            "update_spike never used"
+          ],
+          "errors": 0
+        },
+        {
+          "type": "test_summary",
+          "command": "cargo test",
+          "totalPassed": 231,
+          "totalFailed": 0,
+          "testSuites": [
+            {"name": "lib tests", "passed": 156},
+            {"name": "integration", "passed": 37},
+            {"name": "serve_security", "passed": 12},
+            {"name": "cli_integration", "passed": 8},
+            {"name": "error_tests", "passed": 6},
+            {"name": "additional", "passed": 12}
+          ]
+        },
+        {
+          "type": "export_tests",
+          "command": "cargo test export",
+          "findings": [
+            "32 export-related tests passing",
+            "cursor-context format tests present",
+            "claude-context format tests present",
+            "Format validation tests present",
+            "Hotspot logic tests present"
+          ]
+        },
+        {
+          "type": "mcp_tests",
+          "command": "cargo test mcp",
+          "findings": [
+            "14 MCP-related tests passing",
+            "Tool schema tests present",
+            "Server info tests present",
+            "Filter tests (page, rating, unresolved) present",
+            "Hotspot counting/sorting tests present"
+          ]
+        }
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 4 assertions: 4 passed, 0 failed, 0 blocked. All action files are valid (action.yml, check.sh, README.md). Build succeeds with 231+ tests passing across lib, integration, MCP, and export test suites."
+}
