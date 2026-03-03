@@ -317,6 +317,12 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+
+    /// MCP (Model Context Protocol) server for agent integration
+    Mcp {
+        #[command(subcommand)]
+        action: McpAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -331,6 +337,12 @@ enum DeployBackend {
         #[arg(long)]
         json: bool,
     },
+}
+
+#[derive(Subcommand)]
+enum McpAction {
+    /// Start the MCP server (stdio transport)
+    Serve,
 }
 
 #[derive(Subcommand)]
@@ -468,6 +480,9 @@ fn main() {
         Some(Commands::Billing { json }) => commands::billing::run(json),
         Some(Commands::Upgrade { json }) => commands::upgrade::run(json),
         Some(Commands::Usage { json }) => commands::usage::run(UsageOptions { json }),
+        Some(Commands::Mcp { action }) => match action {
+            McpAction::Serve => commands::mcp::run(),
+        },
     };
 
     if let Err(e) = result {

@@ -27,6 +27,8 @@ walkdir = "2"
 ureq = { version = "2", features = ["json"] }
 dirs = "5"
 webbrowser = "1"
+rmcp = { version = "0.17", features = ["server", "transport-io", "macros"] }
+schemars = "1.0"
 
 [dev-dependencies]
 assert_cmd = "2"
