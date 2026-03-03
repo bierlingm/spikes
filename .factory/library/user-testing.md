@@ -43,6 +43,8 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Subdomain wildcard behavior on localhost may differ from `*.spikes.sh`; for XSS checks, combine live route probes with direct escaping verification.
 - `wrangler d1 execute` output may obscure long hash fields; use direct SQLite query in `.wrangler/state/v3/d1/` when validating password hash/salt values.
 - CLI `whoami` currently calls `https://spikes.sh/me` directly. If production routing serves static HTML at that path, CLI identity assertions can be blocked even when local worker `GET /me` works at `http://localhost:8787/me`.
+- `spikes pull --from <share-url>` respects `SPIKES_API_URL` and now parses paginated worker responses (`{ "data": [...], "next_cursor": ... }`) correctly (validated in monetization rerun round 3).
+- Share HTML currently injects widget script with `data-endpoint="https://spikes.sh"`; local widget submissions may not hit `localhost:8787` unless endpoint behavior is overridden.
 
 ## Flow Validator Guidance: Hosted Worker API
 
@@ -105,3 +107,17 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Use read-only checks for documentation assertions (`docs/widget-attributes.md`, `docs/cli-reference.md`, `docs/self-hosting.md`).
 - Validate dependency-removal assertions via Cargo manifest/tree and filesystem module checks without modifying source.
 - Record exact command outputs for `cargo tree`, `rg`, and path existence checks to support VAL-UX-013/014/015 evidence.
+
+## Flow Validator Guidance: Monetization API & CLI
+
+- Use one namespace-scoped email/token pair per validator (e.g. `utv-mon-<ns>@example.com`, `utv-mon-<ns>-token`) and do not reuse credentials across groups.
+- Keep slugs, share IDs, Stripe customer IDs, and event IDs namespace-prefixed to avoid collisions in local D1 state.
+- For `spikes billing`, `spikes usage`, and `spikes upgrade`, run commands with `SPIKES_API_URL=http://localhost:8787` and isolated `HOME` directories.
+- If browser-open behavior cannot be observed directly, capture deterministic command output and endpoint responses as evidence and mark only truly untestable external Stripe dependencies as blocked.
+
+## Flow Validator Guidance: Cross-Area Monetization Flows
+
+- Use a dedicated namespace workspace under `/tmp/spikes-utv-<namespace>/` for each flow validator.
+- Do not share `.spikes/` state, auth files, or uploaded share slugs between validators.
+- Keep all end-to-end flows scoped to local worker (`http://localhost:8787`) and local serve surface (`http://localhost:3847`) only.
+- For widget/browser checks, use namespaced reviewer labels and comments so pulled feedback can be attributed unambiguously.

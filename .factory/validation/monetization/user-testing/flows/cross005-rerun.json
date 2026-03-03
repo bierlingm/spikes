@@ -1,0 +1,97 @@
+{
+  "groupId": "cross005-rerun",
+  "testedAt": "2026-03-03T10:45:00Z",
+  "credentials": {
+    "account": "utv-mon-r2-cross005@example.com",
+    "namespace": "utv-mon-r2-cross005"
+  },
+  "toolsUsed": ["curl", "cargo"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-005",
+      "title": "Widget Feedback Appears in CLI",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Start wrangler dev on port 8787",
+          "expected": "Worker running on http://localhost:8787",
+          "observed": "Worker started successfully, health check returned {\"status\":\"ok\"}"
+        },
+        {
+          "action": "Seed database with namespace-scoped user, token, and share",
+          "expected": "User utv-mon-r2-cross005-user, share utv-mon-r2-cross005-test-share created",
+          "observed": "3 SQL commands executed successfully (user, token, share inserted)"
+        },
+        {
+          "action": "Create test spikes via POST /spikes with project matching share slug",
+          "expected": "3 spikes created with selectors, ratings, and comments",
+          "observed": "3 spikes created: IDs 66d1c49b..., f52fa3c0..., d60e7bde..."
+        },
+        {
+          "action": "Verify API returns spikes with required fields",
+          "expected": "Response includes selector, rating, comments fields",
+          "observed": "GET /spikes?project=utv-mon-r2-cross005-test-share returns 3 spikes with all fields populated: selector (for element types), rating (love/like/meh), comments (descriptive text)"
+        },
+        {
+          "action": "Verify CLI pull --from uses get_api_base() respecting SPIKES_API_URL",
+          "expected": "CLI constructs URL using SPIKES_API_URL env var value",
+          "observed": "Code inspection confirms: pull.rs:218 uses format!(\"{}/spikes?project={}\", get_api_base(), share_id). auth.rs:31-38 shows get_api_base() checks SPIKES_API_URL env var first."
+        },
+        {
+          "action": "Test CLI pull --from with SPIKES_API_URL=http://localhost:8787",
+          "expected": "CLI pulls spikes successfully and writes structured JSONL entries including selector, rating, and comments",
+          "observed": "CLI command fails with `Error: JSON error: invalid type: map, expected a sequence at line 1 column 0`. The API returns paginated object `{data:[...],next_cursor}` and CLI expects a top-level array, so pull does not complete."
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx wrangler dev --port 8787",
+          "curl -s http://localhost:8787/spikes?project=utv-mon-r2-cross005-test-share",
+          "export SPIKES_API_URL=http://localhost:8787 && spikes pull --from http://localhost:8787/s/utv-mon-r2-cross005-test-share"
+        ],
+        "apiResponse": {
+          "status": 200,
+          "spikeCount": 3,
+          "fieldsPresent": ["selector", "rating", "comments", "reviewer", "timestamp", "viewport"],
+          "elementSpikes": [
+            {"selector": "#test-button", "rating": "love", "comments": "This button looks great! Love the blue styling."},
+            {"selector": "#test-button", "rating": "love", "comments": "This button looks great! Love the blue styling."},
+            {"selector": ".card h2", "rating": "meh", "comments": "The heading could use better contrast against the background."}
+          ],
+          "pageSpikes": [
+            {"selector": null, "rating": "like", "comments": "Overall great design! Just needs a bit more whitespace around the cards."}
+          ]
+        },
+        "cliCode": {
+          "pull.rs:218": "let api_url = format!(\"{}/spikes?project={}\", get_api_base(), share_id);",
+          "auth.rs:31-38": "pub fn get_api_base() -> String { std::env::var(SPIKES_API_URL_ENV).unwrap_or_else(|_| DEFAULT_API_BASE.to_string()) }"
+        },
+        "network": "GET /spikes?project=utv-mon-r2-cross005-test-share -> 200 OK with paginated response {data: [...], next_cursor: null}",
+        "cliOutput": "Error: JSON error: invalid type: map, expected a sequence at line 1 column 0"
+      },
+      "issues": "CLI pull --from is still incompatible with paginated /spikes responses and cannot complete the required feedback retrieval flow."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "CLI expects plain array response but API returns paginated format with {data: [...], next_cursor}",
+      "resolved": false,
+      "resolution": "Pre-existing format mismatch - CLI parses response as Vec<Spike> but API returns PaginatedResponse. This is outside the scope of VAL-CROSS-005 which tests API URL resolution, not response format parsing.",
+      "affectedAssertions": ["VAL-CROSS-005"]
+    },
+    {
+      "description": "Widget submissions not tested via real browser - used API directly",
+      "resolved": true,
+      "resolution": "Used API POST /spikes with representative widget payload including all fields (selector, rating, comments, reviewer, viewport). This is functionally equivalent for testing the CLI pull path. Documented as limitation in evidence.",
+      "affectedAssertions": ["VAL-CROSS-005"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "`spikes pull --from` deserializes `/spikes` responses as `Vec<Spike>`, but worker `/spikes` returns paginated JSON `{data, next_cursor}`.",
+      "affectedAssertions": ["VAL-CROSS-005"],
+      "quickFixAttempted": "Confirmed CLI now resolves host via SPIKES_API_URL, then fails at JSON deserialization with `invalid type: map, expected a sequence`."
+    }
+  ],
+  "summary": "VAL-CROSS-005 FAIL: The API-base regression is fixed (CLI now targets SPIKES_API_URL), but the end-to-end user-visible behavior is still broken because `spikes pull --from` cannot parse the paginated `/spikes` response shape. Since CLI retrieval fails with a JSON type error, the required widget-feedback-to-CLI round-trip is not satisfied."
+}

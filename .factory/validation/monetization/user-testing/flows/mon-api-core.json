@@ -1,0 +1,161 @@
+{
+  "groupId": "mon-api-core",
+  "testedAt": "2026-03-03T13:55:00Z",
+  "credentials": {
+    "account": "utv-mon-api@example.com",
+    "namespace": "utv-mon-api"
+  },
+  "toolsUsed": ["curl", "sqlite3"],
+  "assertions": [
+    {
+      "id": "VAL-MON-001",
+      "title": "Stripe Customer Portal Endpoint",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "GET /billing/portal with valid bearer token",
+          "expected": "HTTP 200 with {url: 'https://billing.stripe.com/...'}",
+          "observed": "HTTP 500 with {error: 'Billing not configured', code: 'INTERNAL_ERROR'}"
+        }
+      ],
+      "evidence": {
+        "request": "curl -s -H 'Authorization: Bearer utv-mon-api-bearer-token-1772545797' http://localhost:8787/billing/portal",
+        "response": "{\"error\":\"Billing not configured\",\"code\":\"INTERNAL_ERROR\"}",
+        "statusCode": "500"
+      },
+      "issues": "Stripe not configured in local wrangler dev environment. This is expected for local testing without real Stripe credentials. The endpoint exists and responds, but cannot return a valid Stripe portal URL without Stripe API configuration."
+    },
+    {
+      "id": "VAL-MON-003",
+      "title": "GET /usage Endpoint",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /usage with valid bearer token",
+          "expected": "HTTP 200 with usage statistics (spikes, spike_limit, shares, share_limit, tier, reset_at)",
+          "observed": "HTTP 200 with complete usage data structure"
+        }
+      ],
+      "evidence": {
+        "request": "curl -s -H 'Authorization: Bearer utv-mon-api-bearer-token-1772545797' http://localhost:8787/usage",
+        "response": "{\"spikes\":0,\"spike_limit\":1000,\"shares\":0,\"share_limit\":5,\"tier\":\"free\",\"reset_at\":null}",
+        "statusCode": "200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MON-005",
+      "title": "Limit Enforcement with Upgrade CTA",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create 5 shares as free user",
+          "expected": "All 5 shares created successfully (HTTP 201)",
+          "observed": "5 shares created with HTTP 201, slugs: share-zio2b, share-y3vnp, share-qi4t9, share-d3cc9, share-rum6r"
+        },
+        {
+          "action": "Create 6th share (beyond free limit)",
+          "expected": "HTTP 429 with SHARE_LIMIT code and upgrade_url",
+          "observed": "HTTP 429 with code 'SHARE_LIMIT' and upgrade_url pointing to https://spikes.sh/pro"
+        }
+      ],
+      "evidence": {
+        "request1": "POST /shares (5 times with valid file and metadata)",
+        "response1": "All returned HTTP 201 with {ok: true, url: '...', share_id: '...', slug: '...'}",
+        "request2": "POST /shares (6th attempt)",
+        "response2": "{\"error\":\"Share limit reached\",\"code\":\"SHARE_LIMIT\",\"upgrade_url\":\"https://spikes.sh/pro\"}",
+        "statusCode2": "429"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MON-007",
+      "title": "Pro Feature Gating - Password Protection",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create share with password in metadata as free user",
+          "expected": "HTTP 403 with UPGRADE_REQUIRED code and upgrade_url",
+          "observed": "HTTP 403 with code 'UPGRADE_REQUIRED' and message 'Password protection is a Pro feature'"
+        }
+      ],
+      "evidence": {
+        "request": "POST /shares with metadata={\"password\":\"secret123\"}",
+        "response": "{\"error\":\"Password protection is a Pro feature\",\"code\":\"UPGRADE_REQUIRED\",\"upgrade_url\":\"https://spikes.sh/pro\"}",
+        "statusCode": "403"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MON-008",
+      "title": "Pro Feature Gating - Webhooks",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create share with webhook_url in metadata as free user",
+          "expected": "HTTP 403 with UPGRADE_REQUIRED code and upgrade_url",
+          "observed": "HTTP 403 with code 'UPGRADE_REQUIRED' and message 'Webhook configuration is a Pro feature'"
+        }
+      ],
+      "evidence": {
+        "request": "POST /shares with metadata={\"webhook_url\":\"https://example.com/webhook\"}",
+        "response": "{\"error\":\"Webhook configuration is a Pro feature\",\"code\":\"UPGRADE_REQUIRED\",\"upgrade_url\":\"https://spikes.sh/pro\"}",
+        "statusCode": "403"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MON-015",
+      "title": "Pro Badge Removal on Web Pages",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Fetch HTML for free-tier share",
+          "expected": "Widget script tag WITHOUT data-no-badge attribute",
+          "observed": "Widget script: <script src=\"...\" data-endpoint=\"...\" data-project=\"...\"> (no data-no-badge)"
+        },
+        {
+          "action": "Fetch HTML for Pro-tier share",
+          "expected": "Widget script tag WITH data-no-badge=\"true\" attribute",
+          "observed": "Widget script: <script src=\"...\" data-endpoint=\"...\" data-project=\"...\" data-no-badge=\"true\">"
+        }
+      ],
+      "evidence": {
+        "freeShareSlug": "share-no899",
+        "freeShareHtml": "<script src=\"https://spikes.sh/widget.js\" data-endpoint=\"https://spikes.sh\" data-project=\"6204f3b9-c7f6-4f7d-8464-8aa3512e3ec5\"></script>",
+        "proShareSlug": "share-z528q",
+        "proShareHtml": "<script src=\"https://spikes.sh/widget.js\" data-endpoint=\"https://spikes.sh\" data-project=\"be192bbc-ad4e-4178-83b6-a0964966ec67\" data-no-badge=\"true\"></script>",
+        "dataNoBadgePresent": "true for Pro share, false for free share"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Share deletion endpoint requires share ID (UUID) not slug, but API returns both. Share lookup by slug in database uses slug column but share serving route also works by slug.",
+      "resolved": true,
+      "resolution": "Used direct database cleanup between tests to reset share count for limit testing",
+      "affectedAssertions": ["VAL-MON-005"]
+    },
+    {
+      "description": "Shell token masking prevented direct use of dynamically generated bearer tokens. Tokens like 'utv-mon-api-pro-bearer-1772546914' were being masked in command output.",
+      "resolved": true,
+      "resolution": "Used direct SQLite database inserts with fixed token values to create predictable test tokens",
+      "affectedAssertions": ["VAL-MON-007", "VAL-MON-008", "VAL-MON-015"]
+    },
+    {
+      "description": "Share serving endpoint returns 404 if the uploaded file is not named 'index.html'. The default filepath lookup is 'index.html'.",
+      "resolved": true,
+      "resolution": "Used filename=index.html when uploading share files for VAL-MON-015 web page testing",
+      "affectedAssertions": ["VAL-MON-015"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Stripe Customer Portal requires external Stripe API credentials which are not configured in local wrangler dev environment. The endpoint exists but cannot generate valid portal URLs.",
+      "affectedAssertions": ["VAL-MON-001"],
+      "quickFixAttempted": "None - external dependency requires Stripe account setup beyond scope of local worker testing"
+    }
+  ],
+  "summary": "Tested 6 assertions: 4 passed (VAL-MON-003, VAL-MON-005, VAL-MON-007, VAL-MON-008, VAL-MON-015), 1 blocked (VAL-MON-001 due to Stripe dependency). All monetization gating logic is correctly implemented: free tier users get 429 SHARE_LIMIT on 6th share, 403 UPGRADE_REQUIRED for password protection and webhooks, and Pro shares correctly inject data-no-badge=\"true\" in widget script."
+}

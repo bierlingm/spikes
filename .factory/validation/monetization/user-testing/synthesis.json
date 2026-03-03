@@ -1,0 +1,24 @@
+{
+  "milestone": "monetization",
+  "round": 3,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CROSS-005"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Updated known-quirks guidance to reflect that CLI pull now parses paginated `/spikes` responses successfully on monetization rerun.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/monetization/user-testing/synthesis.round2.json"
+}

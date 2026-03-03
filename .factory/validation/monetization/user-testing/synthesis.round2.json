@@ -1,0 +1,27 @@
+{
+  "milestone": "monetization",
+  "round": 2,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-005",
+      "reason": "`spikes pull --from` now uses `SPIKES_API_URL` correctly, but the command still fails to complete retrieval because it deserializes `/spikes` responses as a top-level array while the worker returns paginated JSON `{ data, next_cursor }` (observed: `JSON error: invalid type: map, expected a sequence`)."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Updated monetization testing quirk: `pull --from` host-resolution bug is fixed, but CLI parsing mismatch with paginated `/spikes` responses remains and blocks end-to-end CLI retrieval.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/monetization/user-testing/synthesis.round1.json"
+}

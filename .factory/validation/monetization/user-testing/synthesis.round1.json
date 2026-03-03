@@ -1,0 +1,62 @@
+{
+  "milestone": "monetization",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 17,
+    "passed": 12,
+    "failed": 1,
+    "blocked": 4
+  },
+  "passedAssertions": [
+    "VAL-MON-003",
+    "VAL-MON-004",
+    "VAL-MON-005",
+    "VAL-MON-007",
+    "VAL-MON-008",
+    "VAL-MON-009",
+    "VAL-MON-010",
+    "VAL-MON-012",
+    "VAL-MON-015",
+    "VAL-CROSS-001",
+    "VAL-CROSS-003",
+    "VAL-CROSS-004"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-005",
+      "reason": "CLI `spikes pull` / `spikes pull --from` did not complete the required widget-to-CLI retrieval path in local validation; flow report captured API-level spike retrieval but CLI round-trip remained broken."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-MON-001",
+      "blockedBy": "Local worker billing endpoints returned billing-not-configured errors because Stripe runtime configuration is unavailable in this local validation environment."
+    },
+    {
+      "id": "VAL-MON-002",
+      "blockedBy": "`spikes billing` depends on `/billing/portal` returning a live Stripe Customer Portal URL, which was unavailable due to local Stripe configuration dependency."
+    },
+    {
+      "id": "VAL-MON-006",
+      "blockedBy": "`spikes upgrade` depends on `/billing/checkout` returning a live Stripe Checkout URL, which was unavailable due to local Stripe configuration dependency."
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "blockedBy": "Free-tier limit/CTA behavior was validated, but end-to-end checkout upgrade completion could not be exercised without local Stripe checkout configuration."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance sections for monetization API/CLI and cross-area monetization flow isolation.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Added monetization-specific testing quirks for `spikes pull --from` host resolution and share HTML widget endpoint behavior.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

@@ -1,0 +1,122 @@
+{
+  "groupId": "mon-cli-upgrade-rerun",
+  "testedAt": "2026-03-03T00:00:00Z",
+  "credentials": {
+    "account": "utv-mon-g1r",
+    "namespace": "utv-mon-g1r"
+  },
+  "toolsUsed": ["curl", "cli"],
+  "assertions": [
+    {
+      "id": "VAL-MON-001",
+      "title": "Stripe Customer Portal Endpoint",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "GET /billing/portal with Bearer token",
+          "expected": "HTTP 200 with body containing Stripe portal URL",
+          "observed": "HTTP 200 with error: Billing not configured, code: INTERNAL_ERROR"
+        }
+      ],
+      "evidence": {
+        "curlCommand": "curl -s -X GET http://localhost:8787/billing/portal -H \"Authorization: Bearer utv-mon-g1-token\"",
+        "response": "{\"error\":\"Billing not configured\",\"code\":\"INTERNAL_ERROR\"}",
+        "statusCode": 200
+      },
+      "issues": "Stripe is not configured in the local worker. No STRIPE_SECRET_KEY or STRIPE_PRICE_ID environment variables set."
+    },
+    {
+      "id": "VAL-MON-002",
+      "title": "spikes billing CLI Command",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Run 'spikes billing' with SPIKES_API_URL=http://localhost:8787",
+          "expected": "CLI opens browser to Stripe Customer Portal",
+          "observed": "CLI outputs error: Server error. Please try again in a moment or contact support if it persists."
+        }
+      ],
+      "evidence": {
+        "cliCommand": "spikes billing",
+        "cliOutput": "Error: Server error. Please try again in a moment or contact support if it persists.",
+        "exitCode": 1
+      },
+      "issues": "CLI correctly maps INTERNAL_ERROR to actionable message, but billing endpoint is blocked due to Stripe dependency."
+    },
+    {
+      "id": "VAL-MON-004",
+      "title": "spikes usage CLI Command",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run 'spikes usage' with SPIKES_API_URL=http://localhost:8787",
+          "expected": "CLI displays formatted usage with spike count, share count, tier, and upgrade message",
+          "observed": "CLI shows table: 5/5 shares (100%), 0/1000 spikes (0%), FREE tier, upgrade warning"
+        }
+      ],
+      "evidence": {
+        "cliCommand": "spikes usage",
+        "cliOutput": "Account: FREE tier\n\nShares: 5 / 5 (100%)\nSpikes: 0 / 1000 (0%)\n\nYou're approaching your free tier limits!\nUpgrade to Pro: https://spikes.sh/pro",
+        "apiResponse": "{\"spikes\":0,\"spike_limit\":1000,\"shares\":5,\"share_limit\":5,\"tier\":\"free\",\"reset_at\":null}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MON-006",
+      "title": "spikes upgrade CLI Command",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Run 'spikes upgrade' with SPIKES_API_URL=http://localhost:8787",
+          "expected": "CLI opens browser to Stripe Checkout for Pro subscription",
+          "observed": "CLI outputs error: Server error. Please try again in a moment or contact support if it persists."
+        }
+      ],
+      "evidence": {
+        "cliCommand": "spikes upgrade",
+        "cliOutput": "Error: Server error. Please try again in a moment or contact support if it persists.",
+        "exitCode": 1
+      },
+      "issues": "CLI command calls /billing/checkout endpoint which returns 'Billing not configured' error due to missing Stripe configuration."
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Free-to-Pro Upgrade Flow",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Attempt 6th share creation via CLI",
+          "expected": "Error with SHARE_LIMIT code and upgrade CTA",
+          "observed": "CLI shows: You've reached the free tier limit (5 shares). Delete a share or upgrade at https://spikes.sh/pro"
+        },
+        {
+          "action": "Verify API error format",
+          "expected": "429 with code SHARE_LIMIT and upgrade_url field",
+          "observed": "API returns: {\"error\":\"Share limit reached\",\"code\":\"SHARE_LIMIT\",\"upgrade_url\":\"https://spikes.sh/pro\"}"
+        },
+        {
+          "action": "Run 'spikes upgrade' to complete flow",
+          "expected": "Browser opens Stripe checkout, user upgrades to pro",
+          "observed": "Blocked - CLI returns server error, Stripe not configured"
+        }
+      ],
+      "evidence": {
+        "cliShareCommand": "spikes share /tmp/spikes-utv-utv-mon-g1/test-share",
+        "cliShareOutput": "Error: You've reached the free tier limit (5 shares). Delete a share or upgrade at https://spikes.sh/pro",
+        "apiShareCommand": "curl -X POST http://localhost:8787/shares -H \"Authorization: Bearer utv-mon-g1-token\" -F \"metadata={...}\"",
+        "apiShareResponse": "{\"error\":\"Share limit reached\",\"code\":\"SHARE_LIMIT\",\"upgrade_url\":\"https://spikes.sh/pro\"}",
+        "usageOutput": "Shares: 5 / 5 (100%) - confirms limit reached"
+      },
+      "issues": "Limit enforcement and CTA display works correctly. Full upgrade flow cannot complete due to Stripe dependency."
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "Stripe is not configured in the local worker (spikes-hosted). STRIPE_SECRET_KEY and STRIPE_PRICE_ID environment variables are required for /billing/portal, /billing/checkout endpoints to function.",
+      "affectedAssertions": ["VAL-MON-001", "VAL-MON-002", "VAL-MON-006", "VAL-CROSS-002"],
+      "quickFixAttempted": "Verified worker returns 'Billing not configured' error. No way to configure Stripe in local dev without real credentials."
+    }
+  ],
+  "summary": "Tested 5 assertions: 1 passed (VAL-MON-004), 4 blocked due to Stripe dependency (VAL-MON-001, VAL-MON-002, VAL-MON-006, VAL-CROSS-002). The usage command (VAL-MON-004) works correctly, showing formatted usage with progress bars and upgrade CTA. Limit enforcement (part of VAL-CROSS-002) works - API returns SHARE_LIMIT code with upgrade_url, CLI shows actionable message. However, Stripe-dependent endpoints (portal, checkout) cannot be tested in local environment without Stripe credentials."
+}
