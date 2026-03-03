@@ -1,0 +1,140 @@
+{
+  "milestone": "reliability",
+  "groupId": "reliability-group-c",
+  "surface": "CLI Pull/Push",
+  "testedAt": "2026-03-03T00:00:00Z",
+  "credentials": {
+    "account": "utv-rel-c@example.com",
+    "namespace": "utv-rel-c"
+  },
+  "toolsUsed": ["cargo test", "wiremock"],
+  "assertions": [
+    {
+      "id": "VAL-REL-017",
+      "title": "CLI Pull/Push Actionable Error Messages",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run unit tests for error mapping functions",
+          "expected": "17 unit tests pass validating all error code mappings",
+          "observed": "All 17 unit tests passed - test_map_401_to_auth_failed, test_map_429_spike_limit, test_map_429_share_limit, test_map_413_payload_too_large, test_map_500_server_error, test_map_502_bad_gateway, test_map_network_error_connection_refused, test_map_network_error_timeout, test_map_network_error_dns, and 9 additional tests"
+        },
+        {
+          "action": "Run integration tests with wiremock for HTTP error responses",
+          "expected": "6 integration tests pass validating CLI displays actionable messages",
+          "observed": "All 6 integration tests passed using wiremock to simulate error responses"
+        },
+        {
+          "action": "Verify 401 Unauthorized mapping",
+          "expected": "Returns 'Authentication failed. Run `spikes login` to refresh your token.'",
+          "observed": "test_401_shows_auth_failed_message: stderr contains exact message"
+        },
+        {
+          "action": "Verify 429 SPIKE_LIMIT mapping",
+          "expected": "Returns 'Share has reached spike limit. Upgrade at https://spikes.sh/pro'",
+          "observed": "test_429_spike_limit_shows_upgrade_message: stderr contains exact message with upgrade URL"
+        },
+        {
+          "action": "Verify 429 SHARE_LIMIT mapping",
+          "expected": "Returns 'You've reached the free tier limit (5 shares). Delete a share or upgrade at https://spikes.sh/pro'",
+          "observed": "test_429_share_limit_shows_limit_message: stderr contains exact message with limit details and upgrade URL"
+        },
+        {
+          "action": "Verify 413 Payload Too Large mapping",
+          "expected": "Returns 'Files too large. Max size is 50MB. Consider removing large assets.'",
+          "observed": "test_413_shows_payload_too_large_message: stderr contains exact message with file size limit"
+        },
+        {
+          "action": "Verify 500 Server Error mapping",
+          "expected": "Returns 'Server error. Please try again in a moment or contact support if it persists.'",
+          "observed": "test_500_shows_server_error_message: stderr contains exact message with retry guidance"
+        },
+        {
+          "action": "Verify 502 Bad Gateway mapping",
+          "expected": "Returns 'Server error. Please try again in a moment or contact support if it persists.'",
+          "observed": "test_502_shows_server_error_message: stderr contains server error message (5xx class handled uniformly)"
+        },
+        {
+          "action": "Verify network error mapping (unit tests)",
+          "expected": "Returns 'Connection failed. Check your internet connection.' for connection refused, timeout, DNS errors",
+          "observed": "test_map_network_error_connection_refused, test_map_network_error_timeout, test_map_network_error_dns all passed"
+        }
+      ],
+      "evidence": {
+        "testFiles": [
+          "cli/tests/http_errors.rs",
+          "cli/src/error.rs"
+        ],
+        "testCommands": [
+          "cargo test --test http_errors",
+          "cargo test error::"
+        ],
+        "testResults": {
+          "http_errors_integration_tests": "6 passed",
+          "error_module_unit_tests": "17 passed",
+          "total": "23 tests passed"
+        },
+        "errorMappings": [
+          {
+            "statusCode": 401,
+            "apiCode": null,
+            "cliMessage": "Authentication failed. Run `spikes login` to refresh your token.",
+            "testName": "test_401_shows_auth_failed_message"
+          },
+          {
+            "statusCode": 429,
+            "apiCode": "SPIKE_LIMIT",
+            "cliMessage": "Share has reached spike limit. Upgrade at https://spikes.sh/pro",
+            "testName": "test_429_spike_limit_shows_upgrade_message"
+          },
+          {
+            "statusCode": 429,
+            "apiCode": "SHARE_LIMIT",
+            "cliMessage": "You've reached the free tier limit (5 shares). Delete a share or upgrade at https://spikes.sh/pro",
+            "testName": "test_429_share_limit_shows_limit_message"
+          },
+          {
+            "statusCode": 413,
+            "apiCode": null,
+            "cliMessage": "Files too large. Max size is 50MB. Consider removing large assets.",
+            "testName": "test_413_shows_payload_too_large_message"
+          },
+          {
+            "statusCode": 500,
+            "apiCode": null,
+            "cliMessage": "Server error. Please try again in a moment or contact support if it persists.",
+            "testName": "test_500_shows_server_error_message"
+          },
+          {
+            "statusCode": 502,
+            "apiCode": null,
+            "cliMessage": "Server error. Please try again in a moment or contact support if it persists.",
+            "testName": "test_502_shows_server_error_message"
+          },
+          {
+            "statusCode": "network",
+            "apiCode": null,
+            "cliMessage": "Connection failed. Check your internet connection.",
+            "testName": "test_map_network_error_connection_refused, test_map_network_error_timeout, test_map_network_error_dns"
+          }
+        ],
+        "codeReferences": {
+          "errorMappingFunction": "cli/src/error.rs:map_http_error()",
+          "networkMappingFunction": "cli/src/error.rs:map_network_error()",
+          "errorEnumDefinitions": "cli/src/error.rs:Error enum with #[error(...)] messages"
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "assert_cmd::Command::cargo_bin is deprecated, migration to cargo::cargo_bin_cmd! recommended for custom build-dir compatibility",
+      "resolved": false,
+      "resolution": "Non-blocking deprecation warning; tests pass correctly",
+      "affectedAssertions": ["VAL-REL-017"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Successfully validated CLI Pull/Push actionable error messages (VAL-REL-017). All required error mappings tested and confirmed working: 401, 429 SPIKE_LIMIT, 429 SHARE_LIMIT, 413, 500, 502, and network errors. 23 tests passed (17 unit + 6 integration). Error mapping functions located in cli/src/error.rs with comprehensive test coverage in cli/tests/http_errors.rs."
+}

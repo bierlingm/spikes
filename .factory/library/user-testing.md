@@ -39,6 +39,7 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - `file://` URLs work for widget but not for share flow (needs HTTP)
 - wrangler dev may take 5-10 seconds to start on first run
 - D1 in wrangler dev uses local SQLite file (`.wrangler/state/`)
+- If `wrangler d1 migrations apply --local` fails due legacy/local drift (e.g. `duplicate column` / `no such table`), reinitialize test schema with `cd ../spikes-hosted/worker && npx wrangler d1 execute spikes-sh-db --local --file=schema.sql` before user-testing runs.
 - Subdomain wildcard behavior on localhost may differ from `*.spikes.sh`; for XSS checks, combine live route probes with direct escaping verification.
 - `wrangler d1 execute` output may obscure long hash fields; use direct SQLite query in `.wrangler/state/v3/d1/` when validating password hash/salt values.
 
@@ -61,3 +62,10 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Start `spikes serve` on a unique port for your validator to avoid cross-test interference.
 - Run traversal and CORS probes only against your own started server instance.
 - Include exact request/response header evidence in the flow report.
+
+## Flow Validator Guidance: CLI Pull/Push Surface
+
+- Use only the assigned namespace tokens/slugs so your rate-limit and error conditions are isolated.
+- Prefer targeting local worker `http://localhost:8787` and avoid changing global CLI config in the repo.
+- For auth tests, set token via command flags or isolated env vars per command (do not overwrite shared auth files).
+- Include exact CLI command output snippets showing the actionable message text for each mapped error case.

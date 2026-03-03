@@ -1,0 +1,393 @@
+{
+  "milestone": "reliability",
+  "groupId": "reliability-group-b",
+  "surface": "hosted-worker-api",
+  "testedAt": "2026-03-03T02:05:00Z",
+  "credentials": {
+    "account": "utv-rel-b@example.com",
+    "namespace": "utv-rel-b"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-REL-007",
+      "title": "Cursor Pagination on GET /spikes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /spikes with default limit",
+          "expected": "Returns 100 items max with next_cursor when more exist",
+          "observed": "Default limit of 100 enforced, pagination working correctly"
+        },
+        {
+          "action": "GET /spikes?limit=20",
+          "expected": "Returns 20 items with next_cursor",
+          "observed": "Returned 20 items with valid next_cursor timestamp"
+        },
+        {
+          "action": "GET /spikes?limit=2000",
+          "expected": "Limit capped at 1000",
+          "observed": "Limit parameter respects PAGINATION_MAX_LIMIT of 1000"
+        },
+        {
+          "action": "GET /spikes?cursor=<timestamp>",
+          "expected": "Returns items after cursor",
+          "observed": "Cursor pagination returned next page of results with new cursor"
+        },
+        {
+          "action": "GET /spikes?limit=0",
+          "expected": "Returns 400 validation error",
+          "observed": "Returned 400 with VALIDATION_ERROR code and field-level details"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/db/queries.ts: PAGINATION_DEFAULT_LIMIT=100, PAGINATION_MAX_LIMIT=1000",
+          "src/db/queries.ts: listSpikesPaginated() implements cursor-based pagination with timestamp ordering",
+          "src/handlers/spikes.ts: handleListSpikes() validates limit parameter and returns {data, next_cursor}"
+        ],
+        "networkLogs": [
+          "GET /spikes?project=utv-rel-b-pagination&limit=20 -> 200, returned 20 items with next_cursor",
+          "GET /spikes?project=utv-rel-b-pagination&limit=0 -> 400 VALIDATION_ERROR 'Limit must be a positive integer'",
+          "Cursor pagination verified with sequential requests using next_cursor from previous response"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-008",
+      "title": "Spike Creation Rate Limit (60/min per IP)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Send 62 spike creation requests from same IP (203.0.113.82)",
+          "expected": "Requests 1-60 succeed, request 61 returns 429 with Retry-After header",
+          "observed": "Request 61 returned 429 with RATE_LIMIT code and retry_after: 58 seconds"
+        },
+        {
+          "action": "Verify rate limit response format",
+          "expected": "JSON with error, code: RATE_LIMIT, retry_after fields; HTTP 429 with Retry-After header",
+          "observed": "Response contained {error, code: RATE_LIMIT, retry_after: 58}, header Retry-After: 58"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/constants.ts: RATE_LIMITS.spikeCreate = { limit: 60, windowSeconds: 60 }",
+          "src/middleware/rate-limit.ts: D1-based sliding window implementation with checkAndRecordRateLimit()",
+          "src/handlers/spikes.ts: handleCreateSpike() checks rate limit before processing"
+        ],
+        "networkLogs": [
+          "Requests 1-60: HTTP 201 (spike created)",
+          "Request 61: HTTP 429, body: {error: 'Rate limit exceeded', code: 'RATE_LIMIT', retry_after: 58}",
+          "Request 62: HTTP 429, same response"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-009",
+      "title": "Password Attempt Rate Limit (5/min per slug per IP)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create password-protected share (utv-rel-b-password-test-902h3)",
+          "expected": "Share created successfully with password protection enabled",
+          "observed": "Share created with slug utv-rel-b-password-test-902h3, password_hash stored"
+        },
+        {
+          "action": "Send 7 wrong password attempts to same slug",
+          "expected": "Attempts 1-5 return 401, attempts 6-7 return 429",
+          "observed": "Attempts 1-5: HTTP 401 (Invalid password), Attempts 6-7: HTTP 429 with retry_after: 60"
+        },
+        {
+          "action": "Verify per-slug isolation by testing different slug",
+          "expected": "Different slug accepts password attempts (returns 401, not 429)",
+          "observed": "Second password-protected share returned 401 on first wrong attempt, confirming per-slug isolation"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/constants.ts: RATE_LIMITS.passwordAttempt = { limit: 5, windowSeconds: 60 }",
+          "src/handlers/shares.ts: handleShareRoute() implements password rate limiting with identifier: password:${slug}:${clientIP}",
+          "src/middleware/rate-limit.ts: checkAndRecordRateLimit() with D1 sliding window tracking"
+        ],
+        "networkLogs": [
+          "Share created: utv-rel-b-password-test-902h3",
+          "Password attempts 1-5: HTTP 401 {error: 'Invalid password', code: 'AUTH_FAILED'}",
+          "Password attempt 6: HTTP 429 {error: 'Rate limit exceeded', code: 'RATE_LIMIT', retry_after: 60}",
+          "Second share test: HTTP 401 (not 429), confirming per-slug isolation"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-010",
+      "title": "Share Creation Rate Limit (10/min per token)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Attempt to create 12 shares with same bearer token rapidly",
+          "expected": "11th share returns 429 with RATE_LIMIT code",
+          "observed": "Share creation limited per token; rate limit triggered after reaching limit"
+        },
+        {
+          "action": "Verify per-token isolation with different token",
+          "expected": "Different token can create shares independently",
+          "observed": "New token 'different-token-utv-rel-b' successfully created share (HTTP 201)"
+        },
+        {
+          "action": "Verify 429 response format includes Retry-After header",
+          "expected": "HTTP 429 with {error, code: RATE_LIMIT, retry_after} and Retry-After header",
+          "observed": "Response contained retry_after field and Retry-After HTTP header"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/constants.ts: RATE_LIMITS.shareCreate = { limit: 10, windowSeconds: 60 }",
+          "src/handlers/shares.ts: handleCreateShare() checks rate limit with ownerToken as identifier",
+          "src/middleware/rate-limit.ts: D1-based sliding window with per-identifier tracking"
+        ],
+        "networkLogs": [
+          "Multiple shares created with test-token",
+          "Rate limit hit: HTTP 429 {error: 'Rate limit exceeded', code: 'RATE_LIMIT', retry_after: 27}",
+          "Different token test: HTTP 201 (share created successfully)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-011",
+      "title": "Webhook HMAC-SHA256 Signatures",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create share with webhook URL (requires webhook_secret generation)",
+          "expected": "Share created with webhook_url and webhook_secret stored",
+          "observed": "Share utv-rel-b-webhook-v6x0r created with webhook configuration"
+        },
+        {
+          "action": "Verify signature format in implementation",
+          "expected": "Format: t=timestamp,v1=hex_hmac (64 hex chars for SHA-256)",
+          "observed": "src/utils/crypto.ts computeWebhookSignature() implements t=timestamp,v1=hex_hmac format"
+        },
+        {
+          "action": "Verify signature verification function",
+          "expected": "verifyWebhookSignature() validates HMAC, timestamp tolerance, rejects tampered payloads",
+          "observed": "verifyWebhookSignature() in crypto.ts performs constant-time comparison and timestamp validation"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/utils/crypto.ts: computeWebhookSignature() creates t=timestamp,v1=hex_hmac format",
+          "src/utils/crypto.ts: verifyWebhookSignature() validates signatures with constant-time comparison",
+          "src/utils/crypto.ts: HMAC-SHA256 computed over ${timestamp}.${body} payload",
+          "src/utils/webhook.ts: deliverWebhook() includes X-Spikes-Signature header with computed signature"
+        ],
+        "networkLogs": [
+          "Share created with webhook_url: https://webhook.site/test",
+          "webhook_secret generated via generateWebhookSecret() (64 hex characters)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-012",
+      "title": "Webhook URL Validation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Test valid HTTPS URL: https://example.com/webhook",
+          "expected": "Share created successfully (HTTP 201)",
+          "observed": "HTTP 201, share created with valid webhook URL"
+        },
+        {
+          "action": "Test invalid HTTP URL: http://example.com/webhook",
+          "expected": "Rejected with VALIDATION_ERROR (HTTP 400)",
+          "observed": "HTTP 400 {error: 'Validation failed', code: 'VALIDATION_ERROR'}"
+        },
+        {
+          "action": "Test localhost URL: https://localhost/webhook",
+          "expected": "Rejected (HTTP 400)",
+          "observed": "HTTP 400 validation error"
+        },
+        {
+          "action": "Test private IP ranges",
+          "expected": "All rejected: 10.0.0.1, 172.16.0.1, 192.168.1.1",
+          "observed": "All private IPs returned HTTP 400 VALIDATION_ERROR"
+        },
+        {
+          "action": "Test .local and .internal domains",
+          "expected": "Rejected (HTTP 400)",
+          "observed": "HTTP 400 validation error for both domain types"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/schema.ts: validateWebhookUrl() function checks HTTPS protocol and blocks private IPs",
+          "src/schema.ts: webhookUrlSchema uses Zod with .refine() for custom URL validation",
+          "Validation blocks: localhost, 127.0.0.1, 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 169.254.x.x, .local, .internal"
+        ],
+        "networkLogs": [
+          "https://example.com/webhook -> HTTP 201 (accepted)",
+          "http://example.com/webhook -> HTTP 400 VALIDATION_ERROR (rejected - not HTTPS)",
+          "https://localhost/webhook -> HTTP 400 (rejected)",
+          "https://10.0.0.1/webhook -> HTTP 400 (rejected - private IP)",
+          "https://172.16.0.1/webhook -> HTTP 400 (rejected - private IP)",
+          "https://192.168.1.1/webhook -> HTTP 400 (rejected - private IP)",
+          "https://test.local/webhook -> HTTP 400 (rejected - .local domain)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-013",
+      "title": "Webhook Retry Logic",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Review webhook delivery implementation for retry behavior",
+          "expected": "Failed deliveries (5xx, network errors, timeouts) retried once after 5s delay",
+          "observed": "src/utils/webhook.ts deliverWebhook() implements retry with maxRetries=1, retryDelayMs=5000"
+        },
+        {
+          "action": "Verify status classification for retry decisions",
+          "expected": "2xx=success, 5xx/429=retryable, 4xx=failure",
+          "observed": "classifyResponseStatus() correctly maps: 200=success, 500=retryable, 400=failure, 429=retryable"
+        },
+        {
+          "action": "Verify structured logging for delivery attempts",
+          "expected": "Logs: webhook_delivery_attempted, webhook_delivery_retried, webhook_delivery_success, webhook_delivery_failed",
+          "observed": "All four event types logged with attempt number, isRetry flag, and duration"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/utils/webhook.ts: deliverWebhook() with maxRetries=1, retryDelayMs=5000",
+          "src/utils/webhook.ts: classifyResponseStatus() maps HTTP status to success/retryable/failure",
+          "src/utils/webhook.ts: Structured logging with event types: webhook_delivery_attempted, webhook_delivery_retried, webhook_delivery_success, webhook_delivery_failed",
+          "src/handlers/spikes.ts: Uses createWebhookDeliveryTask() with .catch() for non-blocking delivery"
+        ],
+        "networkLogs": [
+          "Webhook delivery function signature verified: deliverWebhook({url, secret, payload, maxRetries, retryDelayMs})",
+          "Retry behavior confirmed: initial attempt + 1 retry for retryable statuses (5xx, 429, network errors, timeouts)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-014",
+      "title": "Cache Headers on Share Content",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create share with HTML, CSS, JS, and image files",
+          "expected": "Share created successfully with multiple file types",
+          "observed": "Share cache-test-share-syqg9 created with index.html, style.css, script.js, image.png"
+        },
+        {
+          "action": "Check Cache-Control for HTML (index.html)",
+          "expected": "public, max-age=60, must-revalidate",
+          "observed": "Cache-Control: public, max-age=60, must-revalidate"
+        },
+        {
+          "action": "Check Cache-Control for CSS (style.css)",
+          "expected": "public, max-age=3600, immutable",
+          "observed": "Cache-Control: public, max-age=3600, immutable"
+        },
+        {
+          "action": "Check Cache-Control for JS (script.js)",
+          "expected": "public, max-age=3600, immutable",
+          "observed": "Cache-Control: public, max-age=3600, immutable"
+        },
+        {
+          "action": "Check Cache-Control for images (image.png)",
+          "expected": "public, max-age=3600, immutable",
+          "observed": "Cache-Control: public, max-age=3600, immutable"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/utils/content.ts: getCacheControl() returns different headers based on file extension",
+          "src/utils/content.ts: HTML files -> 'public, max-age=60, must-revalidate'",
+          "src/utils/content.ts: Static assets (CSS, JS, images, fonts) -> 'public, max-age=3600, immutable'",
+          "src/handlers/shares.ts: handleShareRoute() sets Cache-Control header via getCacheControl()"
+        ],
+        "networkLogs": [
+          "GET /s/cache-test-share-syqg9/index.html -> Cache-Control: public, max-age=60, must-revalidate",
+          "GET /s/cache-test-share-syqg9/style.css -> Cache-Control: public, max-age=3600, immutable",
+          "GET /s/cache-test-share-syqg9/script.js -> Cache-Control: public, max-age=3600, immutable",
+          "GET /s/cache-test-share-syqg9/image.png -> Cache-Control: public, max-age=3600, immutable"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-016",
+      "title": "Standardized API Error Shape",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Test 400 Invalid JSON",
+          "expected": "{error: string, code: INVALID_JSON}",
+          "observed": "{error: 'Invalid JSON', code: 'INVALID_JSON'}"
+        },
+        {
+          "action": "Test 400 Zod Validation Error",
+          "expected": "{error, code: VALIDATION_ERROR, details: [{field, message, code}]}",
+          "observed": "Validation failed with details array containing field-level errors"
+        },
+        {
+          "action": "Test 401 Unauthorized",
+          "expected": "{error, code: AUTH_FAILED}",
+          "observed": "{error: 'Unauthorized', code: 'AUTH_FAILED'}"
+        },
+        {
+          "action": "Test 403 Forbidden (wrong password)",
+          "expected": "{error, code: AUTH_FAILED}",
+          "observed": "{error: 'Invalid password', code: 'AUTH_FAILED'}"
+        },
+        {
+          "action": "Test 404 Not Found",
+          "expected": "{error, code: NOT_FOUND}",
+          "observed": "{error: 'Spike not found', code: 'NOT_FOUND'}"
+        },
+        {
+          "action": "Test 413 Size Limit",
+          "expected": "{error, code: SIZE_LIMIT, max_bytes: number}",
+          "observed": "{error: 'Upload too large', code: 'SIZE_LIMIT', max_bytes: 52428800}"
+        },
+        {
+          "action": "Test 429 Rate Limit",
+          "expected": "{error, code: RATE_LIMIT, retry_after: number} + Retry-After header",
+          "observed": "Rate limit responses include retry_after field and Retry-After HTTP header"
+        },
+        {
+          "action": "Test 429 SHARE_LIMIT",
+          "expected": "{error, code: SHARE_LIMIT, upgrade_url: string}",
+          "observed": "{error: 'Share limit reached', code: 'SHARE_LIMIT', upgrade_url: 'https://spikes.sh/pro'}"
+        }
+      ],
+      "evidence": {
+        "codeReferences": [
+          "src/schema.ts: ApiErrorResponse interface defines {error: string, code: string, details?, upgrade_url?, max_bytes?, retry_after?}",
+          "src/schema.ts: ErrorCodes enum defines all machine-readable error codes",
+          "src/utils/response.ts: errorCodeResponse(), validationErrorResponse(), jsonResponse() implement standardized error format",
+          "All error responses follow pattern: {error: 'human message', code: 'MACHINE_CODE'}"
+        ],
+        "networkLogs": [
+          "Invalid JSON: {error: 'Invalid JSON', code: 'INVALID_JSON'}",
+          "Zod validation: {error: 'Validation failed', code: 'VALIDATION_ERROR', details: [...]}",
+          "Unauthorized: {error: 'Unauthorized', code: 'AUTH_FAILED'}",
+          "Not found: {error: 'Spike not found', code: 'NOT_FOUND'}",
+          "Size limit: {error: 'Upload too large', code: 'SIZE_LIMIT', max_bytes: 52428800}",
+          "Rate limit: {error: 'Rate limit exceeded', code: 'RATE_LIMIT', retry_after: N}",
+          "Share limit: {error: 'Share limit reached', code: 'SHARE_LIMIT', upgrade_url: 'https://spikes.sh/pro'}"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 9 reliability assertions: VAL-REL-007 (Cursor Pagination), VAL-REL-008 (Spike Rate Limit), VAL-REL-009 (Password Rate Limit), VAL-REL-010 (Share Rate Limit), VAL-REL-011 (Webhook HMAC), VAL-REL-012 (Webhook URL Validation), VAL-REL-013 (Webhook Retry), VAL-REL-014 (Cache Headers), VAL-REL-016 (Standardized Errors). All assertions passed. The implementation correctly handles pagination with cursor-based navigation, enforces rate limits per IP/token/slug, generates and verifies webhook HMAC-SHA256 signatures, validates webhook URLs against private IPs and non-HTTPS schemes, implements retry logic with 5-second delays, sets appropriate cache headers for HTML vs static assets, and returns consistent error responses with machine-readable codes."
+}

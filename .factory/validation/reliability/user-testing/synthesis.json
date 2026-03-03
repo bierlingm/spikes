@@ -1,0 +1,39 @@
+{
+  "milestone": "reliability",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-REL-001",
+    "VAL-REL-002",
+    "VAL-REL-003",
+    "VAL-REL-004",
+    "VAL-REL-005",
+    "VAL-REL-006",
+    "VAL-REL-007",
+    "VAL-REL-008",
+    "VAL-REL-009",
+    "VAL-REL-010",
+    "VAL-REL-011",
+    "VAL-REL-012",
+    "VAL-REL-013",
+    "VAL-REL-014",
+    "VAL-REL-016",
+    "VAL-REL-017"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added local D1 schema reinitialization guidance for cases where local migration history drifts and `wrangler d1 migrations apply --local` fails.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}

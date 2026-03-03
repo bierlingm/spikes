@@ -1,0 +1,191 @@
+{
+  "milestone": "reliability",
+  "groupId": "reliability-group-a",
+  "surface": "hosted-worker-api",
+  "testedAt": "2026-03-03T00:30:00Z",
+  "credentials": {
+    "account": "utv-rel-a@example.com",
+    "namespace": "utv-rel-a",
+    "token": "utv-rel-a-token"
+  },
+  "toolsUsed": ["curl", "sqlite3"],
+  "assertions": [
+    {
+      "id": "VAL-REL-001",
+      "title": "Foreign Key Constraint on spikes.share_id",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify schema.sql for FK constraint definition",
+          "expected": "CONSTRAINT fk_spikes_share FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE",
+          "observed": "FK constraint found in schema: share_id TEXT REFERENCES shares(id) ON DELETE CASCADE with explicit CONSTRAINT"
+        },
+        {
+          "action": "Test valid share_id INSERT via API",
+          "expected": "Spike created successfully with 201 status",
+          "observed": "POST /spikes with valid share_id '5a0849ed-2653-46ca-bccc-244fbaebe779' returned 201 with spike ID '17b2ccc7-fb0b-439f-888a-8540a3d6fc0b'"
+        },
+        {
+          "action": "Test FK constraint enforcement at database level",
+          "expected": "INSERT with non-existent share_id fails with FK constraint error",
+          "observed": "Direct SQLite INSERT with share_id '00000000-0000-0000-0000-000000000000' failed with 'Runtime error near line 2: FOREIGN KEY constraint failed (19)'"
+        }
+      ],
+      "evidence": {
+        "schemaReference": "schema.sql contains: CONSTRAINT fk_spikes_share FOREIGN KEY (share_id) REFERENCES shares(id) ON DELETE CASCADE",
+        "databaseTest": "SQLite error 19 (SQLITE_CONSTRAINT) on FK violation",
+        "apiTest": "POST /spikes with valid share_id succeeded, returned 201"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-002",
+      "title": "Removal of Denormalized shares.tier Column",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify shares table schema has no tier column",
+          "expected": "PRAGMA table_info(shares) does not list 'tier' column",
+          "observed": "shares table columns: id, slug, owner_token, owner_id, password_hash, password_salt, webhook_url, webhook_secret, created_at. 'tier' column is absent."
+        },
+        {
+          "action": "Verify tier lookup uses JOIN to users table in code",
+          "expected": "Code shows 'SELECT s.*, u.tier FROM shares s JOIN users u ON s.owner_id = u.id' pattern",
+          "observed": "src/db/queries.ts getShareBySlug uses: SELECT s.id, s.slug, s.password_hash, s.password_salt, COALESCE(u.tier, 'free') as tier FROM shares s LEFT JOIN users u ON s.owner_id = u.id"
+        }
+      ],
+      "evidence": {
+        "schemaColumns": "id, slug, owner_token, owner_id, password_hash, password_salt, webhook_url, webhook_secret, created_at",
+        "tierLookupCode": "src/db/queries.ts line 133: COALESCE(u.tier, 'free') as tier via LEFT JOIN to users table"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-003",
+      "title": "Accurate Spike Count via COUNT(*)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify code uses COUNT(*) for spike counting",
+          "expected": "countSpikesByShareId function uses SELECT COUNT(*) FROM spikes WHERE share_id = ?",
+          "observed": "src/db/queries.ts countSpikesByShareId: 'SELECT COUNT(*) as count FROM spikes WHERE share_id = ?'"
+        },
+        {
+          "action": "Verify shares table has no spike_count column",
+          "expected": "PRAGMA table_info(shares) does not list 'spike_count' column",
+          "observed": "spike_count column NOT found in shares table (confirmed via SQLite query)"
+        },
+        {
+          "action": "Verify listSharesByOwner uses subquery COUNT(*)",
+          "expected": "List query calculates spike_count dynamically via subquery",
+          "observed": "src/db/queries.ts listSharesByOwner: '(SELECT COUNT(*) FROM spikes WHERE share_id = s.id) as spike_count'"
+        }
+      ],
+      "evidence": {
+        "countQuery": "src/db/queries.ts: SELECT COUNT(*) as count FROM spikes WHERE share_id = ?",
+        "listQuery": "src/db/queries.ts: (SELECT COUNT(*) FROM spikes WHERE share_id = s.id) as spike_count",
+        "noDenormalizedColumn": "spike_count column absent from shares table schema"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-004",
+      "title": "Server-Side Spike ID Generation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify code generates server-side UUID only",
+          "expected": "Code shows 'id: crypto.randomUUID()' without fallback to body.id",
+          "observed": "src/handlers/spikes.ts line 116: id: crypto.randomUUID(), // Server-generated, never trust client input"
+        },
+        {
+          "action": "Test that client-provided id is ignored",
+          "expected": "POST with body.id='hacked-id-123' returns different UUID",
+          "observed": "POST /spikes with '{\"id\":\"hacked-id-123\",...}' returned ID 'c674fe46-27de-43d9-839b-03087bb9a39a' (valid UUID v4, not the hacked value)"
+        },
+        {
+          "action": "Verify returned ID is valid UUID v4 format",
+          "expected": "Returned ID matches UUID v4 regex pattern",
+          "observed": "All returned IDs match UUID v4 pattern (e.g., c674fe46-27de-43d9-839b-03087bb9a39a)"
+        }
+      ],
+      "evidence": {
+        "codeReference": "src/handlers/spikes.ts: id: crypto.randomUUID(), // Server-generated, never trust client input",
+        "clientIdIgnored": "Posted body.id='hacked-id-123', received different UUID in response",
+        "uuidFormat": "All returned IDs are valid UUID v4 format"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-005",
+      "title": "Zod Validation on POST /spikes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Test empty body validation",
+          "expected": "{} returns 400 with VALIDATION_ERROR and field-level details for missing page and type",
+          "observed": "HTTP 400: {\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"details\":[{\"field\":\"page\",...},{\"field\":\"type\",...}]}"
+        },
+        {
+          "action": "Test invalid data type (number where string expected)",
+          "expected": "Returns 400 with field-level error for project field",
+          "observed": "HTTP 400: {\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"details\":[{\"field\":\"project\",\"message\":\"Invalid input: expected string, received number\"}]}"
+        },
+        {
+          "action": "Test invalid enum value for type",
+          "expected": "Returns 400 with error that type must be 'page' or 'element'",
+          "observed": "HTTP 400: {\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"details\":[{\"field\":\"type\",\"message\":\"Type must be \\\"page\\\" or \\\"element\\\"\"}]}"
+        },
+        {
+          "action": "Test valid request passes validation",
+          "expected": "Returns 201 with ok: true and generated spike ID",
+          "observed": "HTTP 201: {\"ok\":true,\"id\":\"e3bc1984-8863-4616-b2b7-33a2f5593084\"}"
+        }
+      ],
+      "evidence": {
+        "emptyBody": "POST {} → 400 with details for page and type fields",
+        "invalidType": "POST with type='invalid' → 400 with 'Type must be page or element'",
+        "invalidDataType": "POST with project=123 (number) → 400 with 'expected string, received number'",
+        "validRequest": "POST with valid body → 201 with ok: true"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-REL-006",
+      "title": "Zod Validation on POST /shares",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Test invalid metadata JSON",
+          "expected": "Malformed JSON returns 400 with INVALID_JSON code",
+          "observed": "HTTP 400: {\"error\":\"Invalid JSON\",\"code\":\"INVALID_JSON\"}"
+        },
+        {
+          "action": "Test invalid webhook URL (HTTP instead of HTTPS)",
+          "expected": "Returns 400 with VALIDATION_ERROR and field-level details",
+          "observed": "HTTP 400: {\"error\":\"Validation failed\",\"code\":\"VALIDATION_ERROR\",\"details\":[{\"field\":\"webhook_url\",\"message\":\"Webhook URL must be HTTPS and cannot point to localhost or private IP addresses\"}]}"
+        },
+        {
+          "action": "Test invalid webhook URL (localhost)",
+          "expected": "Returns 400 with validation error for private IP/localhost",
+          "observed": "HTTP 400: Same error as above for https://localhost/webhook"
+        },
+        {
+          "action": "Test valid share creation passes validation",
+          "expected": "Returns 201 with share URL and ID",
+          "observed": "HTTP 201: {\"ok\":true,\"url\":\"https://spikes.sh/s/utv-rel-a-valid-share-ofc1f\",\"share_id\":\"0659e326-e59b-4eb7-85ee-f3358f1948ce\",\"slug\":\"utv-rel-a-valid-share-ofc1f\"}"
+        }
+      ],
+      "evidence": {
+        "invalidJson": "POST with metadata={invalid json → 400 INVALID_JSON",
+        "invalidWebhookHttp": "POST with http://example.com/webhook → 400 VALIDATION_ERROR",
+        "invalidWebhookLocalhost": "POST with https://localhost/webhook → 400 VALIDATION_ERROR",
+        "validRequest": "POST with valid metadata → 201 with share created"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 reliability assertions: all passed. VAL-REL-001: FK constraint enforced at database level (SQLite error 19 on violation). VAL-REL-002: No tier column in shares table, tier lookup via JOIN to users. VAL-REL-003: COUNT(*) used for spike counting, no denormalized spike_count column. VAL-REL-004: Server-side UUID generation, client-provided id ignored. VAL-REL-005: Zod validation returns 400 with field-level details for invalid spike data. VAL-REL-006: Zod validation returns 400 for invalid share metadata including webhook URL validation."
+}
