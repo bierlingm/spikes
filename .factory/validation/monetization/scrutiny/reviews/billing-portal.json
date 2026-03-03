@@ -1,0 +1,28 @@
+{
+  "featureId": "billing-portal",
+  "reviewedAt": "2026-03-03T14:30:00Z",
+  "commitId": "bf7c65a",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The billing-portal feature is well-implemented across both the Worker backend and CLI. The Worker provides a GET /billing/portal endpoint that authenticates the user, validates they have a Stripe customer ID, and creates a Stripe Customer Portal session. The CLI provides a 'spikes billing' command that fetches this URL and opens it in the default browser. The implementation follows security best practices with proper auth checks, error handling, and test coverage.",
+    "issues": [
+      {
+        "file": "../spikes-hosted/worker/src/handlers/billing.ts",
+        "line": 35,
+        "severity": "non_blocking",
+        "description": "The billing.ts handler includes handleBillingCheckout() which implements VAL-MON-006 (upgrade feature), not VAL-MON-001/002 (billing-portal feature). While this code is correct and well-implemented, it represents scope creep into a separate feature. Consider splitting into separate files for clarity."
+      },
+      {
+        "file": "cli/src/commands/billing.rs",
+        "line": 63,
+        "severity": "non_blocking",
+        "description": "The fetch_billing_portal() function checks status != 200 after already extracting the response body. This is a minor code clarity issue - the error response body was already consumed in the ureq::Error::Status match arm, so this check is actually unreachable for HTTP error status codes. The code still functions correctly because map_http_error handles the error cases properly."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "The billing-portal feature passes scrutiny review. Both the Worker endpoint (GET /billing/portal) and CLI command (spikes billing) are correctly implemented with proper authentication, error handling, and test coverage (9 comprehensive tests in billing-portal.test.ts). The feature fulfills VAL-MON-001 and VAL-MON-002 as specified. Minor non-blocking issues: (1) billing.ts includes code for the upgrade feature (VAL-MON-006) which could be split into a separate file for cleaner feature boundaries, and (2) a redundant status check in the CLI that doesn't affect functionality."
+}

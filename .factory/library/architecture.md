@@ -43,3 +43,11 @@ Split `index.ts` (~824 lines) into:
 - For Worker IP-based rate limiting, prioritize `CF-Connecting-IP`, then `X-Forwarded-For`, then local fallback for development.
 - In the CLI (`ureq`), HTTP status often appears inside transport errors as `status code NNN`; parsing this pattern enables actionable error messaging even when no structured body is available.
 - For Worker background tasks (e.g., webhooks), pass `ExecutionContext` through handlers and use `ctx.waitUntil(...)` for delivery/retry work that must survive response completion.
+
+## Monetization Scrutiny Notes (2026-03-03)
+
+- `GET /spikes` intentionally allows unauthenticated access only when a `project` query param is provided; otherwise auth is still required.
+- Stripe webhook handlers should return `200 { received: true }` for events missing `customer` IDs (safe no-op behavior).
+- Downgrade flows use a two-step pattern: update user tier, then clear Pro-only share fields (`password_hash`, `password_salt`, `webhook_url`, `webhook_secret`).
+- Stripe idempotency uses `stripe_events`: check for existing event before processing and record the event after successful handling.
+- Upgrade CTAs are currently standardized to `https://spikes.sh/pro` across Worker limit responses and CLI messaging.

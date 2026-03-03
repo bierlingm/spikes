@@ -1,0 +1,56 @@
+{
+  "featureId": "usage-tracking",
+  "reviewedAt": "2026-03-03T14:30:00Z",
+  "commitId": "7feda3d",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The usage-tracking feature is well-implemented across both the Worker backend and CLI. The GET /usage endpoint correctly returns usage statistics with tier-appropriate limits (numeric for free tier, null for Pro). The CLI `spikes usage` command displays formatted usage with progress bars and upgrade prompts when approaching limits. The `spikes shares` command was enhanced to include usage summaries. Code follows existing patterns and conventions.",
+    "issues": [
+      {
+        "file": "cli/src/commands/usage.rs",
+        "line": 160,
+        "severity": "non_blocking",
+        "description": "The progress_bar function could produce unexpected output when current equals limit exactly. The ratio calculation uses .min(1.0) to cap at 1.0, but the filled calculation uses .round() which could produce filled=11 when ratio is exactly 1.0 (10.0 * 1.0 = 10.0, which rounds to 10, but floating point precision could edge above). The empty calculation (10 - filled) as usize could wrap if filled > 10. Consider using .min(10.0) before rounding for safety."
+      },
+      {
+        "file": "cli/src/commands/usage.rs",
+        "line": 30,
+        "severity": "non_blocking",
+        "description": "No unit tests or integration tests exist for the usage command. While the worker has comprehensive tests for the /usage endpoint, the CLI command lacks test coverage for: progress bar rendering, upgrade message triggering at 80% threshold, JSON output format, and error handling paths. This is inconsistent with other CLI commands that typically have corresponding tests in cli/tests/."
+      },
+      {
+        "file": "cli/src/commands/shares.rs",
+        "line": 120,
+        "severity": "non_blocking",
+        "description": "The fetch_usage function duplicates the identical function in usage.rs (lines 45-70). This code duplication could be refactored into a shared helper in auth.rs or a new api.rs module to maintain DRY principle and reduce maintenance burden when the API contract changes."
+      },
+      {
+        "file": "cli/src/commands/usage.rs",
+        "line": 100,
+        "severity": "non_blocking",
+        "description": "UX clarity issue: The spike_limit field in the response represents the per-share limit (1000 spikes per share), but the CLI displays it as if it were a total limit across all shares (e.g., 'Spikes: 60/1000'). This could confuse users who have multiple shares - they might think they can only have 1000 spikes total when the limit is actually per-share. Consider renaming the display label to clarify this is a per-share limit, or show both per-share and aggregate statistics."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The CLI usage command was implemented without corresponding unit or integration tests, unlike other CLI commands. The worker-cli skill specifies 'Write tests FIRST (TDD)' and other commands (delete, resolve, auth) have tests in cli/tests/, but usage.rs has no tests. This is a pattern gap in the test coverage expectations.",
+      "evidence": "cli/src/commands/usage.rs has no #[cfg(test)] module. cli/tests/ has no usage-related tests. Compare to cli/tests/auth_commands.rs which has comprehensive auth command coverage."
+    },
+    {
+      "area": "skills",
+      "observation": "The worker-cli skill correctly describes the work procedure including test-first development, but this wasn't followed for the usage command. The skill should perhaps emphasize that ALL commands need tests, not just 'new' commands.",
+      "evidence": "Skill says: 'Write tests FIRST (TDD). Unit tests: Add #[cfg(test)] mod tests { ... } in the same file as the code being tested.' vs actual: usage.rs has no tests."
+    },
+    {
+      "area": "conventions",
+      "observation": "The shared state between usage.rs and shares.rs for API fetching could benefit from a centralized API client pattern. Currently, fetch_usage is duplicated in both files.",
+      "evidence": "Both usage.rs:45-70 and shares.rs:120-145 contain nearly identical fetch_usage functions with the same ureq::get pattern, error mapping, and response parsing."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The usage-tracking feature (VAL-MON-003, VAL-MON-004) is fully implemented and functional. The Worker GET /usage endpoint correctly returns usage statistics with proper authentication, tier-based limits, and spike aggregation across shares. The CLI `spikes usage` command provides well-formatted output with progress bars and upgrade prompts. The `spikes shares` command now includes usage summaries. All 6 Worker tests pass covering free tier limits, Pro tier null limits, authentication errors, and spike aggregation. Code follows project conventions. Non-blocking issues identified: (1) potential floating-point edge case in progress bar calculation, (2) missing CLI tests for the usage command, (3) code duplication of fetch_usage between usage.rs and shares.rs, and (4) UX clarity issue around per-share vs total spike limits in display."
+}

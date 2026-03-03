@@ -23,6 +23,7 @@ Environment variables, external dependencies, and setup notes.
 - `SPIKES_TOKEN` — Admin API token
 - `STRIPE_WEBHOOK_SECRET` — Stripe webhook verification
 - `STRIPE_SECRET_KEY` — Stripe API key
+- `STRIPE_PRO_PRICE_ID` — Stripe Price ID used by checkout/upgrade flows
 - `SENTRY_DSN` — Sentry error reporting
 
 ## D1 Bindings

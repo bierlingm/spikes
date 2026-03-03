@@ -1,0 +1,76 @@
+{
+  "milestone": "monetization",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cargo test --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml && cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx vitest run",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx eslint src test",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Added monetization architecture notes to .factory/library/architecture.md for public /spikes project access behavior, Stripe webhook no-op semantics for missing customer IDs, downgrade cleanup pattern, idempotency sequencing, and standardized upgrade CTA URL.",
+      "sourceFeature": "cross-area-integration"
+    },
+    {
+      "target": "library",
+      "description": "Added STRIPE_PRO_PRICE_ID to required Worker environment variables in .factory/library/environment.md.",
+      "sourceFeature": "limit-enforcement-upgrade"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Document the allowed exception pattern for public reads on otherwise protected endpoints (example: GET /spikes allowed without auth only when scoped by project query param).",
+      "evidence": "cross-area-integration introduced conditional auth bypass in worker/src/index.ts for project-scoped pulls.",
+      "isSystemic": false
+    },
+    {
+      "target": "worker-backend skill",
+      "suggestion": "Add explicit webhook guidance for two recurring Stripe patterns: (1) return 200 no-op for events missing customer IDs and (2) implement downgrade handlers as tier update + Pro-feature cleanup in one flow.",
+      "evidence": "stripe-webhook-completeness uses both patterns in webhooks.ts and tests validate them.",
+      "isSystemic": true
+    },
+    {
+      "target": "worker-cli skill",
+      "suggestion": "Strengthen requirement that every new/changed CLI command path includes corresponding automated tests, even when endpoint tests already exist in worker repo.",
+      "evidence": "usage-tracking implemented usage.rs behavior without dedicated CLI tests while other CLI features in mission generally included command-level tests.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Extract helper functions from cross-area-flows.test.ts into test/helpers.ts.",
+      "reason": "non-systemic refactor suggestion; no current correctness or validation risk"
+    },
+    {
+      "observation": "Centralize duplicated fetch_usage helper between usage.rs and shares.rs immediately.",
+      "reason": "ambiguous scope for scrutiny pass/fail; duplication is non-blocking and can be handled in a follow-up implementation feature"
+    },
+    {
+      "observation": "Worker-backend skill was followed correctly for limit-enforcement-upgrade.",
+      "reason": "already-documented positive confirmation with no actionable shared-state change"
+    }
+  ],
+  "previousRound": null
+}

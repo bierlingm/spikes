@@ -1,0 +1,31 @@
+{
+  "featureId": "stripe-webhook-completeness",
+  "reviewedAt": "2026-03-03T14:30:00Z",
+  "commitId": "96f36cb",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Comprehensive implementation of Stripe webhook handling for all subscription states with proper idempotency, tier propagation, and Pro badge behavior. The code follows security best practices and includes extensive test coverage.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker-backend skill should document the pattern of using handleDowngrade() wrapper functions that combine tier updates with Pro feature cleanup. This pattern (tier change + side effect) appears in multiple handlers and could be a reusable convention.",
+      "evidence": "webhooks.ts:129-143 - handleDowngrade() calls updateUserTierByStripeId() then clearProFeaturesFromShares(). Similar pattern in handleCustomerDeleted()."
+    },
+    {
+      "area": "conventions",
+      "observation": "The graceful handling of events without customer IDs (returning 200 without processing) is not explicitly documented in AGENTS.md but follows Stripe webhook best practices. Should be documented as a convention for webhook handlers.",
+      "evidence": "webhooks.ts:63-66 - Events without customer ID return { received: true } without processing. Edge case test confirms this behavior."
+    },
+    {
+      "area": "knowledge",
+      "observation": "The stripe_events table idempotency implementation correctly handles the race condition where duplicate events arrive before the first transaction commits. The check happens before processing and the insert happens atomically at the end.",
+      "evidence": "webhooks.ts:49-57 - Check for existing event at start; queries.ts:284-291 - recordStripeEvent() called only after successful processing."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The stripe-webhook-completeness feature has been thoroughly implemented and tested. All subscription event types are handled (paused, resumed, deleted, created, updated, payment failed/succeeded, customer deleted). Idempotency is correctly implemented via the stripe_events table. Tier propagation clears Pro features (password_hash, password_salt, webhook_url, webhook_secret) on all shares owned by the downgraded user. Pro badge removal is verified via HTML response tests. The 25 tests cover UPSERT logic, grace periods, signature verification, all subscription states, tier propagation, and Pro badge behavior. No blocking issues found."
+}
