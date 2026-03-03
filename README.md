@@ -131,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: moritzbierling/spikes/action@v0.3.0
+      - uses: moritzbierling/spikes/action@v0.3.1
         with:
           threshold: 0           # Fail if any blocking spikes
           ignore-paths: ""     # Optional: pages to ignore
