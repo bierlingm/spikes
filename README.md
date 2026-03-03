@@ -6,7 +6,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-e74c3c?style=flat-square)](LICENSE)
 [![Widget Size](https://img.shields.io/badge/widget-8KB_gzipped-22c55e?style=flat-square)](#)
-[![Free Forever](https://img.shields.io/badge/price-$0_forever-3b82f6?style=flat-square)](#pricing)
+[![Free + Pro](https://img.shields.io/badge/free_+_pro-3b82f6?style=flat-square)](#pricing)
 
 AI can build a prototype in an hour.<br>
 Turning feedback into action is still the slow part.
@@ -23,7 +23,7 @@ Spikes is a feedback tool for AI-assisted development. It lets reviewers leave t
 
 Click any element. Rate it. Comment. Spikes captures the exact CSS selector, bounding box, and page context. Your AI agent gets structured JSON it can act on immediately.
 
-**No accounts. No build step. Works on `file://`, localhost, anywhere.**
+**No accounts required. No build step. Works on `file://`, localhost, anywhere.**
 
 ---
 
@@ -199,7 +199,7 @@ See [Self-Hosting Guide](docs/self-hosting.md) for full setup with D1 database, 
 
 | | |
 |---|---|
-| **Zero friction** | One script tag, no accounts, no build step |
+| **Zero friction** | One script tag, no signup required, no build step |
 | **Works anywhere** | `file://`, `localhost`, any domain |
 | **Precise** | Element-level feedback with exact CSS selectors |
 | **Agent-native** | JSON everywhere, pipes, queryable CLI |
@@ -213,19 +213,28 @@ See [Self-Hosting Guide](docs/self-hosting.md) for full setup with D1 database, 
 
 <div align="center">
 
-### $0
+### Free forever. Pro if you want more.
 
-**Everything. Forever. MIT licensed.**
+No accounts required to start. Login when you need Pro features.
 
-Full widget. Full CLI. Unlimited mockups, unlimited reviewers.
+</div>
 
----
+| | **Free** | **Pro** |
+|---|---|---|
+| **Price** | $0 forever | Pay what you can |
+| **Shares** | 5 | Unlimited |
+| **Spikes per share** | 1,000 | Unlimited |
+| **Widget + CLI** | Full | Full |
+| **Self-hosting** | Yes | Yes |
+| **Password protection** | — | Yes |
+| **Webhooks** | — | Yes |
+| **Badge removal** | — | Yes |
 
-**Spike us back** · $19+ pay what you feel · Supporter badge, priority issues
+<div align="center">
 
-**Pro** · $19/month · Password-protected shares, higher limits
+MIT licensed. Payment is appreciation, not access.
 
-Payment is appreciation, not access. [Read the philosophy →](LICENSE-MODEL.md)
+`spikes upgrade` when you're ready. No pressure.
 
 </div>
 
