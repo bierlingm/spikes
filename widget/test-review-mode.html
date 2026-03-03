@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spikes Review Mode Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #f9fafb;
+        }
+        h1 {
+            margin-bottom: 16px;
+            color: #1a1a1a;
+        }
+        p {
+            margin-bottom: 16px;
+            color: #4b5563;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: #1f2937;
+        }
+        .test-section {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+        }
+        .test-section h3 {
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        button.test-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        button.test-btn:hover {
+            background: #2563eb;
+        }
+        #spike-count {
+            font-weight: bold;
+            color: #059669;
+        }
+        #admin-status {
+            font-weight: bold;
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗡️ Spikes Review Mode Test</h1>
+    <p>This page tests the Review Mode feature (VAL-UX-006). The widget is loaded with <code>data-admin="true"</code> which should show a Review button.</p>
+
+    <div class="card">
+        <h2>Expected Behavior</h2>
+        <ul style="margin-left: 20px; color: #4b5563;">
+            <li><strong>data-admin="true":</strong> Shows "Review" button below the main feedback button</li>
+            <li><strong>Click Review:</strong> Toggles review mode, showing spike markers on page</li>
+            <li><strong>Review mode ON:</strong> Shows review bar at top, markers on elements with spikes</li>
+            <li><strong>Click Review again:</strong> Exits review mode, hides markers</li>
+        </ul>
+    </div>
+
+    <div class="card" id="element-test-card">
+        <h2>🎯 Test Elements</h2>
+        <p>Click the floating button once to enter <strong>spike mode</strong>, then click any element to leave feedback. Then click the Review button to see markers.</p>
+        
+        <div style="display: flex; gap: 12px; margin: 16px 0; flex-wrap: wrap;">
+            <button class="test-btn" id="btn-primary">Primary Button</button>
+            <button class="test-btn" style="background: #10b981;">Success Button</button>
+            <button class="test-btn" style="background: #f59e0b;">Warning Button</button>
+        </div>
+        
+        <nav style="background: #f3f4f6; padding: 12px; border-radius: 6px; margin: 16px 0;">
+            <a href="#" style="margin-right: 16px; color: #3b82f6;">Home</a>
+            <a href="#" style="margin-right: 16px; color: #3b82f6;">About</a>
+            <a href="#" style="margin-right: 16px; color: #3b82f6;">Pricing</a>
+            <a href="#" style="color: #3b82f6;">Contact</a>
+        </nav>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px;">
+            <div style="background: #fef3c7; padding: 16px; border-radius: 8px; text-align: center;">
+                <strong>Card 1</strong>
+                <p style="font-size: 12px; margin-top: 4px;">Yellow card</p>
+            </div>
+            <div style="background: #dbeafe; padding: 16px; border-radius: 8px; text-align: center;">
+                <strong>Card 2</strong>
+                <p style="font-size: 12px; margin-top: 4px;">Blue card</p>
+            </div>
+            <div style="background: #dcfce7; padding: 16px; border-radius: 8px; text-align: center;">
+                <strong>Card 3</strong>
+                <p style="font-size: 12px; margin-top: 4px;">Green card</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Test Status</h3>
+        <p>Admin mode: <span id="admin-status">checking...</span></p>
+        <p>Current spike count: <span id="spike-count">0</span></p>
+        <p>Review mode: <span id="review-mode-status">off</span></p>
+        <button class="test-btn" onclick="refreshCount()">Refresh</button>
+        <button class="test-btn" style="background: #ef4444;" onclick="clearSpikes()">Clear All Spikes</button>
+        <button class="test-btn" style="background: #6b7280;" onclick="addTestSpikes()">Add Test Spikes</button>
+    </div>
+
+    <!-- Widget with data-admin="true" to enable Review button -->
+    <script src="spikes.js" data-admin="true"></script>
+    <script>
+        function getStorageKey() {
+            return 'spikes:' + (location.hostname || 'local');
+        }
+
+        function refreshCount() {
+            var spikes = JSON.parse(localStorage.getItem(getStorageKey()) || '[]');
+            document.getElementById('spike-count').textContent = spikes.length;
+            
+            // Check admin mode
+            if (window.Spikes && window.Spikes.config) {
+                document.getElementById('admin-status').textContent = window.Spikes.config.isAdmin ? 'ENABLED' : 'disabled';
+                document.getElementById('admin-status').style.color = window.Spikes.config.isAdmin ? '#059669' : '#dc2626';
+            }
+            
+            // Check review mode
+            if (window.Spikes && window.Spikes.isReviewMode) {
+                document.getElementById('review-mode-status').textContent = window.Spikes.isReviewMode() ? 'ON' : 'off';
+            }
+        }
+        
+        function clearSpikes() {
+            if (confirm('Clear all spikes for this project?')) {
+                localStorage.removeItem(getStorageKey());
+                refreshCount();
+            }
+        }
+        
+        function addTestSpikes() {
+            var spikes = [
+                {
+                    id: 'test1',
+                    type: 'element',
+                    projectKey: location.hostname || 'local',
+                    page: document.title,
+                    url: location.href,
+                    reviewer: { id: 'test', name: 'Test User' },
+                    selector: '#btn-primary',
+                    elementText: 'Primary Button',
+                    boundingBox: { x: 60, y: 240, width: 140, height: 40 },
+                    rating: 'love',
+                    comments: 'This button looks great!',
+                    timestamp: new Date().toISOString(),
+                    viewport: { width: window.innerWidth, height: window.innerHeight }
+                },
+                {
+                    id: 'test2',
+                    type: 'page',
+                    projectKey: location.hostname || 'local',
+                    page: document.title,
+                    url: location.href,
+                    reviewer: { id: 'test', name: 'Test User' },
+                    rating: 'like',
+                    comments: 'Nice layout overall',
+                    timestamp: new Date(Date.now() - 60000).toISOString(),
+                    viewport: { width: window.innerWidth, height: window.innerHeight }
+                }
+            ];
+            
+            localStorage.setItem(getStorageKey(), JSON.stringify(spikes));
+            refreshCount();
+            alert('Added 2 test spikes. Click the Review button to see them!');
+        }
+
+        // Initial refresh
+        refreshCount();
+        
+        // Periodically check review mode status
+        setInterval(function() {
+            if (window.Spikes && window.Spikes.isReviewMode) {
+                document.getElementById('review-mode-status').textContent = window.Spikes.isReviewMode() ? 'ON' : 'off';
+            }
+        }, 500);
+    </script>
+</body>
+</html>
