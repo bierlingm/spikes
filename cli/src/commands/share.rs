@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::auth::AuthConfig;
 use crate::error::{map_http_error, map_network_error, Error, Result};
 use walkdir::WalkDir;
 
@@ -12,10 +13,6 @@ pub struct ShareOptions {
     pub json: bool,
 }
 
-struct AuthConfig {
-    token: String,
-}
-
 const INCLUDE_EXTENSIONS: &[&str] = &[
     "html", "css", "js", "json", "png", "jpg", "jpeg", "gif", "svg", "woff", "woff2", "ico",
 ];
@@ -24,7 +21,13 @@ const EXCLUDE_DIRS: &[&str] = &[".spikes", "node_modules", ".git"];
 const EXCLUDE_FILES: &[&str] = &[".DS_Store"];
 
 pub fn run(options: ShareOptions) -> Result<()> {
-    let auth = load_auth_config()?;
+    let token = AuthConfig::token()?
+        .ok_or_else(|| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Not logged in. Run 'spikes login' first.",
+            ))
+        })?;
     let dir_path = Path::new(&options.directory);
 
     if !dir_path.exists() || !dir_path.is_dir() {
@@ -50,7 +53,7 @@ pub fn run(options: ShareOptions) -> Result<()> {
             .to_string()
     });
 
-    let result = upload_share(&auth, dir_path, &files, &slug, options.password.as_deref(), &options.host)?;
+    let result = upload_share(&token, dir_path, &files, &slug, options.password.as_deref(), &options.host)?;
 
     if options.json {
         println!(
@@ -89,45 +92,6 @@ fn pad_center(s: &str, width: usize) -> String {
     let left = pad / 2;
     let right = pad - left;
     format!("{}{}{}", " ".repeat(left), s, " ".repeat(right))
-}
-
-fn load_auth_config() -> Result<AuthConfig> {
-    let config_path = dirs::config_dir()
-        .ok_or_else(|| {
-            Error::Io(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "Could not determine config directory",
-            ))
-        })?
-        .join("spikes")
-        .join("auth.json");
-
-    if !config_path.exists() {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!(
-                "Not logged in. Run 'spikes login' or create {}\n\
-                 with content: {{\"token\": \"your-api-token\"}}",
-                config_path.display()
-            ),
-        )));
-    }
-
-    let content = fs::read_to_string(&config_path)?;
-    let parsed: serde_json::Value = serde_json::from_str(&content)?;
-
-    let token = parsed
-        .get("token")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| {
-            Error::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "auth.json missing 'token' field",
-            ))
-        })?
-        .to_string();
-
-    Ok(AuthConfig { token })
 }
 
 fn collect_files(dir: &Path) -> Result<Vec<PathBuf>> {
@@ -178,7 +142,7 @@ struct ShareResult {
 }
 
 fn upload_share(
-    auth: &AuthConfig,
+    token: &str,
     base_dir: &Path,
     files: &[PathBuf],
     slug: &str,
@@ -231,7 +195,7 @@ fn upload_share(
 
     let response = match agent
         .post(&url)
-        .set("Authorization", &format!("Bearer {}", auth.token))
+        .set("Authorization", &format!("Bearer {}", token))
         .set(
             "Content-Type",
             &format!("multipart/form-data; boundary={}", boundary),

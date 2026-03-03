@@ -1,3 +1,4 @@
+mod auth;
 mod commands;
 mod config;
 mod error;
@@ -205,6 +206,20 @@ enum Commands {
         json: bool,
     },
 
+    /// Log out from spikes.sh
+    Logout {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Show current user identity
+    Whoami {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Interactive TUI dashboard
     Dashboard {
         /// Output as JSON (non-interactive)
@@ -385,6 +400,8 @@ fn main() {
         }
         Some(Commands::Update) => commands::update::run(),
         Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
+        Some(Commands::Logout { json }) => commands::logout::run(json),
+        Some(Commands::Whoami { json }) => commands::whoami::run(json),
         Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
         Some(Commands::Share { directory, name, password, host, json }) => {
             commands::share::run(ShareOptions { directory, name, password, host, json })

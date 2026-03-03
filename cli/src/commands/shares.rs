@@ -1,9 +1,7 @@
-use std::fs;
-use std::path::Path;
-
 use comfy_table::{presets::UTF8_FULL_CONDENSED, Cell, ContentArrangement, Table};
 use serde::{Deserialize, Serialize};
 
+use crate::auth::AuthConfig;
 use crate::error::{map_http_error, map_network_error, Error, Result};
 
 pub struct SharesOptions {
@@ -19,13 +17,14 @@ pub struct Share {
     pub created_at: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct AuthConfig {
-    token: String,
-}
-
 pub fn run(options: SharesOptions) -> Result<()> {
-    let token = load_auth_token()?;
+    let token = AuthConfig::token()?
+        .ok_or_else(|| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Not logged in. Run 'spikes login' first.",
+            ))
+        })?;
     let shares = fetch_shares(&token)?;
 
     if options.json {
@@ -38,35 +37,6 @@ pub fn run(options: SharesOptions) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn load_auth_token() -> Result<String> {
-    let home = std::env::var("HOME").map_err(|_| {
-        Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "HOME environment variable not set",
-        ))
-    })?;
-
-    let auth_path = Path::new(&home).join(".config/spikes/auth.json");
-
-    if !auth_path.exists() {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Not logged in. Run 'spikes login' first.\n\
-             Expected auth file: ~/.config/spikes/auth.json",
-        )));
-    }
-
-    let content = fs::read_to_string(&auth_path)?;
-    let auth: AuthConfig = serde_json::from_str(&content).map_err(|e| {
-        Error::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("Invalid auth.json: {}", e),
-        ))
-    })?;
-
-    Ok(auth.token)
 }
 
 fn fetch_shares(token: &str) -> Result<Vec<Share>> {

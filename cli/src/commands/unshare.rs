@@ -4,6 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::auth::AuthConfig;
 use crate::error::{map_http_error, map_network_error, Error, Result};
 use crate::spike::Spike;
 
@@ -11,11 +12,6 @@ pub struct UnshareOptions {
     pub slug: String,
     pub force: bool,
     pub json: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct AuthConfig {
-    token: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,7 +32,13 @@ struct UnshareResult {
 }
 
 pub fn run(options: UnshareOptions) -> Result<()> {
-    let token = load_auth_token()?;
+    let token = AuthConfig::token()?
+        .ok_or_else(|| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Not logged in. Run 'spikes login' first.",
+            ))
+        })?;
 
     // Get share info first to retrieve the ID and spikes
     let share_info = fetch_share_info(&token, &options.slug)?;
@@ -89,35 +91,6 @@ pub fn run(options: UnshareOptions) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn load_auth_token() -> Result<String> {
-    let home = std::env::var("HOME").map_err(|_| {
-        Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "HOME environment variable not set",
-        ))
-    })?;
-
-    let auth_path = Path::new(&home).join(".config/spikes/auth.json");
-
-    if !auth_path.exists() {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Not logged in. Run 'spikes login' first.\n\
-             Expected auth file: ~/.config/spikes/auth.json",
-        )));
-    }
-
-    let content = fs::read_to_string(&auth_path)?;
-    let auth: AuthConfig = serde_json::from_str(&content).map_err(|e| {
-        Error::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("Invalid auth.json: {}", e),
-        ))
-    })?;
-
-    Ok(auth.token)
 }
 
 fn fetch_share_info(token: &str, slug: &str) -> Result<ShareInfo> {
