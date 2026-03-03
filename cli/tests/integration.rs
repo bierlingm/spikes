@@ -54,6 +54,78 @@ fn test_init_existing_directory() {
 }
 
 #[test]
+fn test_init_creates_gitignore_if_missing() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Verify .gitignore was created with .spikes/ entry
+    let gitignore_path = temp_dir.path().join(".gitignore");
+    assert!(gitignore_path.exists(), ".gitignore should be created");
+
+    let content = std::fs::read_to_string(&gitignore_path).unwrap();
+    assert!(content.contains(".spikes/"), ".gitignore should contain .spikes/");
+}
+
+#[test]
+fn test_init_appends_to_existing_gitignore() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // Create existing .gitignore with content
+    let gitignore_path = temp_dir.path().join(".gitignore");
+    std::fs::write(&gitignore_path, "target/\n*.log\n").unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Verify existing content preserved and .spikes/ appended
+    let content = std::fs::read_to_string(&gitignore_path).unwrap();
+    assert!(content.contains("target/"), "existing content should be preserved");
+    assert!(content.contains("*.log"), "existing content should be preserved");
+    assert!(content.contains(".spikes/"), ".spikes/ should be appended");
+}
+
+#[test]
+fn test_init_does_not_duplicate_spikes_in_gitignore() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // Create .gitignore that already contains .spikes/
+    let gitignore_path = temp_dir.path().join(".gitignore");
+    std::fs::write(&gitignore_path, "target/\n.spikes/\n*.log\n").unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Verify .spikes/ only appears once
+    let content = std::fs::read_to_string(&gitignore_path).unwrap();
+    let count = content.matches(".spikes/").count();
+    assert_eq!(count, 1, ".spikes/ should only appear once in .gitignore");
+}
+
+#[test]
+fn test_init_json_output_includes_gitignore() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(".gitignore"));
+}
+
+#[test]
 fn test_inject_basic() {
     let temp_dir = tempfile::tempdir().unwrap();
     let html_path = temp_dir.path().join("index.html");
