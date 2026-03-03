@@ -3,6 +3,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
+use crate::auth::get_api_base;
 use crate::error::{map_http_error, map_network_error, Error, Result};
 use crate::spike::Spike;
 
@@ -213,8 +214,8 @@ fn run_from_share(url: &str, json_output: bool) -> Result<()> {
     // Parse share slug from URL (e.g., https://spikes.sh/s/governance-x7k2m)
     let share_id = parse_share_slug(url)?;
 
-    // Fetch spikes from public endpoint
-    let api_url = format!("https://spikes.sh/spikes?project={}", share_id);
+    // Fetch spikes from public endpoint (respects SPIKES_API_URL env var)
+    let api_url = format!("{}/spikes?project={}", get_api_base(), share_id);
 
     let response = match ureq::get(&api_url).call() {
         Ok(resp) => resp,
@@ -330,4 +331,115 @@ fn parse_share_slug(url: &str) -> Result<String> {
     }
 
     Ok(url.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+
+    const SPIKES_API_URL_ENV: &str = "SPIKES_API_URL";
+
+    #[test]
+    fn test_parse_share_slug_from_url() {
+        let slug = parse_share_slug("https://spikes.sh/s/governance-x7k2m").unwrap();
+        assert_eq!(slug, "governance-x7k2m");
+    }
+
+    #[test]
+    fn test_parse_share_slug_from_url_with_trailing_slash() {
+        let slug = parse_share_slug("https://spikes.sh/s/governance-x7k2m/").unwrap();
+        assert_eq!(slug, "governance-x7k2m");
+    }
+
+    #[test]
+    fn test_parse_share_slug_from_url_with_query() {
+        let slug = parse_share_slug("https://spikes.sh/s/governance-x7k2m?foo=bar").unwrap();
+        assert_eq!(slug, "governance-x7k2m");
+    }
+
+    #[test]
+    fn test_parse_share_slug_bare() {
+        let slug = parse_share_slug("governance-x7k2m").unwrap();
+        assert_eq!(slug, "governance-x7k2m");
+    }
+
+    #[test]
+    fn test_parse_share_slug_invalid_url() {
+        let result = parse_share_slug("https://spikes.sh/invalid");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_share_slug_empty() {
+        let result = parse_share_slug("");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    #[serial(api_url)]
+    fn test_pull_from_share_uses_api_base_default() {
+        // Save current value
+        let original = std::env::var(SPIKES_API_URL_ENV).ok();
+
+        // Clear env var
+        std::env::remove_var(SPIKES_API_URL_ENV);
+
+        // Verify get_api_base returns default
+        let base = get_api_base();
+        assert_eq!(base, "https://spikes.sh");
+
+        // Restore original value
+        if let Some(val) = original {
+            std::env::set_var(SPIKES_API_URL_ENV, val);
+        }
+    }
+
+    #[test]
+    #[serial(api_url)]
+    fn test_pull_from_share_uses_api_base_env_override() {
+        // Save current value
+        let original = std::env::var(SPIKES_API_URL_ENV).ok();
+
+        // Set custom API URL (e.g., for local dev with wrangler)
+        std::env::set_var(SPIKES_API_URL_ENV, "http://localhost:8787");
+
+        // Verify get_api_base returns env var value
+        let base = get_api_base();
+        assert_eq!(base, "http://localhost:8787");
+
+        // Simulate URL construction for pull --from
+        let share_id = "test-share-123";
+        let api_url = format!("{}/spikes?project={}", get_api_base(), share_id);
+        assert_eq!(api_url, "http://localhost:8787/spikes?project=test-share-123");
+
+        // Restore original value
+        if let Some(val) = original {
+            std::env::set_var(SPIKES_API_URL_ENV, val);
+        } else {
+            std::env::remove_var(SPIKES_API_URL_ENV);
+        }
+    }
+
+    #[test]
+    #[serial(api_url)]
+    fn test_pull_from_share_url_construction_with_custom_host() {
+        // Save current value
+        let original = std::env::var(SPIKES_API_URL_ENV).ok();
+
+        // Set custom self-hosted API URL
+        std::env::set_var(SPIKES_API_URL_ENV, "https://spikes.example.com");
+
+        // Verify URL construction uses custom host
+        let share_id = "my-project-abc";
+        let api_url = format!("{}/spikes?project={}", get_api_base(), share_id);
+        assert_eq!(api_url, "https://spikes.example.com/spikes?project=my-project-abc");
+
+        // Restore original value
+        if let Some(val) = original {
+            std::env::set_var(SPIKES_API_URL_ENV, val);
+        } else {
+            std::env::remove_var(SPIKES_API_URL_ENV);
+        }
+    }
 }
