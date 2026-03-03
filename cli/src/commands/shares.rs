@@ -1,7 +1,7 @@
 use comfy_table::{presets::UTF8_FULL_CONDENSED, Cell, ContentArrangement, Table};
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthConfig;
+use crate::auth::{get_api_base, AuthConfig};
 use crate::error::{map_http_error, map_network_error, Error, Result};
 
 pub struct SharesOptions {
@@ -40,7 +40,10 @@ pub fn run(options: SharesOptions) -> Result<()> {
 }
 
 fn fetch_shares(token: &str) -> Result<Vec<Share>> {
-    let response = match ureq::get("https://spikes.sh/shares")
+    let api_base = get_api_base();
+    let url = format!("{}/shares", api_base.trim_end_matches('/'));
+
+    let response = match ureq::get(&url)
         .set("Authorization", &format!("Bearer {}", token))
         .call()
     {

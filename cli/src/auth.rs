@@ -5,6 +5,7 @@
 //! - Secure token storage with 0600 file permissions
 //! - SPIKES_TOKEN environment variable override
 //! - Token lifecycle (load, save, delete)
+//! - SPIKES_API_URL environment variable for API base URL override
 
 use std::fs;
 use std::io;
@@ -13,6 +14,24 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
+
+/// Default API base URL for spikes.sh hosted service
+const DEFAULT_API_BASE: &str = "https://spikes.sh";
+
+/// Environment variable name for API URL override
+const SPIKES_API_URL_ENV: &str = "SPIKES_API_URL";
+
+/// Get the API base URL, checking SPIKES_API_URL env var first.
+/// Falls back to https://spikes.sh if not set.
+///
+/// This enables:
+/// - Testing against localhost:8787 (wrangler dev)
+/// - Self-hosted deployments
+/// - Development/staging environments
+pub fn get_api_base() -> String {
+    std::env::var(SPIKES_API_URL_ENV)
+        .unwrap_or_else(|_| DEFAULT_API_BASE.to_string())
+}
 
 /// Auth configuration stored in platform-appropriate config directory
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -448,5 +467,63 @@ token = "deserialized-token"
 
         let config: AuthConfig = toml::from_str(toml_str).unwrap();
         assert!(config.auth.token.is_none());
+    }
+
+    #[test]
+    fn test_get_api_base_default() {
+        // Save current value
+        let original = std::env::var(SPIKES_API_URL_ENV).ok();
+
+        // Clear env var
+        std::env::remove_var(SPIKES_API_URL_ENV);
+
+        // Should return default
+        let base = get_api_base();
+        assert_eq!(base, DEFAULT_API_BASE);
+
+        // Restore original value
+        if let Some(val) = original {
+            std::env::set_var(SPIKES_API_URL_ENV, val);
+        }
+    }
+
+    #[test]
+    fn test_get_api_base_env_override() {
+        // Save current value
+        let original = std::env::var(SPIKES_API_URL_ENV).ok();
+
+        // Set custom API URL
+        std::env::set_var(SPIKES_API_URL_ENV, "http://localhost:8787");
+
+        // Should return env var value
+        let base = get_api_base();
+        assert_eq!(base, "http://localhost:8787");
+
+        // Restore original value
+        if let Some(val) = original {
+            std::env::set_var(SPIKES_API_URL_ENV, val);
+        } else {
+            std::env::remove_var(SPIKES_API_URL_ENV);
+        }
+    }
+
+    #[test]
+    fn test_get_api_base_custom_host() {
+        // Save current value
+        let original = std::env::var(SPIKES_API_URL_ENV).ok();
+
+        // Set custom API URL for self-hosted
+        std::env::set_var(SPIKES_API_URL_ENV, "https://spikes.example.com");
+
+        // Should return custom host
+        let base = get_api_base();
+        assert_eq!(base, "https://spikes.example.com");
+
+        // Restore original value
+        if let Some(val) = original {
+            std::env::set_var(SPIKES_API_URL_ENV, val);
+        } else {
+            std::env::remove_var(SPIKES_API_URL_ENV);
+        }
     }
 }

@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthConfig;
+use crate::auth::{get_api_base, AuthConfig};
 use crate::error::{map_http_error, map_network_error, Error, Result};
 use crate::spike::Spike;
 
@@ -94,7 +94,8 @@ pub fn run(options: UnshareOptions) -> Result<()> {
 }
 
 fn fetch_share_info(token: &str, slug: &str) -> Result<ShareInfo> {
-    let url = format!("https://spikes.sh/shares/{}", slug);
+    let api_base = get_api_base();
+    let url = format!("{}/shares/{}", api_base.trim_end_matches('/'), slug);
 
     let response = match ureq::get(&url)
         .set("Authorization", &format!("Bearer {}", token))
@@ -124,7 +125,8 @@ fn fetch_share_info(token: &str, slug: &str) -> Result<ShareInfo> {
 }
 
 fn delete_share(token: &str, id: &str) -> Result<()> {
-    let url = format!("https://spikes.sh/shares/{}", id);
+    let api_base = get_api_base();
+    let url = format!("{}/shares/{}", api_base.trim_end_matches('/'), id);
 
     let response = match ureq::delete(&url)
         .set("Authorization", &format!("Bearer {}", token))

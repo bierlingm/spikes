@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::auth::AuthConfig;
+use crate::auth::{get_api_base, AuthConfig};
 use crate::error::{map_http_error, map_network_error, Error, Result};
 
 pub struct LoginOptions {
@@ -128,7 +128,10 @@ fn prompt_for_email() -> Result<String> {
 }
 
 fn request_magic_link(email: &str) -> Result<()> {
-    let response = match ureq::post("https://spikes.sh/auth/login")
+    let api_base = get_api_base();
+    let url = format!("{}/auth/login", api_base.trim_end_matches('/'));
+
+    let response = match ureq::post(&url)
         .set("Content-Type", "application/json")
         .send_json(&LoginRequest {
             email: email.to_string(),
@@ -187,6 +190,8 @@ fn poll_for_token(email: &str, json: bool) -> Result<String> {
 }
 
 fn poll_verification(email: &str) -> Result<Option<String>> {
+    let api_base = get_api_base();
+
     // URL encode the email manually
     let encoded_email: String = email
         .chars()
@@ -201,12 +206,13 @@ fn poll_verification(email: &str) -> Result<Option<String>> {
         })
         .collect();
 
-    let response = match ureq::get(&format!(
-        "https://spikes.sh/auth/poll?email={}",
+    let url = format!(
+        "{}/auth/poll?email={}",
+        api_base.trim_end_matches('/'),
         encoded_email
-    ))
-    .call()
-    {
+    );
+
+    let response = match ureq::get(&url).call() {
         Ok(resp) => resp,
         Err(ureq::Error::Status(status, response)) => {
             let body = response.into_string().ok();
@@ -265,7 +271,10 @@ fn verify_and_save_token(token: &str, json: bool) -> Result<()> {
 }
 
 fn verify_token(token: &str) -> Result<()> {
-    let response = match ureq::get("https://spikes.sh/shares")
+    let api_base = get_api_base();
+    let url = format!("{}/shares", api_base.trim_end_matches('/'));
+
+    let response = match ureq::get(&url)
         .set("Authorization", &format!("Bearer {}", token))
         .call()
     {

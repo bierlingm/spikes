@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::auth::AuthConfig;
+use crate::auth::{get_api_base, AuthConfig};
 use crate::error::{map_http_error, map_network_error, Error, Result};
 
 #[derive(Debug, Deserialize)]
@@ -43,7 +43,10 @@ pub fn run(json: bool) -> Result<()> {
 }
 
 fn fetch_user_info(token: &str) -> Result<UserInfo> {
-    let response = match ureq::get("https://spikes.sh/me")
+    let api_base = get_api_base();
+    let url = format!("{}/me", api_base.trim_end_matches('/'));
+
+    let response = match ureq::get(&url)
         .set("Authorization", &format!("Bearer {}", token))
         .call()
     {
