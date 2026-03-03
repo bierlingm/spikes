@@ -1,0 +1,59 @@
+{
+  "milestone": "agent-integration",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo test --jobs 5",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo check",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo clippy --all-targets --all-features",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skill:worker-cli",
+      "suggestion": "Add a short rmcp 0.17 note pointing workers to docs.rs/source for exact InitializeResult/ServerInfo construction patterns.",
+      "evidence": "mcp-server-rmcp-rewrite review observed extra discovery time because rmcp examples differ from assumed API patterns.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Clarify the recommended sync-to-async bridge pattern for CLI commands (tokio runtime + rt.block_on) with a minimal code snippet.",
+      "evidence": "mcp-server-rmcp-rewrite review noted AGENTS guidance is directionally correct but not explicit about the preferred implementation shape.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Document MCP stdio transport in services.yaml as a service entry.",
+      "reason": "ambiguous"
+    },
+    {
+      "observation": "Record chrono dependency availability for context export timestamps.",
+      "reason": "already-documented"
+    },
+    {
+      "observation": "Record that worker followed existing no-unwrap/TDD conventions.",
+      "reason": "already-documented"
+    }
+  ],
+  "previousRound": null
+}
