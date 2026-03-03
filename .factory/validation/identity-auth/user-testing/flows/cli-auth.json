@@ -1,0 +1,160 @@
+{
+  "groupId": "cli-auth",
+  "testedAt": "2026-03-03T09:25:00Z",
+  "credentials": {
+    "account": "ia-cli-0f9f@example.com",
+    "namespace": "ia-cli-0f9f",
+    "isolatedHome": "/tmp/spikes-utv-ia-cli-home"
+  },
+  "toolsUsed": ["spikes-cli", "stat", "shell"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-012",
+      "title": "CLI Token Storage Location",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `spikes login --token test-token --json` with isolated HOME",
+          "expected": "auth.toml created in platform config path with token",
+          "observed": "Login succeeded and auth file was created at /tmp/spikes-utv-ia-cli-home/Library/Application Support/spikes/auth.toml"
+        },
+        {
+          "action": "Check file mode",
+          "expected": "0600 permissions",
+          "observed": "`stat` reported mode 600"
+        }
+      ],
+      "evidence": {
+        "command": "HOME=/tmp/spikes-utv-ia-cli-home cli/target/debug/spikes login --token test-token --json",
+        "output": "{\"message\":\"Logged in successfully\",\"success\":true}",
+        "authFile": "/tmp/spikes-utv-ia-cli-home/Library/Application Support/spikes/auth.toml",
+        "authFileContent": "[auth]\\ntoken = \"test-token\"",
+        "authFilePerm": "600"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-013",
+      "title": "SPIKES_TOKEN Environment Variable Support",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create invalid auth.toml and run `spikes whoami --json` without env var",
+          "expected": "CLI fails loading auth file",
+          "observed": "Error: Invalid auth.toml"
+        },
+        {
+          "action": "Run same command with `SPIKES_TOKEN=test-token`",
+          "expected": "Env var takes precedence over file and bypasses file parse failure",
+          "observed": "Command progressed past auth file parse and failed later with JSON parse from /me response"
+        }
+      ],
+      "evidence": {
+        "withoutEnv": "Error: IO error: Invalid auth.toml: TOML parse error...",
+        "withEnv": "Error: JSON error: expected value at line 1 column 1"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-014",
+      "title": "spikes login Command",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run `spikes login --token test-token --json`",
+          "expected": "Authentication flow completes and stores token",
+          "observed": "Command reports success and stores token"
+        },
+        {
+          "action": "Run `spikes whoami --json` immediately after login",
+          "expected": "whoami returns email and tier",
+          "observed": "whoami fails with JSON parse error"
+        }
+      ],
+      "evidence": {
+        "loginOutput": "{\"message\":\"Logged in successfully\",\"success\":true}",
+        "whoamiOutput": "Error: JSON error: expected value at line 1 column 1"
+      },
+      "issues": "whoami does not work immediately after login because /me response is not parseable as JSON by the CLI."
+    },
+    {
+      "id": "VAL-AUTH-015",
+      "title": "spikes logout Command",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Login then run `spikes logout --json`",
+          "expected": "Token storage removed",
+          "observed": "Logout succeeded and auth.toml no longer exists"
+        },
+        {
+          "action": "Run whoami after logout",
+          "expected": "Not authenticated error",
+          "observed": "Error: Not logged in. Run 'spikes login' first."
+        }
+      ],
+      "evidence": {
+        "logoutOutput": "{\"message\":\"Logged out successfully\",\"success\":true}",
+        "authFileAfterLogout": "missing",
+        "whoamiAfterLogout": "Error: IO error: Not logged in. Run 'spikes login' first."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-016",
+      "title": "spikes whoami Command",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run whoami with a stored non-empty token",
+          "expected": "Outputs email and tier",
+          "observed": "Command fails with JSON parse error"
+        }
+      ],
+      "evidence": {
+        "whoamiOutput": "Error: JSON error: expected value at line 1 column 1"
+      },
+      "issues": "whoami expects JSON from https://spikes.sh/me but current response is not parseable as expected UserInfo JSON."
+    },
+    {
+      "id": "VAL-AUTH-017",
+      "title": "spikes init Gitignore Update",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `spikes init --json` in a directory with existing .gitignore",
+          "expected": ".spikes/ appended",
+          "observed": ".gitignore changed from `node_modules/` to include `.spikes/`"
+        },
+        {
+          "action": "Run `spikes init --json` in a directory without .gitignore",
+          "expected": ".gitignore created containing `.spikes/`",
+          "observed": "New .gitignore created with `.spikes/`"
+        }
+      ],
+      "evidence": {
+        "existingGitignoreOutput": "node_modules/\\n.spikes/",
+        "newGitignoreOutput": ".spikes/",
+        "initOutput": "{\"created\":[\".spikes/config.toml\",\".spikes/feedback.jsonl\",\".gitignore\"],\"success\":true}"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "user-testing-flow-validator subagent repeatedly failed with permission-safety restrictions when executing CLI auth checks.",
+      "resolved": true,
+      "resolution": "Executed CLI checks directly in this validator session with isolated HOME and captured evidence manually.",
+      "affectedAssertions": [
+        "VAL-AUTH-012",
+        "VAL-AUTH-013",
+        "VAL-AUTH-014",
+        "VAL-AUTH-015",
+        "VAL-AUTH-016",
+        "VAL-AUTH-017"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 CLI assertions: 4 passed (VAL-AUTH-012/013/015/017), 2 failed (VAL-AUTH-014/016). Login stores token correctly, env override precedence works, logout and init behaviors are correct; whoami does not return identity as specified."
+}

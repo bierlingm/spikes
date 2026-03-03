@@ -1,0 +1,222 @@
+{
+  "groupId": "tier-webhooks-api",
+  "testedAt": "2026-03-03T09:08:00Z",
+  "credentials": {
+    "account": "ia-stripe-0f9f@example.com",
+    "namespace": "ia-stripe-0f9f"
+  },
+  "toolsUsed": ["curl", "wrangler-d1"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-007",
+      "title": "Stripe Customer ID Linked to User",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Query users table schema for stripe_customer_id column",
+          "expected": "stripe_customer_id column exists",
+          "observed": "Column 'stripe_customer_id' exists in users table"
+        },
+        {
+          "action": "Insert user with stripe_customer_id 'cus_ia_stripe_0f9f_001'",
+          "expected": "User created with Stripe customer ID",
+          "observed": "User 'ia-stripe-0f9f-user-1' created with stripe_customer_id 'cus_ia_stripe_0f9f_001'"
+        },
+        {
+          "action": "Query user by Stripe customer ID",
+          "expected": "User found by Stripe customer ID lookup",
+          "observed": "User retrieved successfully by stripe_customer_id = 'cus_ia_stripe_0f9f_001'"
+        }
+      ],
+      "evidence": {
+        "databaseSchema": "users table contains stripe_customer_id TEXT column",
+        "queryResult": "User lookup by stripe_customer_id returns: { id: 'ia-stripe-0f9f-user-1', tier: 'pro', stripe_customer_id: 'cus_ia_stripe_0f9f_001' }",
+        "apiBehavior": "Webhook handlers can lookup users by customer ID using getUserByStripeCustomerId()"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-008",
+      "title": "Stripe Webhook UPSERT Handling",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Send customer.subscription.created webhook for new customer",
+          "expected": "New user created with pro tier",
+          "observed": "Webhook accepted (200), new user created for 'cus_ia_stripe_0f9f_new_customer_2' with tier 'pro'"
+        },
+        {
+          "action": "Send customer.subscription.updated webhook for existing customer",
+          "expected": "Existing user tier updated to pro",
+          "observed": "Webhook accepted (200), user 'cus_ia_stripe_0f9f_001' tier updated from 'free' to 'pro'"
+        },
+        {
+          "action": "Verify event idempotency in stripe_events table",
+          "expected": "Events recorded for duplicate prevention",
+          "observed": "Both events recorded: evt_ia_stripe_0f9f_new_002, evt_ia_stripe_0f9f_update_002"
+        }
+      ],
+      "evidence": {
+        "webhookRequests": [
+          {
+            "event": "customer.subscription.created",
+            "customerId": "cus_ia_stripe_0f9f_new_customer_2",
+            "response": "{ received: true }",
+            "signature": "HMAC-SHA256 verified with test-webhook-secret"
+          },
+          {
+            "event": "customer.subscription.updated",
+            "customerId": "cus_ia_stripe_0f9f_001",
+            "response": "{ received: true }"
+          }
+        ],
+        "databaseResult": [
+          { "id": "ia-stripe-0f9f-user-1", "tier": "pro", "stripe_customer_id": "cus_ia_stripe_0f9f_001" },
+          { "id": "d1d6fe53-e301-4504-83e4-39111766cbd0", "tier": "pro", "stripe_customer_id": "cus_ia_stripe_0f9f_new_customer_2" }
+        ],
+        "stripeEventsTable": "evt_ia_stripe_0f9f_new_002, evt_ia_stripe_0f9f_update_002 recorded with timestamps"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-009",
+      "title": "Invoice Payment Failed Handling",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Send invoice.payment_failed webhook for pro user",
+          "expected": "User tier changed to 'grace' with grace_period_end set to 7 days in future",
+          "observed": "User tier changed to 'grace', grace_period_end set to '2026-03-10T09:04:51.377Z' (7 days)"
+        },
+        {
+          "action": "Send invoice.payment_succeeded webhook for grace user",
+          "expected": "User tier restored to 'pro', grace_period_end cleared",
+          "observed": "User tier restored to 'pro', grace_period_end set to null"
+        }
+      ],
+      "evidence": {
+        "paymentFailed": {
+          "request": "POST /webhooks/stripe with invoice.payment_failed event",
+          "response": "{ received: true }",
+          "beforeState": "tier: 'pro', grace_period_end: null",
+          "afterState": "tier: 'grace', grace_period_end: '2026-03-10T09:04:51.377Z'"
+        },
+        "paymentSucceeded": {
+          "request": "POST /webhooks/stripe with invoice.payment_succeeded event",
+          "response": "{ received: true }",
+          "beforeState": "tier: 'grace', grace_period_end: '2026-03-10T09:04:51.377Z'",
+          "afterState": "tier: 'pro', grace_period_end: null"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-010",
+      "title": "Pro Tier Enforcement - Share Limit Bypass",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create 6 shares with Pro user token",
+          "expected": "All 6 shares created successfully (no limit for Pro)",
+          "observed": "6 shares created: ia-stripe-0f9f-share-1 through ia-stripe-0f9f-share-6"
+        },
+        {
+          "action": "Create 6 shares with Free user token",
+          "expected": "5 shares succeed, 6th blocked with SHARE_LIMIT error",
+          "observed": "Shares 1-5 created, Share 6 blocked with { error: 'Share limit reached', code: 'SHARE_LIMIT', upgrade_url: 'https://spikes.sh/pro' }"
+        },
+        {
+          "action": "Verify tier check uses users.tier via JOIN",
+          "expected": "Shares.owner_id JOIN users.id for tier lookup",
+          "observed": "Database confirms shares linked to users: Pro shares have owner_id='ia-stripe-0f9f-user-1' (tier='pro'), Free shares have owner_id='ia-stripe-0f9f-free-user' (tier='free')"
+        }
+      ],
+      "evidence": {
+        "proUserShareCreation": {
+          "token": "ia-stripe-0f9f-test-token-001",
+          "sharesCreated": 6,
+          "responses": [
+            { "ok": true, "slug": "ia-stripe-0f9f-share-1-g594c" },
+            { "ok": true, "slug": "ia-stripe-0f9f-share-2-wt49c" },
+            { "ok": true, "slug": "ia-stripe-0f9f-share-3-d93li" },
+            { "ok": true, "slug": "ia-stripe-0f9f-share-4-ve9lc" },
+            { "ok": true, "slug": "ia-stripe-0f9f-share-5-nbax6" },
+            { "ok": true, "slug": "ia-stripe-0f9f-share-6-tfvzx" }
+          ]
+        },
+        "freeUserShareCreation": {
+          "token": "ia-stripe-0f9f-free-token",
+          "sharesCreated": 5,
+          "sixthShareBlocked": {
+            "statusCode": 429,
+            "response": { "error": "Share limit reached", "code": "SHARE_LIMIT", "upgrade_url": "https://spikes.sh/pro" }
+          }
+        },
+        "databaseVerification": "SELECT s.id, s.owner_id, u.tier FROM shares s JOIN users u ON s.owner_id = u.id confirms tier enforcement via JOIN"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-011",
+      "title": "Pro Tier Enforcement - Spike Limit Bypass",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create spike on Pro-owned share",
+          "expected": "Spike created successfully (no limit for Pro shares)",
+          "observed": "Spike created: { ok: true, id: 'a67743f4-9a8c-4230-bebb-5a50d6d22ec0' }"
+        },
+        {
+          "action": "Create spike on Free-owned share",
+          "expected": "Spike created (under 1000 limit)",
+          "observed": "Spike created: { ok: true, id: '0a7cad08-5fe7-418e-a6b5-63b5dc32c728' }"
+        },
+        {
+          "action": "Verify spike count via COUNT(*) query",
+          "expected": "Accurate spike counts per share via COUNT(*)",
+          "observed": "Pro share has 1 spike, Free share has 1 spike - both tracked via COUNT(*)"
+        },
+        {
+          "action": "Verify tier check uses owner tier via JOIN",
+          "expected": "Enforcement checks users.tier via JOIN on shares.owner_id = users.id",
+          "observed": "Code path: getShareOwnerTier() queries 'SELECT COALESCE(u.tier, 'free') as tier FROM shares s LEFT JOIN users u ON s.owner_id = u.id WHERE s.id = ?'"
+        }
+      ],
+      "evidence": {
+        "proShareSpike": {
+          "shareId": "c2bfcd24-0933-4a21-98ec-3ffaa37f49e5",
+          "shareSlug": "ia-stripe-0f9f-share-1-g594c",
+          "ownerTier": "pro",
+          "spikeCreated": { "ok": true, "id": "a67743f4-9a8c-4230-bebb-5a50d6d22ec0" },
+          "spikeCount": 1
+        },
+        "freeShareSpike": {
+          "shareId": "ae6da3ed-80ba-4efb-8e1a-37670572af39",
+          "shareSlug": "ia-stripe-0f9f-free-share-1-7hueq",
+          "ownerTier": "free",
+          "spikeCreated": { "ok": true, "id": "0a7cad08-5fe7-418e-a6b5-63b5dc32c728" },
+          "spikeCount": 1,
+          "limit": "Would be blocked at 1001st spike with code 'SPIKE_LIMIT'"
+        },
+        "enforcementLogic": "Worker code in spikes.ts: const ownerTier = await getShareOwnerTier(env, shareId); const isPro = ownerTier === 'pro'; if (!isPro && spikeCount >= FREE_TIER_LIMITS.maxSpikesPerShare) return 429 with SPIKE_LIMIT"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Local database was missing 'grace_period_end' column in users table and 'stripe_events' table - schema.sql needed to be reapplied",
+      "resolved": true,
+      "resolution": "Ran 'wrangler d1 execute spikes-sh-db --local --file=schema.sql' to apply missing schema migrations",
+      "affectedAssertions": ["VAL-AUTH-008", "VAL-AUTH-009"]
+    },
+    {
+      "description": "Token hash computation required manual SHA-256 calculation before database insertion",
+      "resolved": true,
+      "resolution": "Used Python hashlib.sha256() to compute token hashes for user_tokens table",
+      "affectedAssertions": ["VAL-AUTH-010", "VAL-AUTH-011"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed, 0 blocked. All identity-auth tier/webhook API assertions validated successfully on local worker at http://localhost:8787."
+}

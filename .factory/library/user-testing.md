@@ -50,6 +50,13 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - If database setup is needed, prefix seeded user IDs/subdomains/slugs with the namespace.
 - Record exact `curl` commands and key response fields in the flow report evidence.
 
+## Flow Validator Guidance: Identity Auth API
+
+- Use only your assigned namespace email (`<namespace>@example.com`) and slug prefixes (`<namespace>-*`).
+- Do not inspect or mutate other namespaces' rows when reading local D1 state.
+- Keep all auth tokens scoped to your namespace and never reuse another validator's bearer token.
+- Include explicit request/response evidence for each assertion (status code, body excerpt, and DB query output when required).
+
 ## Flow Validator Guidance: Browser Subdomain Surface
 
 - If browser checks are required, use only your assigned namespace subdomain/slug values.
@@ -69,3 +76,10 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Prefer targeting local worker `http://localhost:8787` and avoid changing global CLI config in the repo.
 - For auth tests, set token via command flags or isolated env vars per command (do not overwrite shared auth files).
 - Include exact CLI command output snippets showing the actionable message text for each mapped error case.
+
+## Flow Validator Guidance: CLI Auth Commands
+
+- Use an isolated HOME per validator namespace (e.g. `HOME=/tmp/spikes-utv-<namespace>-home`) so auth file paths and permissions checks are not shared.
+- Do not run interactive browser login; use deterministic local setup (`spikes login --token <token>`) when validating storage/logout/whoami behavior.
+- When validating `SPIKES_TOKEN` precedence, set env vars per command invocation and avoid exporting globally.
+- Capture evidence with file path checks (`auth.toml` location + mode), command output (`login/logout/whoami`), and token-source behavior.

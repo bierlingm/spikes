@@ -1,0 +1,188 @@
+{
+  "groupId": "auth-core-api",
+  "testedAt": "2026-03-03T09:15:00.000Z",
+  "credentials": {
+    "account": "ia-authcore-0f9f@example.com",
+    "namespace": "ia-authcore-0f9f"
+  },
+  "toolsUsed": ["curl", "sqlite3"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-001",
+      "title": "Magic Link Login Flow - Request Endpoint",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST to /auth/login with email ia-authcore-0f9f@example.com",
+          "expected": "HTTP 202 with {ok: true, message: 'Check your email'}",
+          "observed": "HTTP 202 with body containing ok: true, message: 'Check your email', and _test_token"
+        },
+        {
+          "action": "Query login_attempts table in D1 database",
+          "expected": "Row exists with email, expires_at in future, used = 0",
+          "observed": "Row found: id=17596efd-95ed-4c2e-aff6-9b86748e579c, email=ia-authcore-0f9f@example.com, expires_at=2026-03-03T09:16:46.391Z, used=0"
+        }
+      ],
+      "evidence": {
+        "apiRequest": "curl -X POST http://localhost:8787/auth/login -H 'Content-Type: application/json' -d '{\"email\": \"ia-authcore-0f9f@example.com\"}'",
+        "apiResponse": "{\"ok\":true,\"message\":\"Check your email\",\"_test_token\":\"************************************\"} HTTP Status: 202",
+        "databaseQuery": "SELECT id, email, expires_at, used FROM login_attempts WHERE email = 'ia-authcore-0f9f@example.com'",
+        "databaseResult": "17596efd-95ed-4c2e-aff6-9b86748e579c|ia-authcore-0f9f@example.com|2026-03-03T09:16:46.391Z|0"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-002",
+      "title": "Magic Link Verification - Token Exchange",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST to /auth/verify with valid login_token",
+          "expected": "HTTP 200 with {token, user: {id, email, tier}}",
+          "observed": "HTTP 200 with token, user object containing id, email, tier"
+        },
+        {
+          "action": "Verify login_attempts.used = 1 for the token",
+          "expected": "Database shows used = 1 (true)",
+          "observed": "login_attempts.used = 1 for verified token"
+        },
+        {
+          "action": "Query user_tokens table for new bearer token",
+          "expected": "New row with user_id populated, revoked_at = null",
+          "observed": "user_tokens row created with id=2b1fe9f5-5537-419b-907d-52b3b30ea968, user_id=a891ba59-cadb-496c-bd7d-00127f97cb79, revoked_at is empty (null)"
+        }
+      ],
+      "evidence": {
+        "apiRequest": "curl -X POST http://localhost:8787/auth/verify -H 'Content-Type: application/json' -d '{\"login_token\": \"<token-from-login>\"}'",
+        "apiResponse": "{\"ok\":true,\"token\":\"************************************\",\"user\":{\"id\":\"a891ba59-cadb-496c-bd7d-00127f97cb79\",\"email\":\"ia-authcore-0f9f@example.com\",\"tier\":\"free\"}} HTTP Status: 200",
+        "databaseQueries": [
+          "SELECT id, email, used FROM login_attempts WHERE email = 'ia-authcore-0f9f@example.com' ORDER BY created_at DESC LIMIT 1",
+          "SELECT id, user_id, revoked_at FROM user_tokens WHERE user_id = (SELECT id FROM users WHERE email = 'ia-authcore-0f9f@example.com') ORDER BY created_at DESC LIMIT 1"
+        ],
+        "databaseResults": [
+          "login_attempts: b933a88b-783b-4049-9901-234eb9cfe85a|ia-authcore-0f9f@example.com|1",
+          "user_tokens: 2b1fe9f5-5537-419b-907d-52b3b30ea968|a891ba59-cadb-496c-bd7d-00127f97cb79| (revoked_at is null)"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-003",
+      "title": "Login Token Expiration",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Insert expired login attempt into database (expires_at in past)",
+          "expected": "Database accepts expired login attempt for testing",
+          "observed": "Successfully inserted login attempt with expires_at=2026-03-01T00:00:00.000Z"
+        },
+        {
+          "action": "POST to /auth/verify with expired token",
+          "expected": "HTTP 401 with code TOKEN_EXPIRED",
+          "observed": "HTTP 401 with {\"error\":\"Login token has expired\",\"code\":\"TOKEN_EXPIRED\"}"
+        },
+        {
+          "action": "Verify no new user_tokens row created",
+          "expected": "No bearer token issued for expired login token",
+          "observed": "No new user_tokens row created after failed verification"
+        }
+      ],
+      "evidence": {
+        "databaseInsert": "INSERT INTO login_attempts (id, email, token_hash, expires_at, used, created_at) VALUES ('expired-test-ia-authcore-0f9f', 'ia-authcore-0f9f@example.com', '<sha256-hash>', '2026-03-01T00:00:00.000Z', 0, '2026-03-01T00:00:00.000Z')",
+        "apiRequest": "curl -X POST http://localhost:8787/auth/verify -H 'Content-Type: application/json' -d '{\"login_token\": \"test-expired-token-ia-authcore-0f9f\"}'",
+        "apiResponse": "{\"error\":\"Login token has expired\",\"code\":\"TOKEN_EXPIRED\"} HTTP Status: 401",
+        "dbVerification": "SELECT COUNT(*) FROM user_tokens WHERE created_at > '2026-03-03T09:00:00Z' → 0 new tokens created"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-005",
+      "title": "Token Rotation API",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST to /auth/rotate-token with valid bearer token",
+          "expected": "HTTP 200 with new token, old token revoked",
+          "observed": "HTTP 404 Not Found - endpoint does not exist"
+        },
+        {
+          "action": "Check alternative endpoint paths",
+          "expected": "Find working rotate endpoint",
+          "observed": "/auth/rotate-token, /auth/rotate, /api/auth/rotate-token all return 404"
+        },
+        {
+          "action": "Check worker source code for rotate handler",
+          "expected": "Find handleRotate or similar function",
+          "observed": "No rotate-token handler in worker/src/handlers/auth.ts or index.ts route registration"
+        }
+      ],
+      "evidence": {
+        "apiRequests": [
+          "POST /auth/rotate-token → 404 {\"error\":\"Not Found\",\"code\":\"NOT_FOUND\"}",
+          "POST /auth/rotate → 404 {\"error\":\"Not Found\",\"code\":\"NOT_FOUND\"}",
+          "POST /api/auth/rotate-token → 404 {\"error\":\"Not Found\",\"code\":\"NOT_FOUND\"}"
+        ],
+        "sourceCodeCheck": "grep -n 'rotate' /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/index.ts → no matches",
+        "availableAuthHandlers": "handleLogin, handleVerify only - no handleRotate"
+      },
+      "issues": "Token rotation endpoint is not implemented. The /auth/rotate-token endpoint specified in the validation contract does not exist in the worker code."
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "title": "Account Recovery via Email",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST to /auth/recover with registered email",
+          "expected": "HTTP 202 with recovery magic link sent",
+          "observed": "HTTP 404 Not Found - endpoint does not exist"
+        },
+        {
+          "action": "Check alternative endpoint paths",
+          "expected": "Find working recovery endpoint",
+          "observed": "/auth/recover, /auth/recovery both return 404"
+        },
+        {
+          "action": "Check worker source code for recovery handler",
+          "expected": "Find handleRecover or similar function",
+          "observed": "No recovery handler in worker source code"
+        }
+      ],
+      "evidence": {
+        "apiRequests": [
+          "POST /auth/recover -H 'Content-Type: application/json' -d '{\"email\": \"ia-authcore-0f9f@example.com\"}' → 404",
+          "POST /auth/recovery → 404"
+        ],
+        "sourceCodeCheck": "grep -rn 'recover' /Users/moritzbierling/werk/repos/spikes-hosted/worker/src/ → only 'recovery' mentioned in comments, no handler"
+      },
+      "issues": "Account recovery endpoint is not implemented. The /auth/recover endpoint specified in the validation contract does not exist in the worker code."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Test tokens are exposed in login response via _test_token field. This is convenient for testing but should be removed in production.",
+      "resolved": true,
+      "resolution": "Used _test_token for automated testing flow - documented in test evidence",
+      "affectedAssertions": ["VAL-AUTH-001", "VAL-AUTH-002", "VAL-AUTH-003"]
+    },
+    {
+      "description": "user_tokens table uses token_hash column, not 'token' as implied by contract. Had to check schema to find correct column name.",
+      "resolved": true,
+      "resolution": "Checked .schema user_tokens to find correct column name is token_hash",
+      "affectedAssertions": ["VAL-AUTH-002"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Token rotation endpoint (/auth/rotate-token) is not implemented in the worker. The route handler does not exist in src/index.ts and no handleRotate function exists in src/handlers/auth.ts.",
+      "affectedAssertions": ["VAL-AUTH-005"],
+      "quickFixAttempted": "Checked multiple endpoint path variations (/auth/rotate, /api/auth/rotate-token) and reviewed source code - feature is not implemented"
+    },
+    {
+      "description": "Account recovery endpoint (/auth/recover) is not implemented in the worker. No route handler or recovery logic exists in the codebase.",
+      "affectedAssertions": ["VAL-AUTH-006"],
+      "quickFixAttempted": "Checked multiple endpoint paths and reviewed source code - feature is not implemented"
+    }
+  ],
+  "summary": "Tested 5 assertions: 3 passed, 2 blocked. VAL-AUTH-001, VAL-AUTH-002, and VAL-AUTH-003 are fully functional with correct API responses and database state management. VAL-AUTH-005 and VAL-AUTH-006 are blocked because the /auth/rotate-token and /auth/recover endpoints are not implemented in the worker code."
+}
