@@ -6,7 +6,7 @@
 
 mod common;
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use common::{TestProject, minimal_html, html_with_widget, sample_spike_json};
 use predicates::prelude::*;
 
@@ -14,8 +14,7 @@ use predicates::prelude::*;
 fn test_init_creates_directory() {
     let temp_dir = tempfile::tempdir().unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -31,8 +30,7 @@ fn test_init_creates_directory() {
 fn test_init_json_output() {
     let temp_dir = tempfile::tempdir().unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--json")
@@ -47,8 +45,7 @@ fn test_init_existing_directory() {
     let temp_dir = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(temp_dir.path().join(".spikes")).unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -62,8 +59,7 @@ fn test_inject_basic() {
     let html_path = temp_dir.path().join("index.html");
     std::fs::write(&html_path, minimal_html()).unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("inject")
         .arg(".")
@@ -82,8 +78,7 @@ fn test_inject_json_output() {
     let html_path = temp_dir.path().join("index.html");
     std::fs::write(&html_path, minimal_html()).unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("inject")
         .arg(".")
@@ -100,8 +95,7 @@ fn test_inject_custom_widget_url() {
     let html_path = temp_dir.path().join("index.html");
     std::fs::write(&html_path, minimal_html()).unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("inject")
         .arg(".")
@@ -120,8 +114,7 @@ fn test_inject_skips_existing() {
     let html_path = temp_dir.path().join("index.html");
     std::fs::write(&html_path, html_with_widget()).unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("inject")
         .arg(".")
@@ -140,8 +133,7 @@ fn test_inject_remove() {
     let html_path = temp_dir.path().join("index.html");
     std::fs::write(&html_path, html_with_widget()).unwrap();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(temp_dir.path())
         .arg("inject")
         .arg(".")
@@ -156,8 +148,7 @@ fn test_inject_remove() {
 
 #[test]
 fn test_inject_nonexistent_directory() {
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .arg("inject")
         .arg("/nonexistent/path")
         .assert()
@@ -169,8 +160,7 @@ fn test_inject_nonexistent_directory() {
 fn test_list_empty() {
     let project = TestProject::new();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("list")
         .assert()
@@ -183,8 +173,7 @@ fn test_list_with_spikes() {
     let project = TestProject::new();
     project.add_spike(sample_spike_json());
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("list")
         .assert()
@@ -197,8 +186,7 @@ fn test_list_json_output() {
     let project = TestProject::new();
     project.add_spike(sample_spike_json());
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("list")
         .arg("--json")
@@ -213,8 +201,7 @@ fn test_list_filter_by_rating() {
     project.add_spike(sample_spike_json());
     project.add_spike("{\"id\":\"def456\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Test\"},\"rating\":\"no\",\"comments\":\"Bad\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("list")
         .arg("--rating")
@@ -230,8 +217,7 @@ fn test_show_spike() {
     let project = TestProject::new();
     project.add_spike(sample_spike_json());
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("show")
         .arg("abc123")
@@ -245,8 +231,7 @@ fn test_show_spike_json() {
     let project = TestProject::new();
     project.add_spike(sample_spike_json());
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("show")
         .arg("abc123")
@@ -260,8 +245,7 @@ fn test_show_spike_json() {
 fn test_show_nonexistent_spike() {
     let project = TestProject::new();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("show")
         .arg("nonexistent")
@@ -275,8 +259,7 @@ fn test_export_default_json() {
     let project = TestProject::new();
     project.add_spike(sample_spike_json());
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("export")
         .assert()
@@ -289,8 +272,7 @@ fn test_export_jsonl_format() {
     let project = TestProject::new();
     project.add_spike(sample_spike_json());
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("export")
         .arg("--format")
@@ -304,8 +286,7 @@ fn test_export_jsonl_format() {
 fn test_hotspots_empty() {
     let project = TestProject::new();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("hotspots")
         .assert()
@@ -320,8 +301,7 @@ fn test_hotspots_with_element_spikes() {
     project.add_spike("{\"id\":\"elem2\",\"type\":\"element\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r2\",\"name\":\"Test2\"},\"selector\":\".hero\",\"rating\":\"like\",\"comments\":\"Nice\",\"timestamp\":\"2024-01-01T00:01:00Z\"}");
     project.add_spike("{\"id\":\"elem3\",\"type\":\"element\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r3\",\"name\":\"Test3\"},\"selector\":\".footer\",\"rating\":\"meh\",\"comments\":\"OK\",\"timestamp\":\"2024-01-01T00:02:00Z\"}");
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("hotspots")
         .assert()
@@ -335,8 +315,7 @@ fn test_reviewers() {
     project.add_spike("{\"id\":\"s1\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r1\",\"name\":\"Alice\"},\"rating\":\"like\",\"comments\":\"Good\",\"timestamp\":\"2024-01-01T00:00:00Z\"}");
     project.add_spike("{\"id\":\"s2\",\"type\":\"page\",\"projectKey\":\"test\",\"page\":\"index.html\",\"url\":\"http://localhost\",\"reviewer\":{\"id\":\"r2\",\"name\":\"Bob\"},\"rating\":\"love\",\"comments\":\"Great\",\"timestamp\":\"2024-01-01T00:01:00Z\"}");
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("reviewers")
         .assert()
@@ -349,8 +328,7 @@ fn test_reviewers() {
 fn test_config_show() {
     let project = TestProject::with_config();
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .current_dir(project.path())
         .arg("config")
         .assert()
@@ -360,8 +338,7 @@ fn test_config_show() {
 
 #[test]
 fn test_version() {
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .arg("version")
         .assert()
         .success()
