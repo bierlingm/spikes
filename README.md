@@ -62,11 +62,12 @@ spikes resolve <id>             # Mark items done
 | `spikes init` | Create `.spikes/` directory with config |
 | `spikes list` | List feedback (`--json`, `--page`, `--reviewer`, `--rating`, `--unresolved`) |
 | `spikes show <id>` | Show single spike details |
-| `spikes export` | Export to JSON/CSV/JSONL |
+| `spikes export` | Export to JSON/CSV/JSONL/Cursor/Claude context |
 | `spikes hotspots` | Elements with most feedback |
 | `spikes reviewers` | List all reviewers |
 | `spikes inject <dir>` | Add/remove widget from HTML files |
 | `spikes serve` | Local dev server (`--port`, `--marked`, `--cors-allow-origin`) |
+| `spikes mcp serve` | Start MCP server for AI agent integration |
 | `spikes pull/push/sync` | Sync with remote endpoint |
 | `spikes share <dir>` | Upload to spikes.sh for instant sharing |
 | `spikes login/logout/whoami` | Authentication management |
@@ -74,6 +75,70 @@ spikes resolve <id>             # Mark items done
 | `spikes deploy cloudflare` | Scaffold self-hosted Worker + D1 |
 
 All commands support `--json` for scripting. See [full CLI reference](docs/cli-reference.md).
+
+---
+
+## AI Agent Integration
+
+Spikes speaks agent natively. Two ways to feed feedback into your AI workflow:
+
+### MCP Server
+
+`spikes mcp serve` starts a Model Context Protocol server (stdio transport) that exposes three tools:
+
+| Tool | Purpose |
+|------|---------|
+| `get_spikes` | List feedback with filters (page, rating, unresolved) |
+| `get_element_feedback` | Get feedback for a specific CSS selector |
+| `get_hotspots` | Find elements with the most feedback |
+
+Agents like Claude and Cursor can query your feedback directly:
+
+```bash
+# Start the MCP server
+spikes mcp serve
+
+# In your agent's MCP config, add:
+# { "command": "spikes", "args": ["mcp", "serve"] }
+```
+
+### Context Exports
+
+Export structured markdown optimized for agent consumption:
+
+```bash
+# Cursor-optimized context
+spikes export --format cursor-context > cursor-feedback.md
+
+# Claude-optimized context  
+spikes export --format claude-context > claude-feedback.md
+```
+
+Both formats include blocking issues, hotspots, and element-specific notes — structured for immediate agent action.
+
+---
+
+## GitHub Action
+
+Gate CI on feedback quality. The `spikes-action` fails builds when unresolved negative feedback exceeds your threshold.
+
+```yaml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  feedback-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: moritzbierling/spikes/action@v0.3.0
+        with:
+          threshold: 0           # Fail if any blocking spikes
+          ignore-paths: ""     # Optional: pages to ignore
+          require-resolution: false
+```
+
+See [action/README.md](action/README.md) for full documentation.
 
 ---
 
