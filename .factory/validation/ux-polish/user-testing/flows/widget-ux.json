@@ -1,0 +1,231 @@
+{
+  "flowId": "widget-ux",
+  "surface": "widget-browser",
+  "testedAt": "2026-03-03T12:13:00Z",
+  "credentials": {
+    "account": "uxw1@example.com",
+    "namespace": "uxw1"
+  },
+  "toolsUsed": ["playwright"],
+  "assertions": [
+    {
+      "id": "VAL-UX-001",
+      "title": "Widget Save Confirmation Toast",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to fixture page with widget",
+          "expected": "Widget button visible",
+          "observed": "Widget button (#spikes-btn) rendered with z-index: 2147483647"
+        },
+        {
+          "action": "Click widget button to enter spike mode",
+          "expected": "Cursor changes to crosshair",
+          "observed": "Widget enters armed mode"
+        },
+        {
+          "action": "Click target element to capture",
+          "expected": "Popover appears with rating buttons",
+          "observed": "#spikes-popover visible with + Love, / Like, ~ Meh, - No buttons"
+        },
+        {
+          "action": "Select rating and fill comment",
+          "expected": "Rating selected, comment entered",
+          "observed": "Love rating selected, comment 'Test spike for toast notification' entered"
+        },
+        {
+          "action": "Click Save button",
+          "expected": "Toast notification appears with 'Spike saved!' text",
+          "observed": "Toast visible with text '✓ Spike saved!'"
+        },
+        {
+          "action": "Wait 2 seconds",
+          "expected": "Toast remains visible for at least 2 seconds",
+          "observed": "Toast still visible after 2 seconds"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/spikes-utv-ux-surface/val-ux-001-toast-visible.png",
+          "/tmp/spikes-utv-ux-surface/val-ux-001-toast-after-2s.png"
+        ],
+        "consoleErrors": "none",
+        "toastText": "✓ Spike saved!",
+        "toastDuration": "visible for at least 2 seconds"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-002",
+      "title": "Widget localStorage Quota Handling",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Monkey-patch localStorage.setItem to throw QuotaExceededError for spikes: keys",
+          "expected": "localStorage.setItem throws when saving spikes",
+          "observed": "Patch applied successfully via page.evaluate()"
+        },
+        {
+          "action": "Attempt to save a spike",
+          "expected": "No unhandled exception, graceful error handling",
+          "observed": "Widget caught error and displayed quota error UI"
+        },
+        {
+          "action": "Check for quota error UI",
+          "expected": "User-friendly error message appears with retry/dismiss options",
+          "observed": "#spikes-quota-error visible with 'Storage Full' message, Retry and Dismiss buttons"
+        },
+        {
+          "action": "Dismiss quota error and verify widget remains functional",
+          "expected": "Widget button still clickable after error",
+          "observed": "#spikes-btn visible and clickable after dismissing error"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/spikes-utv-ux-surface/val-ux-002-quota-result.png"
+        ],
+        "consoleErrors": "none - error handled gracefully",
+        "quotaErrorUi": "#spikes-quota-error displayed with 'Storage Full' title and explanation",
+        "recovery": "Widget functional after error dismissal"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-003",
+      "title": "Widget Duplicate Detection (30-Second Window)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Clear localStorage and submit first spike on element #cta",
+          "expected": "Spike saved successfully",
+          "observed": "1 spike in localStorage, 'Spike saved!' toast shown"
+        },
+        {
+          "action": "Immediately submit identical spike (same element, same reviewer, same comment)",
+          "expected": "Duplicate detected, 'Already saved' toast shown, no new spike created",
+          "observed": "Toast shows '! Already saved', spike count remains 1"
+        },
+        {
+          "action": "Verify localStorage spike count",
+          "expected": "Only 1 spike stored (no duplicate)",
+          "observed": "JSON.parse(localStorage.getItem('spikes:utv-ux')).length === 1"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/spikes-utv-ux-surface/val-ux-003-result.png"
+        ],
+        "consoleErrors": "none",
+        "firstSpikeCount": 1,
+        "secondSpikeCount": 1,
+        "duplicateToast": "! Already saved",
+        "localStorageKeyChecked": "spikes:last-spike:utv-ux used for duplicate detection"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-004",
+      "title": "Widget z-index Fix (2147483647)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to page with high-z overlay (z-index: 1000000)",
+          "expected": "Widget renders above overlay",
+          "observed": "Widget button visible above blue high-z overlay"
+        },
+        {
+          "action": "Check computed z-index of widget elements",
+          "expected": "z-index: 2147483647 for all widget elements",
+          "observed": "container: 2147483647, modal: 2147483647, popover: 2147483647"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/spikes-utv-ux-surface/val-ux-004-final.png"
+        ],
+        "consoleErrors": "none",
+        "zIndexValues": {
+          "spikes-container": "2147483647",
+          "spikes-modal": "2147483647",
+          "spikes-popover": "2147483647"
+        },
+        "rendering": "Widget visible above test overlay with z-index: 1000000"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-005",
+      "title": "Widget Position Offset Attributes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to admin.html with data-offset-x='50px' data-offset-y='-10px'",
+          "expected": "Widget button position offset from default",
+          "observed": "Container styles show offset applied"
+        },
+        {
+          "action": "Check computed position styles",
+          "expected": "Right: 0px (20-50 clamped), Bottom: 30px (20-(-10))",
+          "observed": "{ right: '0px', bottom: '30px' }"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/spikes-utv-ux-surface/val-ux-005-final.png"
+        ],
+        "consoleErrors": "none",
+        "attributesPresent": "data-offset-x='50px' data-offset-y='-10px'",
+        "computedStyles": {
+          "right": "0px",
+          "bottom": "30px"
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-006",
+      "title": "Review Mode Button Visible with data-admin='true'",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Navigate to admin.html with data-admin='true'",
+          "expected": "Review button visible",
+          "observed": "#spikes-review-btn visible with text 'Review'"
+        },
+        {
+          "action": "Click Review button",
+          "expected": "Review mode toggles on, button text changes to 'Hide'",
+          "observed": "Button text changed to 'Hide', review mode active"
+        },
+        {
+          "action": "Navigate to index.html without data-admin",
+          "expected": "Review button not visible",
+          "observed": "#spikes-review-btn not in DOM"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/spikes-utv-ux-surface/val-ux-006-admin.png",
+          "/tmp/spikes-utv-ux-surface/val-ux-006-review-mode.png",
+          "/tmp/spikes-utv-ux-surface/val-ux-006-index.png"
+        ],
+        "consoleErrors": "none",
+        "adminPage": "Review button visible when data-admin='true'",
+        "indexPage": "Review button absent when no data-admin attribute",
+        "toggleBehavior": "Clicking Review button toggles review mode and updates button text"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Playwright requires specific visibility handling for dynamically appearing elements (popover) - needed to use page.waitForSelector with state: 'visible' and scope element selection to popover container",
+      "resolved": true,
+      "resolution": "Used popover.locator() for scoped element selection instead of global page.locator()",
+      "affectedAssertions": ["VAL-UX-001", "VAL-UX-002", "VAL-UX-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "All 6 UX widget assertions passed: VAL-UX-001 (toast confirmation), VAL-UX-002 (quota handling), VAL-UX-003 (duplicate detection), VAL-UX-004 (z-index 2147483647), VAL-UX-005 (offset attributes), VAL-UX-006 (review mode button)"
+}

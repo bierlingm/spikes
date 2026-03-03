@@ -1,0 +1,175 @@
+{
+  "flowId": "cli-spike-management",
+  "surface": "cli",
+  "testedAt": "2026-03-03T12:09:00+01:00",
+  "credentials": {
+    "account": "uxc1@example.com",
+    "namespace": "uxc1"
+  },
+  "toolsUsed": ["tuistory", "cli"],
+  "assertions": [
+    {
+      "id": "VAL-UX-007",
+      "title": "spikes delete <id> Command",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "List initial spikes",
+          "expected": "3 spikes displayed with IDs uxc1a111, uxc1b222, uxc1c333",
+          "observed": "3 spikes displayed: uxc1a111 (unresolved), uxc1b222 (resolved ✓), uxc1c333 (unresolved)"
+        },
+        {
+          "action": "Delete with full ID and --force",
+          "command": "spikes delete uxc1c333-3333-3333-3333-333333333333 --force",
+          "expected": "Spike deleted without confirmation prompt",
+          "observed": "Output: 'Deleted spike uxc1c333-3333-3333-3333-333333333333.' with exit code 0"
+        },
+        {
+          "action": "Verify deletion in list",
+          "expected": "Only 2 spikes remain (uxc1a111, uxc1b222)",
+          "observed": "List shows 2 spikes, uxc1c333 removed"
+        },
+        {
+          "action": "Delete non-existent ID",
+          "command": "spikes delete nonexistent-id-12345 --force",
+          "expected": "Error with exit code 1",
+          "observed": "Error: 'Spike not found: nonexistent-id-12345' with exit code 1"
+        },
+        {
+          "action": "Delete with unique 4+ char prefix",
+          "command": "spikes delete uxc1a --force",
+          "expected": "Spike uxc1a111 deleted using prefix",
+          "observed": "Output: 'Deleted spike uxc1a111-1111-1111-1111-111111111111.' with exit code 0"
+        },
+        {
+          "action": "Test confirmation prompt (cancel)",
+          "command": "spikes delete uxc1b222 (interactive)",
+          "expected": "Prompt 'Delete spike ...? [y/N]' with cancellation on 'n'",
+          "observed": "Prompt displayed: 'Delete spike 'uxc1b222' on page '/index.html'? [y/N]' - after typing 'n', output 'Cancelled.' and spike remains in list"
+        },
+        {
+          "action": "Test confirmation prompt (confirm)",
+          "command": "spikes delete uxc1b222 (interactive)",
+          "expected": "Prompt with deletion on 'y'",
+          "observed": "After typing 'y', output 'Deleted spike uxc1b222-2222-2222-2222-222222222222.' - list shows 'No spikes found.'"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "spikes list",
+          "spikes delete uxc1c333-3333-3333-3333-333333333333 --force",
+          "spikes delete nonexistent-id-12345 --force (exit code 1)",
+          "spikes delete uxc1a --force",
+          "spikes delete uxc1b222 (interactive with 'n' -> cancelled)",
+          "spikes delete uxc1b222 (interactive with 'y' -> deleted)"
+        ],
+        "terminalSnapshots": [
+          "Delete spike 'uxc1b222' on page '/index.html'? [y/N] n\nCancelled.",
+          "Delete spike 'uxc1b222' on page '/index.html'? [y/N] y\nDeleted spike uxc1b222-2222-2222-2222-222222222222."
+        ],
+        "jsonlBefore": "3 spikes: uxc1a111 (unresolved), uxc1b222 (resolved), uxc1c333 (unresolved)",
+        "jsonlAfter": "0 spikes remaining after deletions"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-008",
+      "title": "spikes resolve <id> Command",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Restore test data with 3 spikes",
+          "expected": "Initial state: uxc1a111 (unresolved), uxc1b222 (resolved), uxc1c333 (unresolved)",
+          "observed": "3 spikes restored, uxc1b222 shows ✓ in Resolved column"
+        },
+        {
+          "action": "Resolve unresolved spike uxc1a111",
+          "command": "spikes resolve uxc1a111",
+          "expected": "Spike marked resolved with resolved: true and resolvedAt timestamp",
+          "observed": "Output: 'Resolved spike uxc1a111-1111-1111-1111-111111111111.' with exit code 0"
+        },
+        {
+          "action": "Verify resolved spike details",
+          "command": "spikes show uxc1a111 --json",
+          "expected": "JSON with resolved: true and ISO 8601 resolvedAt timestamp",
+          "observed": "resolved: true, resolvedAt: '2026-03-03T12:09:03.756925+01:00' (ISO 8601 with timezone)"
+        },
+        {
+          "action": "Unresolve the spike",
+          "command": "spikes resolve uxc1a111 --unresolve",
+          "expected": "resolved and resolvedAt fields removed",
+          "observed": "Output: 'Unresolved spike uxc1a111-1111-1111-1111-111111111111.' - JSON no longer contains resolved/resolvedAt fields"
+        },
+        {
+          "action": "Verify list shows resolved indicator",
+          "expected": "✓ shown for resolved spike, empty for unresolved",
+          "observed": "uxc1b222 shows ✓ in Resolved column, uxc1a111 and uxc1c333 show empty"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "spikes resolve uxc1a111",
+          "spikes show uxc1a111 --json",
+          "spikes resolve uxc1a111 --unresolve",
+          "spikes show uxc1a111 --json",
+          "spikes list"
+        ],
+        "jsonlSnippets": [
+          "Before resolve: {id: 'uxc1a111', resolved: undefined}",
+          "After resolve: {id: 'uxc1a111', resolved: true, resolvedAt: '2026-03-03T12:09:03.756925+01:00'}",
+          "After unresolve: {id: 'uxc1a111', resolved: undefined, resolvedAt: undefined}"
+        ],
+        "listOutput": "┌──────────┬─────────┬─────────────┬───────────┬────────┬──────────┬────────────┐\n│ ID       ┆ Type    ┆ Page        ┆ Reviewer  ┆ Rating ┆ Resolved ┆ Comments   │\n╞══════════╪═════════╪═════════════╪═══════════╪════════╪══════════╪════════════╡\n│ uxc1a111 ┆ element ┆ /index.html ┆ UTV CLI 1 ┆ meh    ┆          ┆ Needs work │\n│ uxc1b222 ┆ element ┆ /index.html ┆ UTV CLI 1 ┆ like   ┆ ✓        ┆ Looks good │\n│ uxc1c333 ┆ page    ┆ /admin.html ┆ UTV CLI 1 ┆ no     ┆          ┆ Page issue │\n└──────────┴─────────┴─────────────┴───────────┴────────┴──────────┴────────────┘"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UX-009",
+      "title": "spikes list --unresolved Filter",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "List with --unresolved flag",
+          "command": "spikes list --unresolved",
+          "expected": "Only unresolved spikes shown (uxc1a111, uxc1c333), resolved spike uxc1b222 excluded",
+          "observed": "2 spikes shown: uxc1a111 and uxc1c333. uxc1b222 (resolved) excluded"
+        },
+        {
+          "action": "List with --unresolved --reviewer composition",
+          "command": "spikes list --unresolved --reviewer 'UTV CLI 1'",
+          "expected": "Unresolved spikes from reviewer 'UTV CLI 1' shown",
+          "observed": "2 spikes shown: uxc1a111, uxc1c333 (both from UTV CLI 1)"
+        },
+        {
+          "action": "List with --unresolved --reviewer for non-existent reviewer",
+          "command": "spikes list --unresolved --reviewer 'NonExistent'",
+          "expected": "No spikes found message",
+          "observed": "Output: 'No spikes found.'"
+        },
+        {
+          "action": "Verify JSON output with --unresolved",
+          "command": "spikes list --unresolved --json",
+          "expected": "JSON array with only unresolved spikes",
+          "observed": "Array with 2 spikes, neither having resolved: true field"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "spikes list --unresolved",
+          "spikes list --unresolved --reviewer 'UTV CLI 1'",
+          "spikes list --unresolved --reviewer 'NonExistent'",
+          "spikes list --unresolved --json"
+        ],
+        "terminalOutput": [
+          "spikes list --unresolved:\\n┌──────────┬─────────┬─────────────┬───────────┬────────┬──────────┬────────────┐\\n│ ID       ┆ Type    ┆ Page        ┆ Reviewer  ┆ Rating ┆ Resolved ┆ Comments   │\\n╞══════════╪═════════╪═════════════╪═══════════╪════════╪══════════╪════════════╡\\n│ uxc1a111 ┆ element ┆ /index.html ┆ UTV CLI 1 ┆ meh    ┆          ┆ Needs work │\\n│ uxc1c333 ┆ page    ┆ /admin.html ┆ UTV CLI 1 ┆ no     ┆          ┆ Page issue │\\n└──────────┴─────────┴─────────────┴───────────┴────────┴──────────┴────────────┘",
+          "spikes list --unresolved --reviewer 'NonExistent':\\nNo spikes found."
+        ],
+        "jsonOutput": "[{id: 'uxc1a111', resolved: undefined}, {id: 'uxc1c333', resolved: undefined}]"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions: VAL-UX-007 (delete command), VAL-UX-008 (resolve command), VAL-UX-009 (list --unresolved filter). All 3 passed."
+}

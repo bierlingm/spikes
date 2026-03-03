@@ -84,3 +84,24 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Do not run interactive browser login; use deterministic local setup (`spikes login --token <token>`) when validating storage/logout/whoami behavior.
 - When validating `SPIKES_TOKEN` precedence, set env vars per command invocation and avoid exporting globally.
 - Capture evidence with file path checks (`auth.toml` location + mode), command output (`login/logout/whoami`), and token-source behavior.
+
+## Flow Validator Guidance: Widget UX Surface
+
+- Use only namespace-scoped fixture pages under `/tmp/spikes-utv-<namespace>/` and avoid shared files.
+- Start widget serving from `cli` on port `3847`; do not start additional web servers.
+- For duplicate checks, submit identical selector/reviewer/comment payloads within 30 seconds in the same namespace only.
+- For localStorage quota handling, trigger failure via in-page monkey patch in the active session; restore behavior before ending.
+- Capture screenshot evidence for toast text/timing, review button visibility, z-index layering, and offset positioning.
+
+## Flow Validator Guidance: CLI Spike Management
+
+- Use a unique temp workspace per namespace (e.g. `/tmp/spikes-utv-<namespace>-cli`) with an isolated `.spikes/feedback.jsonl`.
+- Use ID prefixes unique to namespace data when testing `delete`/`resolve` prefix behavior.
+- Validate confirmation prompts in non-`--force` mode and explicit bypass with `--force` in separate commands.
+- Verify unresolved filtering using a mixed resolved/unresolved dataset created only in the assigned namespace.
+
+## Flow Validator Guidance: Docs & Dependency Verification
+
+- Use read-only checks for documentation assertions (`docs/widget-attributes.md`, `docs/cli-reference.md`, `docs/self-hosting.md`).
+- Validate dependency-removal assertions via Cargo manifest/tree and filesystem module checks without modifying source.
+- Record exact command outputs for `cargo tree`, `rg`, and path existence checks to support VAL-UX-013/014/015 evidence.

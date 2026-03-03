@@ -1,0 +1,43 @@
+{
+  "milestone": "ux-polish",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-UX-001",
+    "VAL-UX-002",
+    "VAL-UX-003",
+    "VAL-UX-004",
+    "VAL-UX-005",
+    "VAL-UX-006",
+    "VAL-UX-007",
+    "VAL-UX-008",
+    "VAL-UX-009",
+    "VAL-UX-010",
+    "VAL-UX-011",
+    "VAL-UX-012",
+    "VAL-UX-013",
+    "VAL-UX-014",
+    "VAL-UX-015"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added flow validator guidance sections for Widget UX Surface, CLI Spike Management, and Docs & Dependency Verification to support isolated parallel ux-polish validation runs.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null,
+  "flowReports": [
+    ".factory/validation/ux-polish/user-testing/flows/widget-ux.json",
+    ".factory/validation/ux-polish/user-testing/flows/cli-spike-management.json",
+    ".factory/validation/ux-polish/user-testing/flows/docs-deps.json"
+  ]
+}
