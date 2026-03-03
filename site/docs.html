@@ -618,13 +618,21 @@
             <a href="#cli-list" class="sidebar-link" onclick="closeSidebar()">list</a>
             <a href="#cli-show" class="sidebar-link" onclick="closeSidebar()">show</a>
             <a href="#cli-export" class="sidebar-link" onclick="closeSidebar()">export</a>
+            <a href="#cli-delete" class="sidebar-link" onclick="closeSidebar()">delete</a>
+            <a href="#cli-resolve" class="sidebar-link" onclick="closeSidebar()">resolve</a>
             <a href="#cli-hotspots" class="sidebar-link" onclick="closeSidebar()">hotspots</a>
             <a href="#cli-reviewers" class="sidebar-link" onclick="closeSidebar()">reviewers</a>
             <a href="#cli-inject" class="sidebar-link" onclick="closeSidebar()">inject</a>
             <a href="#cli-serve" class="sidebar-link" onclick="closeSidebar()">serve</a>
             <a href="#cli-deploy" class="sidebar-link" onclick="closeSidebar()">deploy</a>
             <a href="#cli-pull-push" class="sidebar-link" onclick="closeSidebar()">pull / push</a>
-            <a href="#cli-dashboard" class="sidebar-link" onclick="closeSidebar()">dashboard</a>
+            <a href="#cli-login" class="sidebar-link" onclick="closeSidebar()">login / logout</a>
+            <a href="#cli-whoami" class="sidebar-link" onclick="closeSidebar()">whoami</a>
+            <a href="#cli-share" class="sidebar-link" onclick="closeSidebar()">share / unshare</a>
+            <a href="#cli-shares" class="sidebar-link" onclick="closeSidebar()">shares</a>
+            <a href="#cli-billing" class="sidebar-link" onclick="closeSidebar()">billing</a>
+            <a href="#cli-usage" class="sidebar-link" onclick="closeSidebar()">usage</a>
+            <a href="#cli-upgrade" class="sidebar-link" onclick="closeSidebar()">upgrade</a>
         </div>
         <div class="sidebar-section">
             <div class="sidebar-title">Widget</div>
@@ -634,6 +642,7 @@
             <div class="sidebar-title">Reference</div>
             <a href="#data-format" class="sidebar-link" onclick="closeSidebar()">Data Format</a>
             <a href="#multi-reviewer" class="sidebar-link" onclick="closeSidebar()">Multi-Reviewer Sync</a>
+            <a href="#environment-variables" class="sidebar-link" onclick="closeSidebar()">Environment Variables</a>
         </div>
     </div>
     
@@ -658,13 +667,21 @@
                 <a href="#cli-list" class="sidebar-link">list</a>
                 <a href="#cli-show" class="sidebar-link">show</a>
                 <a href="#cli-export" class="sidebar-link">export</a>
+                <a href="#cli-delete" class="sidebar-link">delete</a>
+                <a href="#cli-resolve" class="sidebar-link">resolve</a>
                 <a href="#cli-hotspots" class="sidebar-link">hotspots</a>
                 <a href="#cli-reviewers" class="sidebar-link">reviewers</a>
                 <a href="#cli-inject" class="sidebar-link">inject</a>
                 <a href="#cli-serve" class="sidebar-link">serve</a>
                 <a href="#cli-deploy" class="sidebar-link">deploy</a>
                 <a href="#cli-pull-push" class="sidebar-link">pull / push</a>
-                <a href="#cli-dashboard" class="sidebar-link">dashboard</a>
+                <a href="#cli-login" class="sidebar-link">login / logout</a>
+                <a href="#cli-whoami" class="sidebar-link">whoami</a>
+                <a href="#cli-share" class="sidebar-link">share / unshare</a>
+                <a href="#cli-shares" class="sidebar-link">shares</a>
+                <a href="#cli-billing" class="sidebar-link">billing</a>
+                <a href="#cli-usage" class="sidebar-link">usage</a>
+                <a href="#cli-upgrade" class="sidebar-link">upgrade</a>
             </div>
             <div class="sidebar-section">
                 <div class="sidebar-title">Widget</div>
@@ -674,6 +691,7 @@
                 <div class="sidebar-title">Reference</div>
                 <a href="#data-format" class="sidebar-link">Data Format</a>
                 <a href="#multi-reviewer" class="sidebar-link">Multi-Reviewer Sync</a>
+                <a href="#environment-variables" class="sidebar-link">Environment Variables</a>
             </div>
         </aside>
         
@@ -1106,11 +1124,161 @@ spikes pull --endpoint https://my-worker.workers.dev/spikes
 spikes push --endpoint https://my-worker.workers.dev/spikes</code></pre>
             </div>
             
-            <h3 id="cli-dashboard">dashboard</h3>
+            <h3 id="cli-delete">delete</h3>
             <div class="command">
-                <div class="command-name">spikes dashboard</div>
-                <p class="command-desc">Launch interactive TUI dashboard for browsing feedback.</p>
-                <div class="command-usage">spikes dashboard</div>
+                <div class="command-name">spikes delete &lt;id&gt;</div>
+                <p class="command-desc">Delete a spike from local storage. Supports prefix matching (minimum 4 characters).</p>
+                <div class="command-usage">spikes delete &lt;ID&gt; [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>-f, --force</dt>
+                    <dd>Skip confirmation prompt</dd>
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>spikes delete abc123
+spikes delete abc1 --force</code></pre>
+            </div>
+
+            <h3 id="cli-resolve">resolve</h3>
+            <div class="command">
+                <div class="command-name">spikes resolve &lt;id&gt;</div>
+                <p class="command-desc">Mark a spike as resolved (or unresolved). Resolved spikes are excluded from <code>spikes list --unresolved</code>.</p>
+                <div class="command-usage">spikes resolve &lt;ID&gt; [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--unresolve</dt>
+                    <dd>Mark as unresolved instead</dd>
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>spikes resolve abc123
+spikes resolve abc123 --unresolve</code></pre>
+            </div>
+
+            <h3 id="cli-login">login / logout</h3>
+            <div class="command">
+                <div class="command-name">spikes login</div>
+                <p class="command-desc">Authenticate with spikes.sh via magic link. Token stored in <code>~/.config/spikes/auth.toml</code> with 0600 permissions.</p>
+                <div class="command-usage">spikes login [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--token &lt;TOKEN&gt;</dt>
+                    <dd>Auth token (or enter interactively)</dd>
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+            <div class="command">
+                <div class="command-name">spikes logout</div>
+                <p class="command-desc">Remove stored authentication for spikes.sh.</p>
+                <div class="command-usage">spikes logout [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+
+            <h3 id="cli-whoami">whoami</h3>
+            <div class="command">
+                <div class="command-name">spikes whoami</div>
+                <p class="command-desc">Show current user info and tier.</p>
+                <div class="command-usage">spikes whoami [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+
+            <h3 id="cli-share">share / unshare</h3>
+            <div class="command">
+                <div class="command-name">spikes share &lt;directory&gt;</div>
+                <p class="command-desc">Upload a directory to spikes.sh for instant sharing.</p>
+                <div class="command-usage">spikes share &lt;DIRECTORY&gt; [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--name &lt;NAME&gt;</dt>
+                    <dd>Custom name for the share URL</dd>
+                    <dt>--password &lt;PASSWORD&gt;</dt>
+                    <dd>Password-protect the share (Pro only)</dd>
+                    <dt>--host &lt;HOST&gt;</dt>
+                    <dd>Host URL for the API (default: https://spikes.sh)</dd>
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+            <div class="command">
+                <div class="command-name">spikes unshare &lt;slug&gt;</div>
+                <p class="command-desc">Delete a shared project from spikes.sh.</p>
+                <div class="command-usage">spikes unshare &lt;SLUG&gt; [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>-f, --force</dt>
+                    <dd>Skip confirmation prompt</dd>
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>spikes share ./mockups
+spikes share ./mockups --name "design-review-v2"
+spikes share ./mockups --password "secret123"
+spikes unshare my-project</code></pre>
+            </div>
+
+            <h3 id="cli-shares">shares</h3>
+            <div class="command">
+                <div class="command-name">spikes shares</div>
+                <p class="command-desc">List your shared projects on spikes.sh.</p>
+                <div class="command-usage">spikes shares [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+
+            <h3 id="cli-billing">billing</h3>
+            <div class="command">
+                <div class="command-name">spikes billing</div>
+                <p class="command-desc">Open Stripe billing portal in browser.</p>
+                <div class="command-usage">spikes billing [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+
+            <h3 id="cli-usage">usage</h3>
+            <div class="command">
+                <div class="command-name">spikes usage</div>
+                <p class="command-desc">Show usage statistics (shares, spikes, limits).</p>
+                <div class="command-usage">spikes usage [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
+            </div>
+
+            <h3 id="cli-upgrade">upgrade</h3>
+            <div class="command">
+                <div class="command-name">spikes upgrade</div>
+                <p class="command-desc">Upgrade to Pro tier via Stripe checkout.</p>
+                <div class="command-usage">spikes upgrade [OPTIONS]</div>
+                <dl class="command-flags">
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
+                </dl>
             </div>
             
             <h2 id="widget-config">Widget Configuration</h2>
@@ -1126,8 +1294,12 @@ spikes push --endpoint https://my-worker.workers.dev/spikes</code></pre>
   <span class="attr">data-project</span>=<span class="string">"my-project"</span>
   <span class="attr">data-position</span>=<span class="string">"bottom-left"</span>
   <span class="attr">data-color</span>=<span class="string">"#3498db"</span>
+  <span class="attr">data-theme</span>=<span class="string">"dark"</span>
   <span class="attr">data-endpoint</span>=<span class="string">"https://my-worker.workers.dev/spikes"</span>
   <span class="attr">data-reviewer</span>=<span class="string">"alice"</span>
+  <span class="attr">data-admin</span>=<span class="string">"true"</span>
+  <span class="attr">data-offset-x</span>=<span class="string">"20px"</span>
+  <span class="attr">data-offset-y</span>=<span class="string">"20px"</span>
 <span class="tag">&gt;&lt;/script&gt;</span></code></pre>
             </div>
             
@@ -1157,6 +1329,11 @@ spikes push --endpoint https://my-worker.workers.dev/spikes</code></pre>
                             <td>Button background color (any CSS color)</td>
                         </tr>
                         <tr>
+                            <td><code>data-theme</code></td>
+                            <td><code>dark</code></td>
+                            <td>Widget color theme: <code>light</code> or <code>dark</code></td>
+                        </tr>
+                        <tr>
                             <td><code>data-endpoint</code></td>
                             <td>—</td>
                             <td>POST endpoint for multi-reviewer sync. When set, feedback is sent to this URL.</td>
@@ -1165,6 +1342,21 @@ spikes push --endpoint https://my-worker.workers.dev/spikes</code></pre>
                             <td><code>data-reviewer</code></td>
                             <td>—</td>
                             <td>Pre-set reviewer name (skip the name prompt)</td>
+                        </tr>
+                        <tr>
+                            <td><code>data-admin</code></td>
+                            <td><code>false</code></td>
+                            <td>Enable review mode with spike markers on the page</td>
+                        </tr>
+                        <tr>
+                            <td><code>data-offset-x</code></td>
+                            <td>—</td>
+                            <td>Horizontal button offset from corner (e.g., <code>20px</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>data-offset-y</code></td>
+                            <td>—</td>
+                            <td>Vertical button offset from corner (e.g., <code>20px</code>)</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1245,6 +1437,39 @@ spikes push</code></pre>
             
             <div class="note tip">
                 <p><strong>Tip:</strong> Set the <code>SPIKES_ENDPOINT</code> environment variable to avoid passing <code>--endpoint</code> every time.</p>
+            </div>
+
+            <h2 id="environment-variables">Environment Variables</h2>
+            <p>These environment variables override default behavior for authentication and API configuration:</p>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Variable</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>SPIKES_API_URL</code></td>
+                            <td>Override API base URL (for self-hosting or local development)</td>
+                        </tr>
+                        <tr>
+                            <td><code>SPIKES_TOKEN</code></td>
+                            <td>Auth token override (alternative to <code>spikes login</code>)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">Example</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code>SPIKES_TOKEN=abc123 spikes whoami
+SPIKES_API_URL=http://localhost:8787 spikes shares</code></pre>
             </div>
         </main>
     </div>

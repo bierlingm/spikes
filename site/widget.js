@@ -33,7 +33,10 @@
         theme: script.getAttribute('data-theme') || 'dark',
         presetReviewer: script.getAttribute('data-reviewer') || null,
         endpoint: script.getAttribute('data-endpoint') || null,
-        collectEmail: script.getAttribute('data-collect-email') === 'true'
+        collectEmail: script.getAttribute('data-collect-email') === 'true',
+        offsetX: script.getAttribute('data-offset-x') || null,
+        offsetY: script.getAttribute('data-offset-y') || null,
+        isAdmin: script.getAttribute('data-admin') === 'true'
     };
     
     // Theme colors
@@ -68,6 +71,7 @@
     // Storage keys
     var STORAGE_KEY = 'spikes:' + config.project;
     var REVIEWER_KEY = 'spikes:reviewer';
+    var LAST_SPIKE_KEY = 'spikes:last-spike:' + config.project;
 
     // State
     var selectedRating = null;
@@ -75,12 +79,18 @@
     var btn = null;
     var popover = null;
     var reviewerIndicator = null;
+    var toastTimeout = null;
     
     // Spike mode state: 'idle' | 'armed' | 'capturing'
     var spikeMode = 'idle';
     var highlightedElement = null;
     var capturedElement = null;
     var capturedElementData = null;
+    
+    // Review mode state (VAL-UX-006)
+    var reviewMode = false;
+    var reviewMarkers = [];
+    var reviewBar = null;
     
     // Reviewer state
     var currentReviewer = null;
@@ -96,9 +106,53 @@
 
     function getPositionStyles() {
         var pos = positions[config.position] || positions['bottom-right'];
-        return Object.keys(pos).map(function(k) {
+        var styles = Object.keys(pos).map(function(k) {
             return k + ':' + pos[k];
-        }).join(';');
+        });
+        
+        // Apply offset attributes for fine-tuning position
+        if (config.offsetX) {
+            // Determine direction based on position
+            if (config.position.indexOf('right') !== -1) {
+                // Right position: offsetX adjusts right value (positive = move left)
+                var rightVal = parseInt(pos.right) || 20;
+                var offset = parseOffset(config.offsetX);
+                styles = styles.filter(function(s) { return s.indexOf('right:') === -1; });
+                styles.push('right:' + Math.max(0, rightVal - offset) + 'px');
+            } else {
+                // Left position: offsetX adjusts left value (positive = move right)
+                var leftVal = parseInt(pos.left) || 20;
+                var offset = parseOffset(config.offsetX);
+                styles = styles.filter(function(s) { return s.indexOf('left:') === -1; });
+                styles.push('left:' + (leftVal + offset) + 'px');
+            }
+        }
+        
+        if (config.offsetY) {
+            // Determine direction based on position
+            if (config.position.indexOf('bottom') !== -1) {
+                // Bottom position: offsetY adjusts bottom value (positive = move up)
+                var bottomVal = parseInt(pos.bottom) || 20;
+                var offset = parseOffset(config.offsetY);
+                styles = styles.filter(function(s) { return s.indexOf('bottom:') === -1; });
+                styles.push('bottom:' + Math.max(0, bottomVal - offset) + 'px');
+            } else {
+                // Top position: offsetY adjusts top value (positive = move down)
+                var topVal = parseInt(pos.top) || 20;
+                var offset = parseOffset(config.offsetY);
+                styles = styles.filter(function(s) { return s.indexOf('top:') === -1; });
+                styles.push('top:' + (topVal + offset) + 'px');
+            }
+        }
+        
+        return styles.join(';');
+    }
+    
+    function parseOffset(value) {
+        // Parse CSS length values (px, rem, em, etc.)
+        if (!value) return 0;
+        var match = value.match(/^(-?\d+(?:\.\d+)?)/);
+        return match ? parseFloat(match[0]) : 0;
     }
 
     function loadSpikes() {
@@ -109,10 +163,106 @@
         }
     }
 
+    // Toast notification system (VAL-UX-001)
+    function showToast(message, type, duration) {
+        type = type || 'success';
+        duration = duration || 2500;
+        
+        // Remove any existing toast
+        var existingToast = document.getElementById('spikes-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        if (toastTimeout) {
+            clearTimeout(toastTimeout);
+        }
+        
+        var toast = document.createElement('div');
+        toast.id = 'spikes-toast';
+        
+        var bgColor = type === 'success' ? '#16a34a' : type === 'warning' ? '#ca8a04' : '#dc2626';
+        var icon = type === 'success' ? '✓' : type === 'warning' ? '!' : '✕';
+        
+        toast.style.cssText = [
+            'position:fixed',
+            'bottom:80px',
+            'left:50%',
+            'transform:translateX(-50%)',
+            'background:' + bgColor,
+            'color:white',
+            'padding:12px 20px',
+            'border-radius:8px',
+            'font-size:14px',
+            'font-weight:500',
+            'font-family:ui-monospace,SF Mono,Monaco,monospace',
+            'z-index:2147483647',
+            'box-shadow:0 4px 12px rgba(0,0,0,0.3)',
+            'display:flex',
+            'align-items:center',
+            'gap:8px',
+            'animation:spikes-toast-in 0.3s ease-out'
+        ].join(';');
+        
+        toast.innerHTML = '<span style="font-size:16px;">' + icon + '</span><span>' + escapeHtml(message) + '</span>';
+        document.body.appendChild(toast);
+        
+        toastTimeout = setTimeout(function() {
+            toast.style.animation = 'spikes-toast-out 0.3s ease-in forwards';
+            setTimeout(function() {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
+        }, duration);
+    }
+
+    // Check for duplicate spike within 30-second window (VAL-UX-003)
+    function isDuplicateSpike(spike) {
+        try {
+            var lastSpikeJson = localStorage.getItem(LAST_SPIKE_KEY);
+            if (!lastSpikeJson) return false;
+            
+            var lastSpike = JSON.parse(lastSpikeJson);
+            var lastTime = new Date(lastSpike.timestamp).getTime();
+            var now = new Date().getTime();
+            
+            // Check if within 30-second window
+            if (now - lastTime > 30000) return false;
+            
+            // Check if identical (selector + reviewer + comment)
+            var sameSelector = spike.selector === lastSpike.selector;
+            var sameReviewer = spike.reviewer && lastSpike.reviewer && 
+                               spike.reviewer.id === lastSpike.reviewer.id;
+            var sameComment = (spike.comments || '') === (lastSpike.comments || '');
+            
+            return sameSelector && sameReviewer && sameComment;
+        } catch (e) {
+            return false;
+        }
+    }
+
     function saveSpike(spike) {
+        // Check for duplicate (VAL-UX-003)
+        if (isDuplicateSpike(spike)) {
+            showToast('Already saved', 'warning', 2000);
+            return { success: false, reason: 'duplicate' };
+        }
+        
         var spikes = loadSpikes();
         spikes.push(spike);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(spikes));
+        
+        // localStorage quota handling (VAL-UX-002)
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(spikes));
+            // Store last spike for duplicate detection
+            localStorage.setItem(LAST_SPIKE_KEY, JSON.stringify(spike));
+        } catch (e) {
+            if (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014) {
+                showQuotaError();
+                return { success: false, reason: 'quota' };
+            }
+            throw e;
+        }
 
         // POST to configured endpoint (if any) or local server (if HTTP)
         var postUrl = null;
@@ -130,11 +280,68 @@
                 var xhr = new XMLHttpRequest();
                 xhr.open('POST', postUrl, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onerror = function() {
+                    console.warn('[Spikes] Could not sync to endpoint:', postUrl);
+                };
+                xhr.onload = function() {
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        console.warn('[Spikes] Sync failed (HTTP ' + xhr.status + '):', postUrl);
+                    }
+                };
                 xhr.send(JSON.stringify(spike));
             } catch (e) {
-                // Silently fail - localStorage already has the spike
+                console.warn('[Spikes] Could not sync to endpoint:', postUrl, e.message || e);
             }
         }
+        
+        return { success: true };
+    }
+    
+    // Quota error UI (VAL-UX-002)
+    function showQuotaError() {
+        var existingError = document.getElementById('spikes-quota-error');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        var errorDiv = document.createElement('div');
+        errorDiv.id = 'spikes-quota-error';
+        errorDiv.style.cssText = [
+            'position:fixed',
+            'top:50%',
+            'left:50%',
+            'transform:translate(-50%, -50%)',
+            'background:' + theme.bgCard,
+            'padding:24px',
+            'border-radius:12px',
+            'max-width:360px',
+            'width:90%',
+            'border:1px solid #dc2626',
+            'z-index:2147483647',
+            'font-family:ui-monospace,SF Mono,Monaco,monospace',
+            'box-shadow:0 8px 32px rgba(0,0,0,0.5)'
+        ].join(';');
+        
+        errorDiv.innerHTML = [
+            '<div style="font-size:14px;font-weight:600;color:#dc2626;margin-bottom:12px;">Storage Full</div>',
+            '<div style="font-size:13px;color:' + theme.textMuted + ';margin-bottom:16px;">Your browser storage is full. This spike could not be saved locally.</div>',
+            '<div style="display:flex;gap:8px;">',
+            '  <button id="spikes-quota-retry" style="' + saveBtnStyle() + 'background:#3b82f6;">Retry</button>',
+            '  <button id="spikes-quota-dismiss" style="' + cancelBtnStyle() + '">Dismiss</button>',
+            '</div>'
+        ].join('');
+        
+        document.body.appendChild(errorDiv);
+        
+        errorDiv.querySelector('#spikes-quota-dismiss').onclick = function() {
+            errorDiv.remove();
+        };
+        
+        errorDiv.querySelector('#spikes-quota-retry').onclick = function() {
+            errorDiv.remove();
+            // Trigger another save attempt
+            showToast('Retrying...', 'warning', 1500);
+        };
     }
     
     // Reviewer management (N8, N9, N10)
@@ -532,7 +739,7 @@
         container.style.cssText = [
             'position:fixed',
             getPositionStyles(),
-            'z-index:2147483646',
+            'z-index:2147483647',
             'display:flex',
             'flex-direction:column',
             'align-items:center',
@@ -600,6 +807,51 @@
         
         container.appendChild(btn);
         container.appendChild(reviewerIndicator);
+        
+        // Create Review button (VAL-UX-006) - only visible with data-admin="true"
+        var reviewBtn = null;
+        if (config.isAdmin) {
+            reviewBtn = document.createElement('button');
+            reviewBtn.id = 'spikes-review-btn';
+            reviewBtn.innerHTML = 'Review';
+            reviewBtn.setAttribute('aria-label', 'Toggle Review Mode');
+            reviewBtn.setAttribute('title', 'Toggle review mode - show spike markers on page');
+            reviewBtn.style.cssText = [
+                'padding:6px 12px',
+                'background:' + theme.bgCard,
+                'color:' + theme.text,
+                'border:1px solid ' + theme.border,
+                'border-radius:6px',
+                'font-size:11px',
+                'font-weight:500',
+                'cursor:pointer',
+                'font-family:ui-monospace,SF Mono,Monaco,monospace',
+                'transition:all 0.15s',
+                'white-space:nowrap'
+            ].join(';');
+            
+            reviewBtn.onmouseenter = function() {
+                reviewBtn.style.borderColor = config.color;
+                reviewBtn.style.color = config.color;
+            };
+            reviewBtn.onmouseleave = function() {
+                if (!reviewMode) {
+                    reviewBtn.style.borderColor = theme.border;
+                    reviewBtn.style.color = theme.text;
+                }
+            };
+            reviewBtn.onclick = function(e) {
+                e.stopPropagation();
+                toggleReviewMode();
+            };
+            
+            container.appendChild(reviewBtn);
+        }
+        
+        if (!document.body) {
+            console.error('[Spikes] Cannot mount: document.body not found. Is the script in <head> without defer?');
+            return;
+        }
         document.body.appendChild(container);
         
         // Update indicator with current reviewer
@@ -995,17 +1247,417 @@
         
         // Create and save element spike
         var spike = createSpike(selectedRating, comments, capturedElementData);
-        saveSpike(spike);
+        var result = saveSpike(spike);
         
-        // Visual confirmation
-        saveBtn.textContent = '✓ Saved!';
-        saveBtn.style.background = '#16a34a';
-        
-        setTimeout(function() {
+        if (result.success) {
+            // Show toast (VAL-UX-001)
+            showToast('Spike saved!', 'success', 2500);
+            
+            // Close popover after brief visual confirmation
+            saveBtn.textContent = '✓ Saved!';
+            saveBtn.style.background = '#16a34a';
+            
+            setTimeout(function() {
+                closePopover();
+                saveBtn.textContent = 'Save';
+                saveBtn.style.background = '#22c55e';
+            }, 500);
+        } else if (result.reason === 'duplicate') {
+            // Already showed toast
             closePopover();
-            saveBtn.textContent = 'Save';
-            saveBtn.style.background = '#22c55e';
-        }, 800);
+        } else if (result.reason === 'quota') {
+            // Already showed quota error
+        }
+    }
+    
+    // Review mode functions (VAL-UX-006)
+    function toggleReviewMode() {
+        reviewMode = !reviewMode;
+        
+        var reviewBtn = document.getElementById('spikes-review-btn');
+        if (reviewBtn) {
+            if (reviewMode) {
+                reviewBtn.style.background = config.color;
+                reviewBtn.style.color = 'white';
+                reviewBtn.style.borderColor = config.color;
+                reviewBtn.textContent = 'Hide';
+            } else {
+                reviewBtn.style.background = theme.bgCard;
+                reviewBtn.style.color = theme.text;
+                reviewBtn.style.borderColor = theme.border;
+                reviewBtn.textContent = 'Review';
+            }
+        }
+        
+        if (reviewMode) {
+            showReviewMarkers();
+        } else {
+            hideReviewMarkers();
+        }
+    }
+    
+    function showReviewMarkers() {
+        var spikes = loadSpikes();
+        if (spikes.length === 0) {
+            showToast('No spikes to show', 'warning', 2000);
+            return;
+        }
+        
+        // Clear existing markers
+        hideReviewMarkers();
+        
+        // Rating colors
+        var ratingColors = {
+            love: '#27ae60',
+            like: '#3498db',
+            meh: '#f39c12',
+            no: '#e74c3c',
+            none: '#95a5a6'
+        };
+        
+        var ratingEmojis = {
+            love: '❤️',
+            like: '👍',
+            meh: '😐',
+            no: '👎',
+            none: '—'
+        };
+        
+        // Group element spikes by selector
+        var spikesBySelector = {};
+        var pageSpikes = [];
+        
+        spikes.forEach(function(spike) {
+            if (spike.type === 'element' && spike.selector) {
+                if (!spikesBySelector[spike.selector]) {
+                    spikesBySelector[spike.selector] = [];
+                }
+                spikesBySelector[spike.selector].push(spike);
+            } else if (spike.type === 'page') {
+                pageSpikes.push(spike);
+            }
+        });
+        
+        // Render element markers
+        Object.keys(spikesBySelector).forEach(function(selector) {
+            var spikesForElement = spikesBySelector[selector];
+            renderElementMarker(selector, spikesForElement, ratingColors, ratingEmojis);
+        });
+        
+        // Render page spikes indicator
+        if (pageSpikes.length > 0) {
+            renderPageSpikesIndicator(pageSpikes, ratingColors, ratingEmojis);
+        }
+        
+        // Show review bar at top
+        createReviewBar(spikes);
+    }
+    
+    function hideReviewMarkers() {
+        // Remove all markers
+        reviewMarkers.forEach(function(marker) {
+            if (marker.parentNode) {
+                marker.parentNode.removeChild(marker);
+            }
+        });
+        reviewMarkers = [];
+        
+        // Remove review bar
+        if (reviewBar && reviewBar.parentNode) {
+            reviewBar.parentNode.removeChild(reviewBar);
+            reviewBar = null;
+            // Restore body padding
+            document.body.style.paddingTop = '';
+        }
+    }
+    
+    function renderElementMarker(selector, spikes, ratingColors, ratingEmojis) {
+        var element = null;
+        try {
+            element = document.querySelector(selector);
+        } catch (e) {
+            // Invalid selector
+        }
+        
+        var marker = document.createElement('div');
+        marker.className = 'spikes-review-marker';
+        
+        // Determine dominant rating for color
+        var dominantRating = getDominantRating(spikes);
+        var color = ratingColors[dominantRating] || ratingColors.none;
+        
+        marker.style.cssText = [
+            'position:absolute',
+            'width:24px',
+            'height:24px',
+            'background:' + color,
+            'border-radius:50%',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'font-size:12px',
+            'font-weight:600',
+            'color:white',
+            'cursor:pointer',
+            'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+            'z-index:2147483640',
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+            'transition:transform 0.15s',
+            'border:2px solid white'
+        ].join(';');
+        
+        marker.textContent = spikes.length > 1 ? spikes.length : '🗡️';
+        if (spikes.length > 1) {
+            marker.style.fontSize = '11px';
+        } else {
+            marker.style.fontSize = '14px';
+        }
+        
+        if (element) {
+            // Position at top-right of element
+            var rect = element.getBoundingClientRect();
+            marker.style.top = (rect.top + window.scrollY - 12) + 'px';
+            marker.style.left = (rect.right + window.scrollX - 12) + 'px';
+        } else {
+            // Orphaned spike - position based on stored bounding box
+            marker.style.opacity = '0.6';
+            marker.title = 'Element not found: ' + selector;
+            
+            if (spikes[0].boundingBox) {
+                var bb = spikes[0].boundingBox;
+                marker.style.top = (bb.y - 12) + 'px';
+                marker.style.left = (bb.x + bb.width - 12) + 'px';
+            } else {
+                console.warn('[Spikes] Cannot position marker for selector:', selector);
+                return;
+            }
+        }
+        
+        marker.onmouseenter = function() {
+            marker.style.transform = 'scale(1.2)';
+        };
+        marker.onmouseleave = function() {
+            marker.style.transform = 'scale(1)';
+        };
+        marker.onclick = function(e) {
+            e.stopPropagation();
+            showMarkerPopover(marker, spikes, element, ratingColors, ratingEmojis);
+        };
+        
+        document.body.appendChild(marker);
+        reviewMarkers.push(marker);
+    }
+    
+    function renderPageSpikesIndicator(spikes, ratingColors, ratingEmojis) {
+        var indicator = document.createElement('div');
+        indicator.className = 'spikes-review-page-indicator';
+        
+        var dominantRating = getDominantRating(spikes);
+        var color = ratingColors[dominantRating] || ratingColors.none;
+        
+        indicator.style.cssText = [
+            'position:fixed',
+            'bottom:20px',
+            'left:20px',
+            'background:white',
+            'padding:12px 16px',
+            'border-radius:8px',
+            'box-shadow:0 4px 16px rgba(0,0,0,0.2)',
+            'z-index:2147483640',
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+            'cursor:pointer',
+            'display:flex',
+            'align-items:center',
+            'gap:8px',
+            'border-left:4px solid ' + color
+        ].join(';');
+        
+        indicator.innerHTML = '<span style="font-size:18px;">📄</span>' +
+            '<span style="font-size:14px;color:#333;">' + spikes.length + ' page spike' + 
+            (spikes.length === 1 ? '' : 's') + '</span>';
+        
+        indicator.onclick = function(e) {
+            e.stopPropagation();
+            showMarkerPopover(indicator, spikes, null, ratingColors, ratingEmojis);
+        };
+        
+        document.body.appendChild(indicator);
+        reviewMarkers.push(indicator);
+    }
+    
+    function getDominantRating(spikes) {
+        var counts = { love: 0, like: 0, meh: 0, no: 0, none: 0 };
+        spikes.forEach(function(s) {
+            var r = s.rating || 'none';
+            counts[r] = (counts[r] || 0) + 1;
+        });
+        
+        var max = 0;
+        var dominant = 'none';
+        Object.keys(counts).forEach(function(r) {
+            if (counts[r] > max) {
+                max = counts[r];
+                dominant = r;
+            }
+        });
+        return dominant;
+    }
+    
+    var activeMarkerPopover = null;
+    
+    function showMarkerPopover(anchor, spikes, element, ratingColors, ratingEmojis) {
+        closeMarkerPopover();
+        
+        var popover = document.createElement('div');
+        popover.className = 'spikes-review-popover';
+        popover.style.cssText = [
+            'position:absolute',
+            'background:white',
+            'padding:16px',
+            'border-radius:10px',
+            'box-shadow:0 10px 40px rgba(0,0,0,0.25)',
+            'z-index:2147483645',
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+            'max-width:360px',
+            'width:90vw',
+            'max-height:400px',
+            'overflow-y:auto'
+        ].join(';');
+        
+        var header = element 
+            ? '<div style="font-size:12px;color:#666;margin-bottom:12px;">Element Feedback</div>'
+            : '<div style="font-size:12px;color:#666;margin-bottom:12px;">Page Feedback</div>';
+        
+        var spikeCards = spikes.map(function(spike) {
+            var ratingColor = ratingColors[spike.rating] || ratingColors.none;
+            var emoji = ratingEmojis[spike.rating] || ratingEmojis.none;
+            var reviewerName = spike.reviewer ? spike.reviewer.name : 'Anonymous';
+            var timeAgo = formatTimeAgo(spike.timestamp);
+            
+            return '<div style="border-left:3px solid ' + ratingColor + ';padding:8px 12px;margin-bottom:8px;background:#f9f9f9;border-radius:0 6px 6px 0;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+                    '<span style="font-weight:500;font-size:13px;color:#333;">' + escapeHtml(reviewerName) + '</span>' +
+                    '<span style="font-size:18px;">' + emoji + '</span>' +
+                '</div>' +
+                (spike.comments ? '<div style="font-size:13px;color:#555;line-height:1.4;">' + escapeHtml(spike.comments) + '</div>' : '') +
+                '<div style="font-size:11px;color:#999;margin-top:6px;">' + timeAgo + '</div>' +
+            '</div>';
+        }).join('');
+        
+        popover.innerHTML = header + spikeCards;
+        
+        // Position the popover
+        var anchorRect = anchor.getBoundingClientRect();
+        var scrollY = window.scrollY;
+        var scrollX = window.scrollX;
+        var popoverHeight = 400;
+        
+        // Try positioning below the anchor
+        var top = anchorRect.bottom + scrollY + 8;
+        var left = anchorRect.left + scrollX;
+        
+        // If popover would extend below viewport, position above instead
+        if (top + popoverHeight > window.innerHeight + scrollY) {
+            top = Math.max(scrollY + 60, anchorRect.top + scrollY - popoverHeight - 8);
+        }
+        
+        // Adjust horizontal position if off-screen
+        if (left + 360 > window.innerWidth + scrollX) {
+            left = window.innerWidth + scrollX - 370;
+        }
+        if (left < scrollX + 10) {
+            left = scrollX + 10;
+        }
+        
+        popover.style.top = top + 'px';
+        popover.style.left = left + 'px';
+        
+        document.body.appendChild(popover);
+        activeMarkerPopover = popover;
+        
+        // Close on click outside
+        setTimeout(function() {
+            document.addEventListener('click', handleMarkerPopoverClickOutside);
+        }, 0);
+    }
+    
+    function closeMarkerPopover() {
+        if (activeMarkerPopover) {
+            activeMarkerPopover.parentNode.removeChild(activeMarkerPopover);
+            activeMarkerPopover = null;
+        }
+        document.removeEventListener('click', handleMarkerPopoverClickOutside);
+    }
+    
+    function handleMarkerPopoverClickOutside(e) {
+        if (activeMarkerPopover && !activeMarkerPopover.contains(e.target)) {
+            closeMarkerPopover();
+        }
+    }
+    
+    function formatTimeAgo(timestamp) {
+        if (!timestamp) return '';
+        var date = new Date(timestamp);
+        var now = new Date();
+        var seconds = Math.floor((now - date) / 1000);
+        
+        if (seconds < 60) return 'just now';
+        if (seconds < 3600) return Math.floor(seconds / 60) + 'm ago';
+        if (seconds < 86400) return Math.floor(seconds / 3600) + 'h ago';
+        if (seconds < 604800) return Math.floor(seconds / 86400) + 'd ago';
+        return date.toLocaleDateString();
+    }
+    
+    function createReviewBar(spikes) {
+        reviewBar = document.createElement('div');
+        reviewBar.id = 'spikes-review-bar';
+        reviewBar.style.cssText = [
+            'position:fixed',
+            'top:0',
+            'left:0',
+            'right:0',
+            'background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%)',
+            'color:white',
+            'padding:10px 20px',
+            'display:flex',
+            'align-items:center',
+            'gap:16px',
+            'flex-wrap:wrap',
+            'z-index:2147483646',
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif',
+            'font-size:13px',
+            'box-shadow:0 2px 10px rgba(0,0,0,0.2)'
+        ].join(';');
+        
+        var uniqueReviewers = {};
+        spikes.forEach(function(s) {
+            if (s.reviewer && s.reviewer.name) {
+                uniqueReviewers[s.reviewer.name] = true;
+            }
+        });
+        var reviewerCount = Object.keys(uniqueReviewers).length;
+        
+        reviewBar.innerHTML = [
+            '<div style="display:flex;align-items:center;gap:8px;">',
+            '  <span style="font-size:18px;">🗡️</span>',
+            '  <span style="font-weight:600;">Review Mode</span>',
+            '  <span style="color:#aaa;">' + spikes.length + ' spike' + (spikes.length === 1 ? '' : 's') + ' from ' + reviewerCount + ' reviewer' + (reviewerCount === 1 ? '' : 's') + '</span>',
+            '</div>',
+            '<div style="margin-left:auto;">',
+            '  <button id="spikes-exit-review" style="padding:6px 12px;background:#333;color:#aaa;border:1px solid #444;border-radius:4px;font-size:12px;cursor:pointer;">Exit</button>',
+            '</div>'
+        ].join('');
+        
+        document.body.appendChild(reviewBar);
+        
+        // Add padding to body to account for bar
+        var existingPadding = parseInt(window.getComputedStyle(document.body).paddingTop, 10) || 0;
+        document.body.style.paddingTop = (existingPadding + 50) + 'px';
+        
+        // Wire up exit button
+        reviewBar.querySelector('#spikes-exit-review').onclick = function() {
+            toggleReviewMode();
+        };
     }
 
     function escapeHtml(str) {
@@ -1129,17 +1781,27 @@
 
         // Create and save spike
         var spike = createSpike(selectedRating, comments);
-        saveSpike(spike);
+        var result = saveSpike(spike);
+        
+        if (result.success) {
+            // Show toast (VAL-UX-001)
+            showToast('Spike saved!', 'success', 2500);
+            
+            // Close modal after brief visual confirmation
+            saveBtn.textContent = '✓ Saved!';
+            saveBtn.style.background = '#16a34a';
 
-        // Visual confirmation
-        saveBtn.textContent = '✓ Saved!';
-        saveBtn.style.background = '#16a34a';
-
-        setTimeout(function() {
+            setTimeout(function() {
+                closeModal();
+                saveBtn.textContent = 'Save';
+                saveBtn.style.background = '#22c55e';
+            }, 500);
+        } else if (result.reason === 'duplicate') {
+            // Already showed toast
             closeModal();
-            saveBtn.textContent = 'Save';
-            saveBtn.style.background = '#22c55e';
-        }, 800);
+        } else if (result.reason === 'quota') {
+            // Already showed quota error
+        }
     }
 
     // Inject pulse animation keyframes
@@ -1150,6 +1812,14 @@
             '@keyframes spikes-pulse {',
             '  0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }',
             '  50% { transform: scale(1.1); box-shadow: 0 6px 20px rgba(231,76,60,0.5); }',
+            '}',
+            '@keyframes spikes-toast-in {',
+            '  from { opacity: 0; transform: translateX(-50%) translateY(20px); }',
+            '  to { opacity: 1; transform: translateX(-50%) translateY(0); }',
+            '}',
+            '@keyframes spikes-toast-out {',
+            '  from { opacity: 1; transform: translateX(-50%) translateY(0); }',
+            '  to { opacity: 0; transform: translateX(-50%) translateY(-20px); }',
             '}',
             '#spikes-name-input,',
             '#spikes-email-input,',
@@ -1211,7 +1881,12 @@
             localStorage.removeItem(REVIEWER_KEY);
             currentReviewer = null;
             updateReviewerIndicator();
-        }
+        },
+        // Review mode API (VAL-UX-006)
+        isReviewMode: function() { return reviewMode; },
+        toggleReviewMode: toggleReviewMode,
+        showReviewMarkers: showReviewMarkers,
+        hideReviewMarkers: hideReviewMarkers
     };
 
     // Log version info to console for debugging
