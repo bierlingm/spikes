@@ -5,7 +5,6 @@ mod error;
 mod output;
 mod spike;
 mod storage;
-mod tui;
 
 use clap::{Parser, Subcommand};
 use commands::delete::DeleteOptions;
@@ -226,13 +225,6 @@ enum Commands {
         json: bool,
     },
 
-    /// Interactive TUI dashboard
-    Dashboard {
-        /// Output as JSON (non-interactive)
-        #[arg(long)]
-        json: bool,
-    },
-
     /// Upload a directory to spikes.sh for instant sharing
     Share {
         /// Directory to upload
@@ -438,7 +430,6 @@ fn main() {
         Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
         Some(Commands::Logout { json }) => commands::logout::run(json),
         Some(Commands::Whoami { json }) => commands::whoami::run(json),
-        Some(Commands::Dashboard { json }) => commands::dashboard::run(json),
         Some(Commands::Share { directory, name, password, host, json }) => {
             commands::share::run(ShareOptions { directory, name, password, host, json })
         }

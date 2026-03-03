@@ -1,5 +1,4 @@
 pub mod config_cmd;
-pub mod dashboard;
 pub mod delete;
 pub mod deploy;
 pub mod export;
