@@ -3,7 +3,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
-use crate::error::{Error, Result};
+use crate::error::{map_http_error, map_network_error, Error, Result};
 use crate::spike::Spike;
 
 pub struct PullOptions {
@@ -153,34 +153,34 @@ fn fetch_remote_spikes(config: &RemoteConfig) -> Result<Vec<Spike>> {
     let url = format!("{}/spikes", config.endpoint.trim_end_matches('/'));
 
     // Use ureq for synchronous HTTP (simpler than async for CLI)
-    let response = ureq::get(&url)
+    let response = match ureq::get(&url)
         .set("Authorization", &format!("Bearer {}", config.token))
         .call()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Request failed: {}. Check that the endpoint URL is correct.", e))))?;
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            // Non-2xx response - try to read body for error details
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
 
-    if response.status() == 401 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "Auth failed. Check token matches the Worker's SPIKES_TOKEN secret.",
-        )));
-    }
+    let status = response.status();
 
-    if response.status() != 200 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Remote returned status {}", response.status()),
-        )));
+    if status != 200 {
+        let body = response.into_string().ok();
+        return Err(map_http_error(status, body.as_deref()));
     }
 
     let body = response
         .into_string()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
     if body.starts_with('<') {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Got HTML instead of JSON. Check that the endpoint URL is correct.",
-        )));
+        return Err(Error::RequestFailed(
+            "Got HTML instead of JSON. Check that the endpoint URL is correct.".to_string()
+        ));
     }
 
     let spikes: Vec<Spike> = serde_json::from_str(&body)?;
@@ -216,27 +216,25 @@ fn run_from_share(url: &str, json_output: bool) -> Result<()> {
     // Fetch spikes from public endpoint
     let api_url = format!("https://spikes.sh/spikes?project={}", share_id);
 
-    let response = ureq::get(&api_url)
-        .call()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    let response = match ureq::get(&api_url).call() {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
 
-    if response.status() == 404 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            format!("Share '{}' not found", share_id),
-        )));
-    }
+    let status = response.status();
 
-    if response.status() != 200 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Remote returned status {}", response.status()),
-        )));
+    if status != 200 {
+        let body = response.into_string().ok();
+        return Err(map_http_error(status, body.as_deref()));
     }
 
     let body = response
         .into_string()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
     let remote_spikes: Vec<Spike> = serde_json::from_str(&body)?;
 

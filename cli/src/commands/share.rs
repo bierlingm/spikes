@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::error::{Error, Result};
+use crate::error::{map_http_error, map_network_error, Error, Result};
 use walkdir::WalkDir;
 
 pub struct ShareOptions {
@@ -229,7 +229,7 @@ fn upload_share(
 
     body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
 
-    let response = agent
+    let response = match agent
         .post(&url)
         .set("Authorization", &format!("Bearer {}", auth.token))
         .set(
@@ -237,27 +237,25 @@ fn upload_share(
             &format!("multipart/form-data; boundary={}", boundary),
         )
         .send_bytes(&body)
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body_text = response.into_string().ok();
+            return Err(map_http_error(status, body_text.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
 
-    if response.status() == 401 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "Authentication failed. Check your token or run 'spikes login'.",
-        )));
-    }
+    let status = response.status();
 
-    if response.status() != 200 && response.status() != 201 {
-        let status = response.status();
-        let body_text = response.into_string().unwrap_or_default();
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Server returned status {}: {}", status, body_text),
-        )));
+    if status != 200 && status != 201 {
+        let body_text = response.into_string().ok();
+        return Err(map_http_error(status, body_text.as_deref()));
     }
 
     let body_text = response
         .into_string()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
     let parsed: serde_json::Value = serde_json::from_str(&body_text)?;
 

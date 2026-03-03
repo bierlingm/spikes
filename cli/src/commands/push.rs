@@ -2,7 +2,7 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use crate::error::{Error, Result};
+use crate::error::{map_http_error, map_network_error, Error, Result};
 use crate::spike::Spike;
 
 pub struct PushOptions {
@@ -159,27 +159,25 @@ fn fetch_remote_spike_ids(config: &RemoteConfig) -> Result<std::collections::Has
         config.token
     );
 
-    let response = ureq::get(&url)
-        .call()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    let response = match ureq::get(&url).call() {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
 
-    if response.status() == 401 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "Authentication failed. Check your token.",
-        )));
-    }
+    let status = response.status();
 
-    if response.status() != 200 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Remote returned status {}", response.status()),
-        )));
+    if status != 200 {
+        let body = response.into_string().ok();
+        return Err(map_http_error(status, body.as_deref()));
     }
 
     let body = response
         .into_string()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
     let spikes: Vec<Spike> = serde_json::from_str(&body)?;
     Ok(spikes.into_iter().map(|s| s.id).collect())
@@ -194,23 +192,23 @@ fn push_spike(config: &RemoteConfig, spike: &Spike) -> Result<()> {
 
     let body = serde_json::to_string(spike)?;
 
-    let response = ureq::post(&url)
+    let response = match ureq::post(&url)
         .set("Content-Type", "application/json")
         .send_string(&body)
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
 
-    if response.status() == 401 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "Authentication failed. Check your token.",
-        )));
-    }
+    let status = response.status();
 
-    if response.status() != 201 && response.status() != 200 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Remote returned status {}", response.status()),
-        )));
+    if status != 201 && status != 200 {
+        let body = response.into_string().ok();
+        return Err(map_http_error(status, body.as_deref()));
     }
 
     Ok(())

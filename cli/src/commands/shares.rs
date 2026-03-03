@@ -4,7 +4,7 @@ use std::path::Path;
 use comfy_table::{presets::UTF8_FULL_CONDENSED, Cell, ContentArrangement, Table};
 use serde::{Deserialize, Serialize};
 
-use crate::error::{Error, Result};
+use crate::error::{map_http_error, map_network_error, Error, Result};
 
 pub struct SharesOptions {
     pub json: bool,
@@ -70,28 +70,28 @@ fn load_auth_token() -> Result<String> {
 }
 
 fn fetch_shares(token: &str) -> Result<Vec<Share>> {
-    let response = ureq::get("https://spikes.sh/shares")
+    let response = match ureq::get("https://spikes.sh/shares")
         .set("Authorization", &format!("Bearer {}", token))
         .call()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
 
-    if response.status() == 401 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::PermissionDenied,
-            "Authentication failed. Run 'spikes login' to re-authenticate.",
-        )));
-    }
+    let status = response.status();
 
-    if response.status() != 200 {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Server returned status {}", response.status()),
-        )));
+    if status != 200 {
+        let body = response.into_string().ok();
+        return Err(map_http_error(status, body.as_deref()));
     }
 
     let body = response
         .into_string()
-        .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
     let shares: Vec<Share> = serde_json::from_str(&body)?;
     Ok(shares)
