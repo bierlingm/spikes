@@ -20,14 +20,6 @@ struct LoginRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct LoginResponse {
-    #[serde(default)]
-    ok: bool,
-    #[serde(default)]
-    message: String,
-}
-
-#[derive(Debug, Deserialize)]
 struct PollResponse {
     #[serde(default)]
     verified: bool,
@@ -301,10 +293,4 @@ fn verify_token(token: &str) -> Result<()> {
     }
 
     Ok(())
-}
-
-/// Get the stored token, checking SPIKES_TOKEN env var first, then auth file.
-/// Returns None if not logged in.
-pub fn get_stored_token() -> Result<Option<String>> {
-    AuthConfig::token()
 }

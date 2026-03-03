@@ -90,6 +90,9 @@ pub fn find_spike_by_id(spikes: &[Spike], id_or_prefix: &str) -> Result<Spike> {
 /// 
 /// # Returns
 /// The removed spike, or an error if not found.
+/// 
+/// Kept for future CLI features (e.g., `spikes delete <id>`).
+#[allow(dead_code)]
 pub fn remove_spike(id_or_prefix: &str) -> Result<Spike> {
     let mut spikes = load_spikes()?;
     let spike = find_spike_by_id(&spikes, id_or_prefix)?;
@@ -108,6 +111,9 @@ pub fn remove_spike(id_or_prefix: &str) -> Result<Spike> {
 /// 
 /// # Returns
 /// The updated spike, or an error if not found.
+/// 
+/// Kept for future CLI features (e.g., `spikes resolve <id>` or bulk updates).
+#[allow(dead_code)]
 pub fn update_spike<F>(id_or_prefix: &str, updater: F) -> Result<Spike>
 where
     F: FnOnce(&mut Spike),

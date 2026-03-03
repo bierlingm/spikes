@@ -158,35 +158,6 @@ impl AuthConfig {
     pub fn clear_token() -> Result<()> {
         Self::delete()
     }
-
-    /// Get the source of the current token (for debugging/info)
-    pub fn token_source() -> TokenSource {
-        if let Ok(token) = std::env::var("SPIKES_TOKEN") {
-            if !token.is_empty() {
-                return TokenSource::Environment;
-            }
-        }
-
-        let auth_path = auth_path().ok();
-        if let Some(path) = auth_path {
-            if path.exists() {
-                return TokenSource::File;
-            }
-        }
-
-        TokenSource::None
-    }
-}
-
-/// Source of the authentication token
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TokenSource {
-    /// SPIKES_TOKEN environment variable
-    Environment,
-    /// ~/.config/spikes/auth.toml file (or platform equivalent)
-    File,
-    /// No token available
-    None,
 }
 
 /// Get the platform-appropriate auth file path.
@@ -228,47 +199,6 @@ fn set_secure_permissions(path: &PathBuf) -> Result<()> {
     // The file will be accessible only to the user who created it
     // by default on NTFS with proper ACL inheritance
     Ok(())
-}
-
-/// Check if the auth file has secure permissions (0600 or equivalent)
-#[cfg(unix)]
-pub fn has_secure_permissions() -> bool {
-    use std::os::unix::fs::PermissionsExt;
-
-    let auth_path = match auth_path() {
-        Ok(p) => p,
-        Err(_) => return false,
-    };
-
-    if !auth_path.exists() {
-        return true; // No file = secure by default
-    }
-
-    let perms = match fs::metadata(&auth_path) {
-        Ok(m) => m.permissions(),
-        Err(_) => return false,
-    };
-
-    let mode = perms.mode();
-
-    // Check that only owner has read/write (0o600 or more restrictive)
-    // Mode format: 0oXYZ where X is owner, Y is group, Z is others
-    // We want: 0o600 = owner rw, group none, others none
-    (mode & 0o077) == 0 // No group or other permissions
-}
-
-#[cfg(not(unix))]
-pub fn has_secure_permissions() -> bool {
-    // On Windows, we can't easily check Unix-style permissions
-    // Assume secure if file exists in user's config directory
-    auth_path().map(|p| p.exists()).unwrap_or(false)
-}
-
-/// Get the path to the auth file for display purposes
-pub fn auth_path_display() -> String {
-    auth_path()
-        .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "unknown".to_string())
 }
 
 #[cfg(test)]
@@ -342,18 +272,6 @@ mod tests {
 
     #[test]
     #[serial(spike_token)]
-    fn test_token_source_enum() {
-        // Clear env var for test
-        std::env::remove_var("SPIKES_TOKEN");
-
-        // When no file exists and no env var, source should be None
-        // (This test is informational - actual behavior depends on filesystem state)
-        let source = AuthConfig::token_source();
-        assert!(source == TokenSource::Environment || source == TokenSource::File || source == TokenSource::None);
-    }
-
-    #[test]
-    #[serial(spike_token)]
     fn test_spike_token_env_override() {
         // Save current value
         let original = std::env::var("SPIKES_TOKEN").ok();
@@ -364,9 +282,6 @@ mod tests {
         // Create a new config - env var should populate it
         let config = AuthConfig::load().unwrap();
         assert_eq!(config.auth.token, Some("env-token-override".to_string()));
-
-        // Token source should be Environment
-        assert_eq!(AuthConfig::token_source(), TokenSource::Environment);
 
         // Restore original value
         if let Some(val) = original {
