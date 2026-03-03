@@ -30,6 +30,19 @@ jobs:
           sed -i "s/'use strict';/'use strict';\n    \/\/ Version: $COMMIT_HASH/g" site/spikes.js
           echo "Widget versioned with commit: $COMMIT_HASH"
 
+      - name: Check required secrets
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_API_TOKEN }}" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN secret is not configured. Add it in Settings > Secrets > Actions."
+            echo "::error::Get your API token from https://dash.cloudflare.com/profile/api-tokens"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" ]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID secret is not configured. Add it in Settings > Secrets > Actions."
+            echo "::error::Find your Account ID at https://dash.cloudflare.com (right sidebar on overview page)"
+            exit 1
+          fi
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
