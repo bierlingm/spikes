@@ -275,6 +275,7 @@ pub fn auth_path_display() -> String {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+    use serial_test::serial;
 
     fn setup_temp_config_dir() -> TempDir {
         tempfile::tempdir().expect("Failed to create temp dir")
@@ -340,6 +341,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(spike_token)]
     fn test_token_source_enum() {
         // Clear env var for test
         std::env::remove_var("SPIKES_TOKEN");
@@ -351,6 +353,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(spike_token)]
     fn test_spike_token_env_override() {
         // Save current value
         let original = std::env::var("SPIKES_TOKEN").ok();
@@ -374,6 +377,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(spike_token)]
     fn test_spike_token_env_empty_ignored() {
         // Save current value
         let original = std::env::var("SPIKES_TOKEN").ok();
@@ -470,6 +474,7 @@ token = "deserialized-token"
     }
 
     #[test]
+    #[serial(api_url)]
     fn test_get_api_base_default() {
         // Save current value
         let original = std::env::var(SPIKES_API_URL_ENV).ok();
@@ -488,6 +493,7 @@ token = "deserialized-token"
     }
 
     #[test]
+    #[serial(api_url)]
     fn test_get_api_base_env_override() {
         // Save current value
         let original = std::env::var(SPIKES_API_URL_ENV).ok();
@@ -508,6 +514,7 @@ token = "deserialized-token"
     }
 
     #[test]
+    #[serial(api_url)]
     fn test_get_api_base_custom_host() {
         // Save current value
         let original = std::env::var(SPIKES_API_URL_ENV).ok();
