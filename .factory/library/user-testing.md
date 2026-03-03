@@ -8,30 +8,28 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 
 ## Testing Surfaces
 
-### Widget (browser)
-- Start: `cd cli && cargo run -- serve --port 3847`
-- URL: `http://localhost:3847/`
-- Tool: agent-browser
-- Notes: Widget auto-injects on served HTML files. Click the `/` button to enter spike mode.
-
 ### CLI (terminal)
-- Commands: `spikes list`, `spikes show <id>`, `spikes delete <id>`, etc.
+- Commands: `spikes list`, `spikes show <id>`, `spikes export --format <fmt>`, etc.
 - JSON output: Add `--json` to any command
 - Test data: `.spikes/feedback.jsonl` (JSONL format, one spike per line)
+- Tool: direct CLI invocation, assert_cmd in tests
 
-### Hosted Worker (API)
-- Start: `cd ../spikes-hosted/worker && npx wrangler dev --port 8787`
-- Base URL: `http://localhost:8787`
-- Health check: `GET /health`
-- Tool: curl
-- Auth: Bearer token in Authorization header for protected endpoints
+### MCP Server (stdio)
+- Start: `cd cli && cargo run -- mcp serve`
+- Pipe JSON-RPC messages to stdin, read responses from stdout
+- Test: `echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | cargo run -- mcp serve 2>/dev/null`
+- Multi-request: `printf '...line1...\n...line2...\n' | cargo run -- mcp serve 2>/dev/null`
+- Tool: terminal piping
 
-### Share Flow (full integration)
-1. Start wrangler dev (port 8787)
-2. `spikes share ./mockups/` → uploads to local worker
-3. Open returned URL in browser → see widget on shared page
-4. Leave feedback → POST /spikes
-5. `spikes pull` → fetch feedback to local JSONL
+### Context Exports
+- Run: `cd cli && cargo run -- export --format cursor-context` (or claude-context)
+- Requires: `.spikes/feedback.jsonl` with test data
+- Tool: terminal output capture
+
+### GitHub Action (static files)
+- Files: `action/action.yml`, `action/check.sh`, `action/README.md`
+- Test gate logic: `bash action/check.sh` with environment variables and fixture data
+- Tool: shell execution
 
 ## Known Quirks
 

@@ -1,11 +1,8 @@
 commands:
-  install-cli: cd cli && cargo build
-  install-worker: cd ../spikes-hosted/worker && npm install
-  test-cli: cd cli && cargo test
-  test-worker: cd ../spikes-hosted/worker && npx vitest run
-  typecheck-worker: cd ../spikes-hosted/worker && npx tsc --noEmit
-  build-cli: cd cli && cargo build --release
-  lint-worker: cd ../spikes-hosted/worker && npx eslint src test
+  install: cd cli && cargo build
+  test: cd cli && cargo test --jobs 5
+  build: cd cli && cargo build --release
+  check: cd cli && cargo check
 
 services:
   spikes-serve:
@@ -13,11 +10,4 @@ services:
     stop: lsof -ti :3847 | xargs kill 2>/dev/null || true
     healthcheck: curl -sf http://localhost:3847/ || true
     port: 3847
-    depends_on: []
-
-  wrangler-dev:
-    start: cd ../spikes-hosted/worker && npx wrangler dev --port 8787
-    stop: lsof -ti :8787 | xargs kill 2>/dev/null || true
-    healthcheck: curl -sf http://localhost:8787/health
-    port: 8787
     depends_on: []

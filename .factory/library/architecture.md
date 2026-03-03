@@ -44,6 +44,16 @@ Split `index.ts` (~824 lines) into:
 - In the CLI (`ureq`), HTTP status often appears inside transport errors as `status code NNN`; parsing this pattern enables actionable error messaging even when no structured body is available.
 - For Worker background tasks (e.g., webhooks), pass `ExecutionContext` through handlers and use `ctx.waitUntil(...)` for delivery/retry work that must survive response completion.
 
+## Phase 5: Growth Integrations (Mission 2)
+
+| Decision | Resolution |
+|----------|------------|
+| MCP SDK | rmcp v0.17 (official Rust SDK) — replaces hand-rolled JSON-RPC |
+| MCP transport | stdio (standard for CLI-based MCP servers) |
+| Context export | Extend existing export command with cursor-context and claude-context formats |
+| GitHub Action | Composite action in action/ dir, downloads pre-built binary from releases |
+| Action distribution | Download from GitHub releases (not Docker, not npm) |
+
 ## Monetization Scrutiny Notes (2026-03-03)
 
 - `GET /spikes` intentionally allows unauthenticated access only when a `project` query param is provided; otherwise auth is still required.
