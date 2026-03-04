@@ -97,7 +97,6 @@ fn update_gitignore(path: &Path) -> Result<bool> {
 
     // Append .spikes/ entry
     let mut file = fs::OpenOptions::new()
-        .write(true)
         .append(true)
         .open(path)?;
 

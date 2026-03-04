@@ -18,7 +18,7 @@ pub fn run(json: bool) -> Result<()> {
     }
 
     let mut hotspots: Vec<(String, usize)> = counts.into_iter().collect();
-    hotspots.sort_by(|a, b| b.1.cmp(&a.1));
+    hotspots.sort_by_key(|item| std::cmp::Reverse(item.1));
 
     if json {
         let output: Vec<serde_json::Value> = hotspots

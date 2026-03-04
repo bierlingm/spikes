@@ -204,7 +204,6 @@ collect_email = false    # Ask reviewers for email (builds prospect list)
 mod tests {
     use super::*;
     use tempfile::TempDir;
-    use std::io::Write;
 
     #[test]
     fn test_default_config() {

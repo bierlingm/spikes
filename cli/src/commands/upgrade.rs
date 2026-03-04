@@ -64,8 +64,7 @@ pub fn run(json: bool) -> Result<()> {
         // Open URL in default browser
         // webbrowser crate handles cross-platform browser opening
         if let Err(e) = webbrowser::open(&checkout_url) {
-            return Err(Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(Error::Io(std::io::Error::other(
                 format!("Failed to open browser: {}", e),
             )));
         }

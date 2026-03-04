@@ -129,14 +129,14 @@ fn print_usage_table(usage: &UsageResponse) {
     table.add_row(vec![
         Cell::new("Shares"),
         Cell::new(&share_display),
-        Cell::new(&usage.share_limit.map(|l| l.to_string()).unwrap_or_else(|| "∞".to_string())),
+        Cell::new(usage.share_limit.map(|l| l.to_string()).unwrap_or_else(|| "∞".to_string())),
         Cell::new(&share_usage),
     ]);
 
     table.add_row(vec![
         Cell::new("Spikes"),
         Cell::new(&spike_display),
-        Cell::new(&usage.spike_limit.map(|l| l.to_string()).unwrap_or_else(|| "∞".to_string())),
+        Cell::new(usage.spike_limit.map(|l| l.to_string()).unwrap_or_else(|| "∞".to_string())),
         Cell::new(&spike_usage),
     ]);
 

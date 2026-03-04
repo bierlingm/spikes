@@ -78,7 +78,7 @@ pub enum Error {
     PayloadTooLarge,
 
     #[error("Server error. Please try again in a moment or contact support if it persists.")]
-    ServerError,
+    ServerFailure,
 
     #[error("Connection failed. Check your internet connection.")]
     ConnectionFailed,
@@ -105,7 +105,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// An `Error` with actionable remediation guidance.
 pub fn map_http_error(status: u16, body: Option<&str>) -> Error {
     // Try to parse the body for more specific error info
-    let api_error = body.and_then(|b| parse_api_error(b));
+    let api_error = body.and_then(parse_api_error);
 
     match status {
         401 => Error::AuthFailed,
@@ -133,7 +133,7 @@ pub fn map_http_error(status: u16, body: Option<&str>) -> Error {
             }
         }
         413 => Error::PayloadTooLarge,
-        500..=599 => Error::ServerError,
+        500..=599 => Error::ServerFailure,
         _ => {
             if let Some(err) = api_error {
                 Error::ApiError(err)
@@ -181,7 +181,7 @@ fn extract_status_code(err: &str) -> Option<u16> {
     if let Some(pos) = err.find("status code ") {
         let rest = &err[pos + 12..]; // "status code " is 12 chars
         // Parse the next 3 digits
-        if let Some(num_str) = rest.chars().take(3).collect::<String>().parse::<u16>().ok() {
+        if let Ok(num_str) = rest.chars().take(3).collect::<String>().parse::<u16>() {
             return Some(num_str);
         }
     }

@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn test_auth_config_load_missing_file() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let missing_path = temp_dir.path().join("nonexistent/auth.toml");
+        let _missing_path = temp_dir.path().join("nonexistent/auth.toml");
 
         // Should return default for missing file
         let config = AuthConfig::default();
@@ -301,7 +301,7 @@ mod tests {
         std::env::set_var("SPIKES_TOKEN", "");
 
         // Empty env var should be ignored, fall back to file (or None)
-        let config = AuthConfig::load().unwrap();
+        let _config = AuthConfig::load().unwrap();
         // Token should come from file or be None, not the empty env var
 
         // Restore original value

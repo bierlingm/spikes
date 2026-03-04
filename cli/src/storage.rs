@@ -226,7 +226,7 @@ mod tests {
         let spike1 = "{\"id\":\"spike-1\",\"type\":\"page\",\"projectKey\":\"p\",\"page\":\"index.html\",\"url\":\"http://test\",\"reviewer\":{\"id\":\"r1\",\"name\":\"A\"},\"rating\":\"like\",\"comments\":\"A\",\"timestamp\":\"2024-01-01T00:00:00Z\"}";
         let spike2 = "{\"id\":\"spike-2\",\"type\":\"page\",\"projectKey\":\"p\",\"page\":\"index.html\",\"url\":\"http://test\",\"reviewer\":{\"id\":\"r1\",\"name\":\"A\"},\"rating\":\"like\",\"comments\":\"B\",\"timestamp\":\"2024-01-01T00:01:00Z\"}";
         writeln!(file, "{}", spike1).unwrap();
-        writeln!(file, "").unwrap();  // Empty line
+        writeln!(file).unwrap();  // Empty line
         writeln!(file, "   ").unwrap();  // Whitespace only
         writeln!(file, "{}", spike2).unwrap();
 

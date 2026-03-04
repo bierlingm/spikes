@@ -244,7 +244,7 @@ impl SpikesService {
 
         // Sort by count descending
         let mut hotspots: Vec<(String, usize)> = counts.into_iter().collect();
-        hotspots.sort_by(|a, b| b.1.cmp(&a.1));
+        hotspots.sort_by_key(|item| std::cmp::Reverse(item.1));
         hotspots.truncate(limit);
 
         if hotspots.is_empty() {
@@ -678,7 +678,7 @@ mod tests {
         }
 
         let mut hotspots: Vec<(String, usize)> = counts.into_iter().collect();
-        hotspots.sort_by(|a, b| b.1.cmp(&a.1));
+        hotspots.sort_by_key(|item| std::cmp::Reverse(item.1));
 
         assert_eq!(hotspots[0].0, ".hero-title");
         assert_eq!(hotspots[0].1, 2);
@@ -700,7 +700,7 @@ mod tests {
         }
 
         let mut hotspots: Vec<(String, usize)> = counts.into_iter().collect();
-        hotspots.sort_by(|a, b| b.1.cmp(&a.1));
+        hotspots.sort_by_key(|item| std::cmp::Reverse(item.1));
         hotspots.truncate(1);
 
         assert_eq!(hotspots.len(), 1);
