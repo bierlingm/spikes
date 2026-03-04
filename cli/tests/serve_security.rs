@@ -56,6 +56,7 @@ impl ServeTest {
         path
     }
 
+    #[allow(dead_code)]
     fn add_secret_file(&self, content: &str) -> std::path::PathBuf {
         // Add a file outside the serve directory (in temp dir parent)
         let secret_path = self.dir.path().parent().unwrap().join("secret.txt");
@@ -83,7 +84,7 @@ impl ServeTest {
         let url = format!("http://localhost:{}", self.port);
         for _ in 0..50 {
             std::thread::sleep(Duration::from_millis(100));
-            if self.client.get(&format!("{}/index.html", url)).send().is_ok() {
+            if self.client.get(format!("{}/index.html", url)).send().is_ok() {
                 return;
             }
         }
@@ -96,14 +97,14 @@ impl ServeTest {
 
     fn get(&self, path: &str) -> reqwest::blocking::Response {
         self.client
-            .get(&format!("{}{}", self.url(), path))
+            .get(format!("{}{}", self.url(), path))
             .send()
             .expect("Request failed")
     }
 
     fn get_with_origin(&self, path: &str, origin: &str) -> reqwest::blocking::Response {
         self.client
-            .get(&format!("{}{}", self.url(), path))
+            .get(format!("{}{}", self.url(), path))
             .header("Origin", origin)
             .send()
             .expect("Request failed")
@@ -212,7 +213,7 @@ fn test_path_traversal_blocked_dotdot_slash() {
     // Wait for server
     for _ in 0..50 {
         std::thread::sleep(Duration::from_millis(100));
-        if test.client.get(&format!("http://localhost:{}/index.html", port)).send().is_ok() {
+        if test.client.get(format!("http://localhost:{}/index.html", port)).send().is_ok() {
             break;
         }
     }
@@ -247,14 +248,14 @@ fn test_path_traversal_blocked_multiple_dotdot() {
     
     for _ in 0..50 {
         std::thread::sleep(Duration::from_millis(100));
-        if test.client.get(&format!("http://localhost:{}/index.html", port)).send().is_ok() {
+        if test.client.get(format!("http://localhost:{}/index.html", port)).send().is_ok() {
             break;
         }
     }
     
     // Use raw TCP to send deep path traversal
-    let (status, body, _headers) = test.raw_get("/../../Cargo.toml");
-    
+    let (status, _body, _headers) = test.raw_get("/../../Cargo.toml");
+
     assert!(
         status == StatusCode::FORBIDDEN || status == StatusCode::NOT_FOUND,
         "Deep path traversal should be blocked, got status: {}",
@@ -279,14 +280,14 @@ fn test_path_traversal_blocked_backslash() {
     
     for _ in 0..50 {
         std::thread::sleep(Duration::from_millis(100));
-        if test.client.get(&format!("http://localhost:{}/index.html", port)).send().is_ok() {
+        if test.client.get(format!("http://localhost:{}/index.html", port)).send().is_ok() {
             break;
         }
     }
     
     // Use raw TCP to send backslash path traversal
-    let (status, body, _headers) = test.raw_get("/..\\..\\Cargo.toml");
-    
+    let (status, _body, _headers) = test.raw_get("/..\\..\\Cargo.toml");
+
     assert!(
         status == StatusCode::FORBIDDEN || status == StatusCode::NOT_FOUND,
         "Backslash path traversal should be blocked, got status: {}",
@@ -386,10 +387,9 @@ fn test_cors_rejects_other_origin() {
     let resp = test.get_with_origin("/index.html", "http://evil.com");
     
     // Should NOT echo the evil.com origin
-    let cors_header = resp.headers().get("Access-Control-Allow-Origin");
-    if cors_header.is_some() {
+    if let Some(cors_header) = resp.headers().get("Access-Control-Allow-Origin") {
         assert_ne!(
-            cors_header.unwrap().to_str().unwrap(),
+            cors_header.to_str().unwrap(),
             "http://evil.com",
             "CORS header should not echo untrusted origin"
         );

@@ -5,6 +5,8 @@
 //! - Creating test spike data
 //! - Mocking HTTP responses
 
+#![allow(dead_code)]
+
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;

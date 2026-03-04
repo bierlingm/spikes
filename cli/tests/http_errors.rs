@@ -40,7 +40,7 @@ async fn test_401_shows_auth_failed_message() {
     cmd.current_dir(dir.path())
         .arg("pull")
         .arg("--endpoint")
-        .arg(&format!("http://{}", mock_server.address()))
+        .arg(format!("http://{}", mock_server.address()))
         .arg("--token")
         .arg("test-token");
     
@@ -82,7 +82,7 @@ async fn test_429_spike_limit_shows_upgrade_message() {
     cmd.current_dir(dir.path())
         .arg("push")
         .arg("--endpoint")
-        .arg(&format!("http://{}", mock_server.address()))
+        .arg(format!("http://{}", mock_server.address()))
         .arg("--token")
         .arg("test-token");
     
@@ -115,7 +115,7 @@ async fn test_429_share_limit_shows_limit_message() {
     cmd.current_dir(dir.path())
         .arg("pull")
         .arg("--endpoint")
-        .arg(&format!("http://{}", mock_server.address()))
+        .arg(format!("http://{}", mock_server.address()))
         .arg("--token")
         .arg("test-token");
     
@@ -141,7 +141,7 @@ async fn test_413_shows_payload_too_large_message() {
     cmd.current_dir(dir.path())
         .arg("pull")
         .arg("--endpoint")
-        .arg(&format!("http://{}", mock_server.address()))
+        .arg(format!("http://{}", mock_server.address()))
         .arg("--token")
         .arg("test-token");
     
@@ -167,7 +167,7 @@ async fn test_500_shows_server_error_message() {
     cmd.current_dir(dir.path())
         .arg("pull")
         .arg("--endpoint")
-        .arg(&format!("http://{}", mock_server.address()))
+        .arg(format!("http://{}", mock_server.address()))
         .arg("--token")
         .arg("test-token");
     
@@ -193,7 +193,7 @@ async fn test_502_shows_server_error_message() {
     cmd.current_dir(dir.path())
         .arg("pull")
         .arg("--endpoint")
-        .arg(&format!("http://{}", mock_server.address()))
+        .arg(format!("http://{}", mock_server.address()))
         .arg("--token")
         .arg("test-token");
     

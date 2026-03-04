@@ -77,7 +77,7 @@ fn spikes_binary_path() -> PathBuf {
         .success();
 
     // Get the path to the binary
-    let output = cargo_bin_cmd!("spikes")
+    let _output = cargo_bin_cmd!("spikes")
         .arg("version")
         .assert()
         .get_output()

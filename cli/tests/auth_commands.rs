@@ -17,7 +17,7 @@ fn setup_test_config_dir() -> (TempDir, PathBuf) {
     (temp_dir, config_dir)
 }
 
-fn write_auth_token(config_dir: &PathBuf, token: &str) {
+fn write_auth_token(config_dir: &std::path::Path, token: &str) {
     let auth_path = config_dir.join("auth.toml");
     let content = format!("[auth]\ntoken = \"{}\"\n", token);
     fs::write(&auth_path, content).expect("Failed to write auth.toml");
