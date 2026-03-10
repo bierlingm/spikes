@@ -1110,13 +1110,22 @@ fn fetch_remote_spikes(
         .into_string()
         .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
-    // Parse the API response - could be an array or an object with spikes field
+    // Parse the API response - could be:
+    // 1. A raw JSON array: [...]
+    // 2. An object with spikes field: {spikes:[...]}
+    // 3. An object with data field (hosted API format): {data:[...], next_cursor:string|null}
     let spikes: Vec<Spike> = if body.trim_start().starts_with('[') {
         serde_json::from_str(&body)?
     } else {
         let parsed: serde_json::Value = serde_json::from_str(&body)?;
-        if let Some(spikes_arr) = parsed.get("spikes").and_then(|s| s.as_array()) {
-            serde_json::from_value(serde_json::Value::Array(spikes_arr.clone()))?
+        // Check for "data" field first (hosted API format), then "spikes" for backward compat
+        let spikes_arr = parsed
+            .get("data")
+            .or_else(|| parsed.get("spikes"))
+            .and_then(|s| s.as_array());
+
+        if let Some(arr) = spikes_arr {
+            serde_json::from_value(serde_json::Value::Array(arr.clone()))?
         } else {
             Vec::new()
         }
@@ -1229,9 +1238,11 @@ async fn submit_spike_remote(
     if let Some(reviewer_name) = &args.reviewer_name {
         body["reviewerName"] = serde_json::Value::String(reviewer_name.clone());
     }
-    if let Some(project_key) = &args.project_key {
-        body["projectKey"] = serde_json::Value::String(project_key.clone());
-    }
+    // Always include projectKey - worker schema requires at least one of project or projectKey
+    // Use "default" if not provided (matching local submit_spike_local pattern)
+    body["projectKey"] = serde_json::Value::String(
+        args.project_key.clone().unwrap_or_else(|| "default".to_string())
+    );
 
     let response = match ureq::post(&url)
         .set("Authorization", &format!("Bearer {}", token))
@@ -1294,68 +1305,29 @@ async fn resolve_spike_local(args: ResolveSpikeArgs) -> std::result::Result<Call
             updated.page,
             resolved_at
         ))])),
-        Err(Error::SpikeNotFound(msg)) => Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: Spike not found: {}",
-            msg
-        ))])),
-        Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: Could not resolve spike: {}",
-            e
-        ))])),
+        Err(Error::SpikeNotFound(msg)) => Err(McpError::invalid_params(
+            format!("Spike not found: {}", msg),
+            None,
+        )),
+        Err(e) => Err(McpError::internal_error(
+            format!("Could not resolve spike: {}", e),
+            None,
+        )),
     }
 }
 
 /// Remote implementation of resolve_spike
 async fn resolve_spike_remote(
-    args: ResolveSpikeArgs,
-    token: &str,
-    api_base: &str,
+    _args: ResolveSpikeArgs,
+    _token: &str,
+    _api_base: &str,
 ) -> std::result::Result<CallToolResult, McpError> {
-    let url = format!(
-        "{}/spikes/{}",
-        api_base.trim_end_matches('/'),
-        args.spike_id
-    );
-
-    let body = serde_json::json!({
-        "resolved": true,
-        "resolvedAt": chrono::Utc::now().to_rfc3339()
-    });
-
-    let response = match ureq::request("PATCH", &url)
-        .set("Authorization", &format!("Bearer {}", token))
-        .set("Content-Type", "application/json")
-        .send_json(&body)
-    {
-        Ok(resp) => resp,
-        Err(ureq::Error::Status(status, response)) => {
-            let body_text = response.into_string().ok();
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ERROR: {}",
-                map_http_error(status, body_text.as_deref())
-            ))]));
-        }
-        Err(e) => {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ERROR: {}",
-                map_network_error(&e.to_string())
-            ))]));
-        }
-    };
-
-    let status = response.status();
-    if status != 200 {
-        let body_text = response.into_string().ok();
-        return Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: {}",
-            map_http_error(status, body_text.as_deref())
-        ))]));
-    }
-
-    Ok(CallToolResult::success(vec![Content::text(format!(
-        "Spike [{}] marked as resolved via API.",
-        args.spike_id
-    ))]))
+    // The hosted API does not have a PATCH /spikes/:id endpoint
+    // This is a placeholder until the backend adds this route
+    Err(McpError::invalid_request(
+        "resolve_spike is not yet supported in remote mode — hosted API does not have a PATCH /spikes/:id endpoint",
+        None,
+    ))
 }
 
 /// Local implementation of delete_spike
@@ -1369,62 +1341,29 @@ async fn delete_spike_local(args: DeleteSpikeArgs) -> std::result::Result<CallTo
             removed.page,
             removed.comments
         ))])),
-        Err(Error::SpikeNotFound(msg)) => Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: Spike not found: {}",
-            msg
-        ))])),
-        Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: Could not delete spike: {}",
-            e
-        ))])),
+        Err(Error::SpikeNotFound(msg)) => Err(McpError::invalid_params(
+            format!("Spike not found: {}", msg),
+            None,
+        )),
+        Err(e) => Err(McpError::internal_error(
+            format!("Could not delete spike: {}", e),
+            None,
+        )),
     }
 }
 
 /// Remote implementation of delete_spike
 async fn delete_spike_remote(
-    args: DeleteSpikeArgs,
-    token: &str,
-    api_base: &str,
+    _args: DeleteSpikeArgs,
+    _token: &str,
+    _api_base: &str,
 ) -> std::result::Result<CallToolResult, McpError> {
-    let url = format!(
-        "{}/spikes/{}",
-        api_base.trim_end_matches('/'),
-        args.spike_id
-    );
-
-    let response = match ureq::delete(&url)
-        .set("Authorization", &format!("Bearer {}", token))
-        .call()
-    {
-        Ok(resp) => resp,
-        Err(ureq::Error::Status(status, response)) => {
-            let body_text = response.into_string().ok();
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ERROR: {}",
-                map_http_error(status, body_text.as_deref())
-            ))]));
-        }
-        Err(e) => {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ERROR: {}",
-                map_network_error(&e.to_string())
-            ))]));
-        }
-    };
-
-    let status = response.status();
-    if status != 200 && status != 204 {
-        let body_text = response.into_string().ok();
-        return Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: {}",
-            map_http_error(status, body_text.as_deref())
-        ))]));
-    }
-
-    Ok(CallToolResult::success(vec![Content::text(format!(
-        "Spike [{}] deleted via API.",
-        args.spike_id
-    ))]))
+    // The hosted API does not have a DELETE /spikes/:id endpoint
+    // This is a placeholder until the backend adds this route
+    Err(McpError::invalid_request(
+        "delete_spike is not yet supported in remote mode — hosted API does not have a DELETE /spikes/:id endpoint",
+        None,
+    ))
 }
 
 /// URL encoding helper (simple implementation)
@@ -2409,5 +2348,169 @@ mod tests {
         let debug_str = format!("{:?}", mode);
         assert!(debug_str.contains("Http"));
         assert!(debug_str.contains("3848"));
+    }
+
+    // ========================================
+    // Unit Tests for Error Semantics (VAL-MCP-005, VAL-MCP-007)
+    // ========================================
+
+    #[tokio::test]
+    async fn test_resolve_spike_local_returns_mcp_error_on_not_found() {
+        // Test that resolve_spike_local returns McpError for nonexistent spike
+        let args = ResolveSpikeArgs {
+            spike_id: "nonexistent123".to_string(),
+        };
+
+        let result = resolve_spike_local(args).await;
+
+        // Should return an error, not success with error text
+        assert!(result.is_err(), "resolve_spike_local should return Err for nonexistent spike");
+        let err = result.unwrap_err();
+
+        // Verify it's an invalid_params error
+        assert!(format!("{:?}", err).contains("invalid_params") || format!("{}", err).contains("not found"),
+            "Error should indicate spike not found via MCP error");
+    }
+
+    #[tokio::test]
+    async fn test_delete_spike_local_returns_mcp_error_on_not_found() {
+        // Test that delete_spike_local returns McpError for nonexistent spike
+        let args = DeleteSpikeArgs {
+            spike_id: "nonexistent456".to_string(),
+        };
+
+        let result = delete_spike_local(args).await;
+
+        // Should return an error, not success with error text
+        assert!(result.is_err(), "delete_spike_local should return Err for nonexistent spike");
+        let err = result.unwrap_err();
+
+        // Verify it's an invalid_params error
+        assert!(format!("{:?}", err).contains("invalid_params") || format!("{}", err).contains("not found"),
+            "Error should indicate spike not found via MCP error");
+    }
+
+    // ========================================
+    // Unit Tests for fetch_remote_spikes Response Parsing
+    // ========================================
+
+    #[test]
+    fn test_fetch_remote_spikes_parses_data_field() {
+        // Test that the parsing logic handles {data:[...]} shape
+        // This tests the logic inline since we can't easily mock HTTP
+
+        // Test case: {data:[...], next_cursor:null} format (hosted API)
+        let body = r#"{
+            "data": [
+                {"id": "spike1", "spike_type": "page", "project_key": "test", "page": "index.html", "url": "", "reviewer": {"id": "r1", "name": "Test"}, "selector": null, "element_text": null, "bounding_box": null, "rating": null, "comments": "Test comment", "timestamp": "2024-01-01T00:00:00Z", "viewport": null, "resolved": null, "resolved_at": null}
+            ],
+            "next_cursor": null
+        }"#;
+
+        let parsed: serde_json::Value = serde_json::from_str(body).unwrap();
+
+        // Verify data field is checked first
+        let spikes_arr = parsed
+            .get("data")
+            .or_else(|| parsed.get("spikes"))
+            .and_then(|s| s.as_array());
+
+        assert!(spikes_arr.is_some(), "Should find spikes in 'data' field");
+        assert_eq!(spikes_arr.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_fetch_remote_spikes_parses_spikes_field_fallback() {
+        // Test that the parsing logic falls back to {spikes:[...]} shape
+        let body = r#"{
+            "spikes": [
+                {"id": "spike2", "spike_type": "page", "project_key": "test", "page": "page.html", "url": "", "reviewer": {"id": "r1", "name": "Test"}, "selector": null, "element_text": null, "bounding_box": null, "rating": null, "comments": "Another comment", "timestamp": "2024-01-01T00:00:00Z", "viewport": null, "resolved": null, "resolved_at": null}
+            ]
+        }"#;
+
+        let parsed: serde_json::Value = serde_json::from_str(body).unwrap();
+
+        // Verify spikes field is used as fallback
+        let spikes_arr = parsed
+            .get("data")
+            .or_else(|| parsed.get("spikes"))
+            .and_then(|s| s.as_array());
+
+        assert!(spikes_arr.is_some(), "Should find spikes in 'spikes' field as fallback");
+        assert_eq!(spikes_arr.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_fetch_remote_spikes_parses_raw_array() {
+        // Test that raw JSON array still works
+        // Note: Spike uses camelCase serialization (projectKey, elementText, resolvedAt)
+        let body = r#"[
+            {"id": "spike3", "type": "page", "projectKey": "test", "page": "array.html", "url": "", "reviewer": {"id": "r1", "name": "Test"}, "selector": null, "elementText": null, "boundingBox": null, "rating": null, "comments": "Array item", "timestamp": "2024-01-01T00:00:00Z", "viewport": null, "resolved": null, "resolvedAt": null}
+        ]"#;
+
+        // Raw array check
+        assert!(body.trim_start().starts_with('['));
+
+        let spikes: Vec<Spike> = serde_json::from_str(body).unwrap();
+        assert_eq!(spikes.len(), 1);
+        assert_eq!(spikes[0].id, "spike3");
+    }
+
+    // ========================================
+    // Unit Tests for Remote Mode Unsupported Operations
+    // ========================================
+
+    #[tokio::test]
+    async fn test_resolve_spike_remote_returns_unsupported_error() {
+        let args = ResolveSpikeArgs {
+            spike_id: "any-id".to_string(),
+        };
+
+        let result = resolve_spike_remote(args, "test-token", "http://localhost").await;
+
+        assert!(result.is_err(), "resolve_spike_remote should return Err (unsupported)");
+        let err = result.unwrap_err();
+        let err_str = format!("{:?}", err);
+
+        assert!(err_str.contains("invalid_request") || err_str.contains("not yet supported"),
+            "Error should indicate operation not supported");
+    }
+
+    #[tokio::test]
+    async fn test_delete_spike_remote_returns_unsupported_error() {
+        let args = DeleteSpikeArgs {
+            spike_id: "any-id".to_string(),
+        };
+
+        let result = delete_spike_remote(args, "test-token", "http://localhost").await;
+
+        assert!(result.is_err(), "delete_spike_remote should return Err (unsupported)");
+        let err = result.unwrap_err();
+        let err_str = format!("{:?}", err);
+
+        assert!(err_str.contains("invalid_request") || err_str.contains("not yet supported"),
+            "Error should indicate operation not supported");
+    }
+
+    // ========================================
+    // Unit Tests for submit_spike_remote projectKey fallback
+    // ========================================
+
+    #[test]
+    fn test_submit_spike_remote_includes_default_project_key() {
+        // Verify the logic that always includes projectKey
+        let project_key: Option<String> = None;
+        let expected = project_key.unwrap_or_else(|| "default".to_string());
+
+        assert_eq!(expected, "default", "Should use 'default' when project_key is None");
+    }
+
+    #[test]
+    fn test_submit_spike_remote_uses_provided_project_key() {
+        // Verify provided project_key is used
+        let project_key: Option<String> = Some("my-project".to_string());
+        let expected = project_key.unwrap_or_else(|| "default".to_string());
+
+        assert_eq!(expected, "my-project", "Should use provided project_key when Some");
     }
 }

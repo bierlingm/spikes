@@ -232,30 +232,23 @@ fn test_mcp_http_tools_list() {
     let response = tools_response.unwrap();
     let body = response.text().unwrap();
 
-    // The response may be SSE format or plain error
-    // If it contains tools, we're good
-    if body.contains("tools") {
-        let json = extract_json_from_sse(&body)
-            .or_else(|| serde_json::from_str(&body).ok())
-            .expect("Response should contain valid JSON");
+    // Parse response - must contain valid JSON
+    let json = extract_json_from_sse(&body)
+        .or_else(|| serde_json::from_str(&body).ok())
+        .expect("Response should contain valid JSON");
 
-        // Should list 9 tools
-        assert!(json["result"]["tools"].is_array());
-        let tools = json["result"]["tools"].as_array().unwrap();
-        assert_eq!(tools.len(), 9, "Should have 9 MCP tools");
+    // Should list 9 tools - UNCONDITIONAL assertion (test must fail if tools not present)
+    assert!(json["result"]["tools"].is_array(), "Response must contain tools array");
+    let tools = json["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 9, "Should have 9 MCP tools");
 
-        // Verify tool names
-        let tool_names: Vec<&str> = tools.iter()
-            .filter_map(|t| t["name"].as_str())
-            .collect();
-        assert!(tool_names.contains(&"get_spikes"));
-        assert!(tool_names.contains(&"submit_spike"));
-        assert!(tool_names.contains(&"get_usage"));
-    } else {
-        // If the server still rejects, skip the detailed assertions
-        // The key test is that the HTTP server starts and responds
-        eprintln!("Server response: {}", body);
-    }
+    // Verify tool names
+    let tool_names: Vec<&str> = tools.iter()
+        .filter_map(|t| t["name"].as_str())
+        .collect();
+    assert!(tool_names.contains(&"get_spikes"), "Must have get_spikes tool");
+    assert!(tool_names.contains(&"submit_spike"), "Must have submit_spike tool");
+    assert!(tool_names.contains(&"get_usage"), "Must have get_usage tool");
 }
 
 #[test]
