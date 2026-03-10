@@ -1,0 +1,21 @@
+{
+  "featureId": "fix-spikes-id-scope-enforcement",
+  "reviewedAt": "2026-03-10T17:28:21Z",
+  "commitId": "fe0c33d947b1d7a87b81b73c2ec2d6df295a80af",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix directly addresses the prior blocking gap: GET /spikes/:id now applies hasScope(auth, 'GET') after auth validation, matching other authenticated GET routes. The added tests verify write-scoped keys are denied and read/full-scoped keys are allowed.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The worker-backend skill requires TDD red-phase and manual wrangler verification, but this fix run reported followedProcedure=true without those steps.",
+      "evidence": "Transcript skeleton for worker session c2ae140e-26f9-4aa2-8a0c-2037eabb178a shows implementation edit in worker/src/index.ts before new tests were added, and verification only includes npx tsc --noEmit + npx vitest run. Handoff skillFeedback marks followedProcedure=true with no deviations."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/agent-identity/scrutiny/reviews/fix-api-key-backend-scrutiny.json",
+  "summary": "PASS: Reviewing both diffs confirms the original failure from d59427a (missing scope check on GET /spikes/:id) is resolved by fe0c33d. The route now denies write-scoped API keys with 403 SCOPE_DENIED and retains expected access for read/full scopes and admin token flows."
+}
