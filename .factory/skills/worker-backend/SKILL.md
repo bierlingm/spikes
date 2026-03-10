@@ -1,6 +1,6 @@
 ---
 name: worker-backend
-description: Implements Cloudflare Worker backend changes (security, validation, auth, Stripe, rate limiting)
+description: Implements Cloudflare Worker backend changes (security, validation, auth, Stripe, rate limiting, API keys, metered billing)
 ---
 
 # Backend Worker
@@ -10,14 +10,13 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 ## When to Use This Skill
 
 Features that modify the Cloudflare Worker backend at `../spikes-hosted/worker/`. This includes:
-- Security fixes (password hashing, path traversal, XSS)
-- Request validation (Zod schemas)
-- Database schema changes (migrations, foreign keys)
-- Authentication endpoints (magic links, token rotation)
-- Stripe webhook handling
-- Rate limiting
+- API key system (creation, revocation, scoping, auth middleware)
+- Stripe metered billing (meters, meter events, budget enforcement)
+- Authentication endpoints
+- Stripe webhook handling (agent tier lifecycle)
+- Database schema changes (migrations)
 - API endpoint changes
-- Worker modularization
+- Request validation (Zod schemas)
 
 ## Work Procedure
 

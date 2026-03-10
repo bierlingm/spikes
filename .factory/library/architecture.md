@@ -44,6 +44,18 @@ Split `index.ts` (~824 lines) into:
 - In the CLI (`ureq`), HTTP status often appears inside transport errors as `status code NNN`; parsing this pattern enables actionable error messaging even when no structured body is available.
 - For Worker background tasks (e.g., webhooks), pass `ExecutionContext` through handlers and use `ctx.waitUntil(...)` for delivery/retry work that must survive response completion.
 
+## Agent Readiness: Key Patterns
+
+| Decision | Resolution |
+|----------|------------|
+| MCP data source | DataSource enum (Local/Remote) — Local reads JSONL, Remote uses ureq HTTP |
+| MCP transport | stdio (default) or HTTP (--transport http, via axum) |
+| API key format | sk_spikes_ prefix, PBKDF2 hash stored, raw key returned once |
+| API key auth | Auth middleware checks sk_spikes_ prefix, hashes and looks up in api_keys table |
+| Agent billing | Stripe Meters API — meter events for spike/share consumption, fire-and-forget via ctx.waitUntil() |
+| Budget enforcement | Check cost vs monthly_cap_cents BEFORE persisting, 429 BUDGET_EXCEEDED if over |
+| Agent tier detection | Webhook inspects price ID (STRIPE_AGENT_PRICE_ID vs STRIPE_PRO_PRICE_ID) |
+
 ## Phase 5: Growth Integrations (Mission 2)
 
 | Decision | Resolution |

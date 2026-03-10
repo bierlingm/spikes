@@ -24,7 +24,20 @@ Environment variables, external dependencies, and setup notes.
 - `STRIPE_WEBHOOK_SECRET` — Stripe webhook verification
 - `STRIPE_SECRET_KEY` — Stripe API key
 - `STRIPE_PRO_PRICE_ID` — Stripe Price ID used by checkout/upgrade flows
+- `STRIPE_AGENT_PRICE_ID` — Stripe metered Price ID for agent tier (NEW — must be created in Stripe Dashboard)
 - `SENTRY_DSN` — Sentry error reporting
+
+## Stripe Metered Billing (Agent Tier)
+
+Stripe supports usage-based billing via Meters API:
+1. Create a Meter (e.g., "spike_consumption") via Dashboard or API — defines aggregation (sum)
+2. Create a metered Price linked to the meter — defines cost per unit
+3. Report usage via POST /v1/billing/meter_events with event_name, customer, value
+4. Stripe automatically bills at end of billing period
+
+For Spikes: two meters needed (spike_consumption, share_consumption).
+Worker reports events via ctx.waitUntil() — failures must not block main request.
+See: https://docs.stripe.com/billing/subscriptions/usage-based/implementation-guide
 
 ## D1 Bindings
 

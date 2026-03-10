@@ -1,6 +1,6 @@
 ---
 name: worker-cli
-description: Implements Rust CLI changes and GitHub Action artifacts (tests, commands, export formats, action files)
+description: Implements Rust CLI changes (MCP tools, transports, auth commands, tests)
 ---
 
 # CLI Worker
@@ -9,10 +9,9 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 
 ## When to Use This Skill
 
-Features that modify the Rust CLI at `./cli/` or create GitHub Action files at `./action/`. This includes:
-- MCP server implementation (rmcp SDK)
-- Export format additions
-- GitHub Action (action.yml, check.sh, README)
+Features that modify the Rust CLI at `./cli/`. This includes:
+- MCP server tools, transports, and modes (rmcp SDK)
+- CLI commands (auth, usage, etc.)
 - Integration tests and unit tests
 - Dependency changes in Cargo.toml
 
@@ -32,19 +31,22 @@ Features that modify the Rust CLI at `./cli/` or create GitHub Action files at `
 3. **Write tests FIRST (TDD).**
    - **Unit tests:** Add `#[cfg(test)] mod tests { ... }` in the same file as the code being tested.
    - **Integration tests:** Add/extend files in `./cli/tests/` using `assert_cmd` and `predicates`.
-   - For MCP tests: test tool logic (filtering, matching) as unit tests. Test JSON-RPC protocol flow by piping to binary in integration tests.
-   - For export tests: create fixture spike data, test output contains expected sections.
+   - For MCP write tools: test mutation logic (submit creates spike, resolve marks resolved, delete removes) as unit tests using in-memory spike vectors.
+   - For MCP remote mode: test DataSource abstraction with mock HTTP responses.
+   - For MCP transport: test HTTP endpoint with reqwest in integration tests.
+   - For auth commands: test CLI output format, --json flag.
    - Run `cd cli && cargo test` — new tests MUST fail (red phase).
 
-4. **Add dependencies if needed.** For MCP feature:
-   - Add `rmcp = { version = "0.17", features = ["server", "transport-io", "macros"] }` to [dependencies]
-   - Add `schemars = "1.0"` to [dependencies]
-   - tokio is already a dependency.
+4. **Add dependencies if needed.**
+   - rmcp 0.17 with server, transport-io, macros features already in Cargo.toml.
+   - schemars 1.0 already in Cargo.toml.
+   - For HTTP transport, check if rmcp has transport-sse-server or similar feature. If not, use axum (already a dependency).
 
 5. **Implement the feature.** Make the tests pass (green phase).
-   - For MCP: Use rmcp macros (#[tool_router], #[tool], #[tool_handler]). Implement SpikesService struct.
-   - For exports: Add enum variants, implement markdown generation functions.
-   - For action: Create action/ directory with action.yml, check.sh (chmod +x), README.md.
+   - For MCP write tools: Add new tool methods to SpikesService with #[tool] macro. Add arg structs with JsonSchema derive. Use storage::update_spike(), storage::remove_spike() for mutations. For submit, construct Spike struct and save via save_spikes().
+   - For MCP remote mode: Create DataSource enum (Local/Remote). Pass to SpikesService::new(). Remote variant uses ureq HTTP calls. Token from auth::AuthConfig or SPIKES_TOKEN env.
+   - For MCP HTTP transport: Add axum HTTP handler or use rmcp HTTP transport feature. Bind 127.0.0.1.
+   - For auth commands: Create cli/src/commands/auth_keys.rs. Follow patterns from login.rs/shares.rs.
    - Follow existing patterns. No unwrap() in production. Punk/zine energy in user-facing strings.
 
 6. **Run all tests.** `cd cli && cargo test` — ALL tests must pass (existing + new).
@@ -52,9 +54,10 @@ Features that modify the Rust CLI at `./cli/` or create GitHub Action files at `
 7. **Build check.** `cd cli && cargo build` — must succeed with zero errors.
 
 8. **Manually verify.** Run the command directly:
-   - MCP: `echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | cargo run -- mcp serve`
-   - Export: Create test .spikes/ dir, run `cargo run -- export --format cursor-context`
-   - Action: Run `bash action/check.sh` with fixture data
+   - MCP tools: `printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}\n' | cargo run -- mcp serve 2>/dev/null`
+   - MCP remote: `SPIKES_TOKEN=test cargo run -- mcp serve --remote 2>/dev/null` (verify starts)
+   - MCP HTTP: `cargo run -- mcp serve --transport http --port 3848 &` then curl
+   - Auth: `cargo run -- auth create-key --help` (verify subcommand exists)
 
 9. **Commit with descriptive message.**
 

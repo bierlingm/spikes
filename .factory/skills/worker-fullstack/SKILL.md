@@ -9,12 +9,12 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 
 ## When to Use This Skill
 
-Features that touch the widget, CI/CD, documentation, or span both repos. This includes:
-- Widget JavaScript changes (toast, dedup, z-index, review mode)
+Features that touch documentation, site content, npm packages, or span both repos. This includes:
+- Site content (llms.txt, agents.md, llms-full.txt)
+- npm package creation (spikes-mcp wrapper)
+- Registry manifests (smithery.yaml)
+- Documentation updates
 - CI/CD workflow configuration
-- Documentation (widget attributes, CLI reference, self-hosting guide)
-- Dependency cleanup (removing ratatui/crossterm)
-- Test infrastructure setup (Vitest config, test helpers)
 
 ## Work Procedure
 
