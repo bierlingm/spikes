@@ -21,7 +21,7 @@ Features that modify the Rust CLI at `./cli/`. This includes:
 
 2. **Understand current code.** Read relevant source files in `./cli/src/`. Key files:
    - `main.rs` — Command routing (clap derive). MCP already wired.
-   - `commands/mcp.rs` — MCP server (REPLACE entirely, has syntax error)
+   - `commands/mcp.rs` — MCP server (SpikesService, DataSource, TransportMode, all 9 tools)
    - `commands/export.rs` — Export formats (EXTEND with new variants)
    - `spike.rs` — Data models (Spike, Rating, SpikeType, is_resolved())
    - `storage.rs` — load_spikes() reads .spikes/feedback.jsonl
@@ -106,6 +106,14 @@ Features that modify the Rust CLI at `./cli/`. This includes:
   "discoveredIssues": []
 }
 ```
+
+## API Contract Verification (CRITICAL for --remote features)
+
+For any CLI feature that integrates with `--remote` or the hosted API, you MUST verify the actual API contract before implementation:
+1. Read `../spikes-hosted/worker/src/index.ts` to see which routes exist and their HTTP methods
+2. Read the relevant handler in `../spikes-hosted/worker/src/handlers/` to see request/response shapes
+3. Read `../spikes-hosted/worker/src/schema.ts` for Zod validation requirements
+4. Do NOT assume routes exist — the worker only has GET/POST, rarely PATCH/DELETE
 
 ## When to Return to Orchestrator
 
