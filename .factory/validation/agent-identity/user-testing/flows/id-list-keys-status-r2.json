@@ -1,0 +1,160 @@
+{
+  "milestone": "agent-identity",
+  "groupId": "id-list-keys-status-r2",
+  "testedAt": "2026-03-10T18:52:26Z",
+  "credentials": {
+    "account": "aid015-b8856f@example.com",
+    "namespace": "aid015-b8856f"
+  },
+  "assignedAssertions": [
+    "VAL-ID-015"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-ID-015",
+      "title": "CLI list-keys",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Bootstrap isolated auth context (HOME/XDG) via POST /auth/login + POST /auth/verify, then spikes login --token <bearer> with SPIKES_API_URL=http://localhost:8787",
+          "expected": "Deterministic namespace-scoped auth context for CLI auth commands",
+          "observed": "Local auth bootstrap succeeded; isolated auth.toml created under /tmp/spikes-utv-aid015-b8856f-home"
+        },
+        {
+          "action": "Run spikes auth create-key --name aid015-b8856f-anchor --json in isolated HOME",
+          "expected": "At least one active key exists for list-keys validation",
+          "observed": "Create-key returned key_id key_2d6e1385274b4466 and key name aid015-b8856f-anchor"
+        },
+        {
+          "action": "Run spikes auth list-keys (table mode)",
+          "expected": "Table includes key_prefix, name, and Status column with derived status value",
+          "observed": "Table header includes Key Prefix | Name | Scopes | Status | Created and row shows status=active"
+        },
+        {
+          "action": "Run spikes auth list-keys --json",
+          "expected": "Each key object includes status field",
+          "observed": "JSON output includes status field for all returned keys; statuses observed: ['active']"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "curl -sS -X POST http://localhost:8787/auth/login -H \"Content-Type: application/json\" --data {\"email\":\"aid015-b8856f@example.com\"}",
+          "curl -sS -X POST http://localhost:8787/auth/verify -H \"Content-Type: application/json\" --data {\"login_token\":\"<test-token>\"}",
+          "HOME=/tmp/spikes-utv-aid015-b8856f-home XDG_CONFIG_HOME=/tmp/spikes-utv-aid015-b8856f-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes login --token <bearer> --json",
+          "HOME=/tmp/spikes-utv-aid015-b8856f-home XDG_CONFIG_HOME=/tmp/spikes-utv-aid015-b8856f-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth create-key --name aid015-b8856f-anchor --json",
+          "HOME=/tmp/spikes-utv-aid015-b8856f-home XDG_CONFIG_HOME=/tmp/spikes-utv-aid015-b8856f-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth list-keys",
+          "HOME=/tmp/spikes-utv-aid015-b8856f-home XDG_CONFIG_HOME=/tmp/spikes-utv-aid015-b8856f-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth list-keys --json"
+        ],
+        "terminalSnapshots": [
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_login_stdout.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_login_stderr.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_login_exit_code.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_create_key_anchor_stdout.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_create_key_anchor_stderr.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_create_key_anchor_exit_code.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_list_keys_table_final3_stdout.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_list_keys_table_final3_stderr.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_list_keys_table_final3_exit_code.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_list_keys_json_final3_stdout.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_list_keys_json_final3_stderr.txt",
+          "/tmp/spikes-utv-aid015-b8856f-home/evidence/cli_list_keys_json_final3_exit_code.txt"
+        ],
+        "network": {
+          "workerHealth": {
+            "request": "GET http://localhost:8787/health",
+            "status": 200,
+            "responseBody": "{\"status\":\"ok\",\"service\":\"spikes-sh-worker\"}"
+          },
+          "login": {
+            "request": "POST http://localhost:8787/auth/login",
+            "status": 202,
+            "responseBody": "{\"ok\":true,\"message\":\"Check your email\",\"_test_token\":\"<redacted>\"}"
+          },
+          "verify": {
+            "request": "POST http://localhost:8787/auth/verify",
+            "status": 200,
+            "responseBody": "{\"ok\":true,\"token\":\"<redacted>\",\"user\":{\"id\":\"6b4b4e32-113b-48ea-8c4c-2ead87437d21\",\"email\":\"aid015-b8856f@example.com\",\"tier\":\"free\"}}"
+          }
+        },
+        "outputSnippets": {
+          "tableHeaderCheck": {
+            "has_status_column": true,
+            "has_key_prefix_column": true,
+            "has_name_column": true,
+            "sample_line": "\u2502 sk_spikes_fcd84aca\u2026 \u2506 aid015-b8856f-anchor \u2506 full   \u2506 active \u2506 2026-03-10 \u2502"
+          },
+          "table": "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\n\u2502 Key Prefix          \u2506 Name                 \u2506 Scopes \u2506 Status \u2506 Created    \u2502\n\u255e\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u256a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u256a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u256a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u256a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2561\n\u2502 sk_spikes_fcd84aca\u2026 \u2506 aid015-b8856f-anchor \u2506 full   \u2506 active \u2506 2026-03-10 \u2502\n\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+          "jsonStatusCheck": {
+            "count": 1,
+            "status_fields": [
+              [
+                true,
+                "active",
+                "aid015-b8856f-anchor"
+              ]
+            ],
+            "statuses": [
+              "active"
+            ]
+          },
+          "json": [
+            {
+              "created_at": "2026-03-10T18:47:46.033Z",
+              "expires_at": null,
+              "key_id": "key_2d6e1385274b4466",
+              "key_prefix": "fcd84aca",
+              "last_used_at": "2026-03-10T18:49:15.620Z",
+              "monthly_cap_cents": null,
+              "name": "aid015-b8856f-anchor",
+              "revoked_at": null,
+              "scopes": "full",
+              "status": "active"
+            }
+          ]
+        },
+        "authToml": {
+          "path": "/tmp/spikes-utv-aid015-b8856f-home/Library/Application Support/spikes/auth.toml",
+          "contentSnippet": "[auth]\\ntoken = \"<redacted>\""
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "When auth.toml contains a revoked api_key, later list-keys calls can fail with authentication errors until token-only auth.toml is restored in the isolated HOME.",
+      "resolved": true,
+      "resolution": "Rewrote isolated auth.toml to token-only ([auth] token=...) before final evidence capture commands.",
+      "affectedAssertions": [
+        "VAL-ID-015"
+      ]
+    },
+    {
+      "description": "Additional revoked/expired status generation was constrained by /auth/api-key rate limiting after repeated setup attempts; final deterministic evidence captured active status only.",
+      "resolved": false,
+      "resolution": "N/A (optional check deferred once minimum VAL-ID-015 criteria were satisfied with active status evidence).",
+      "affectedAssertions": [
+        "VAL-ID-015"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "spikes CLI (/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes)",
+    "curl",
+    "python3"
+  ],
+  "summary": {
+    "testedAt": "2026-03-10T18:52:26Z",
+    "account": "aid015-b8856f@example.com",
+    "namespace": "aid015-b8856f",
+    "counts": {
+      "total": 1,
+      "pass": 1,
+      "fail": 0,
+      "blocked": 0,
+      "skipped": 0
+    },
+    "notes": "VAL-ID-015 rerun passed: list-keys table now includes Status column and --json output includes per-key status field (verified active status)."
+  }
+}

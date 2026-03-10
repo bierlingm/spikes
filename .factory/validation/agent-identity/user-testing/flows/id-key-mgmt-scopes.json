@@ -1,0 +1,297 @@
+{
+  "milestone": "agent-identity",
+  "groupId": "id-key-mgmt-scopes",
+  "testedAt": "2026-03-10T18:28:06Z",
+  "credentials": {
+    "account": "utv-ai-scope-b-r3@example.com",
+    "namespace": "utv-ai-scope-b-r3"
+  },
+  "assignedAssertions": [
+    "VAL-ID-007",
+    "VAL-ID-008",
+    "VAL-ID-009",
+    "VAL-ID-010",
+    "VAL-ID-011",
+    "VAL-ID-012",
+    "VAL-ID-013"
+  ],
+  "setupEvidence": {
+    "authBootstrap": {
+      "loginRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/login.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/login.body -w '%{http_code}' -X POST http://localhost:8787/auth/login -H 'CF-Connecting-IP: 198.51.100.32' -H 'Content-Type: application/json' --data '{\"email\":\"utv-ai-scope-b-r3@example.com\"}'",
+      "loginStatus": 202,
+      "verifyRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/verify.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/verify.body -w '%{http_code}' -X POST http://localhost:8787/auth/verify -H 'CF-Connecting-IP: 198.51.100.32' -H 'Content-Type: application/json' --data '{\"login_token\":\"<LOGIN_TOKEN>\"}'",
+      "verifyStatus": 200,
+      "userId": "c9efe675-6045-4d51-9c7e-3d73b3c2a38c"
+    }
+  },
+  "assertionResults": [
+    {
+      "id": "VAL-ID-007",
+      "title": "List API keys",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /auth/api-key (scopes=full, namespaced name)",
+          "expected": "HTTP 201 with key_id/api_key",
+          "observed": "HTTP 201; key_id=key_4cc17733fe81465c"
+        },
+        {
+          "action": "GET /auth/api-keys with the created API key",
+          "expected": "HTTP 200 metadata list includes key_prefix and excludes raw api_key",
+          "observed": "HTTP 200; response array includes key_prefix and no object contains api_key"
+        }
+      ],
+      "evidence": {
+        "createRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val007_create.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val007_create.body -w '%{http_code}' -X POST http://localhost:8787/auth/api-key -H 'CF-Connecting-IP: 198.51.100.32' -H 'Content-Type: application/json' --data '{\"name\":\"utv-ai-scope-b-r3-val007-full\",\"scopes\":\"full\"}'",
+        "listRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val007_list.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val007_list.body -w '%{http_code}' -X GET http://localhost:8787/auth/api-keys -H 'CF-Connecting-IP: 198.51.100.32' -H 'Authorization: Bearer <VAL007_API_KEY>'",
+        "status": {
+          "create": 201,
+          "list": 200
+        },
+        "listBodySnippet": "[{\"key_id\":\"key_4cc17733fe81465c\",\"key_prefix\":\"cba58045\",\"name\":\"utv-ai-scope-b-r3-val007-full\",\"scopes\":\"full\"...}]",
+        "metadataCheck": {
+          "containsKeyPrefix": true,
+          "containsApiKeyField": false
+        },
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val007_create.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val007_list.body"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-008",
+      "title": "Revoke API key",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create full-scope API key",
+          "expected": "HTTP 201",
+          "observed": "HTTP 201; key_id=key_49b7a54f5abf4c28"
+        },
+        {
+          "action": "DELETE /auth/api-key/:key_id using that key",
+          "expected": "HTTP 200",
+          "observed": "HTTP 200"
+        },
+        {
+          "action": "GET /me with revoked key",
+          "expected": "HTTP 401 AUTH_FAILED",
+          "observed": "HTTP 401 with {\"code\":\"AUTH_FAILED\"}"
+        }
+      ],
+      "evidence": {
+        "deleteRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val008_delete.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val008_delete.body -w '%{http_code}' -X DELETE http://localhost:8787/auth/api-key/key_49b7a54f5abf4c28 -H 'CF-Connecting-IP: 198.51.100.32' -H 'Authorization: Bearer <VAL008_API_KEY>'",
+        "postRevokeCheck": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val008_me_after_revoke.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val008_me_after_revoke.body -w '%{http_code}' -X GET http://localhost:8787/me -H 'Authorization: Bearer <VAL008_API_KEY>'",
+        "status": {
+          "delete": 200,
+          "meAfterRevoke": 401
+        },
+        "meAfterRevokeBody": "{\"error\":\"Invalid or revoked bearer token\",\"code\":\"AUTH_FAILED\"}",
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val008_delete.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val008_me_after_revoke.body"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-009",
+      "title": "Revoke nonexistent key",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "DELETE /auth/api-key/key_utv-ai-scope-b-r3_missing_009 with user bearer",
+          "expected": "HTTP 404 NOT_FOUND",
+          "observed": "HTTP 404 with code NOT_FOUND"
+        }
+      ],
+      "evidence": {
+        "request": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val009_delete_missing.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val009_delete_missing.body -w '%{http_code}' -X DELETE http://localhost:8787/auth/api-key/key_utv-ai-scope-b-r3_missing_009 -H 'CF-Connecting-IP: 198.51.100.32' -H 'Authorization: Bearer <USER_BEARER_TOKEN>'",
+        "status": 404,
+        "body": "{\"error\":\"Key not found\",\"code\":\"NOT_FOUND\"}",
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val009_delete_missing.body"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-010",
+      "title": "Link key to user account",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create unlinked full-scope key",
+          "expected": "HTTP 201",
+          "observed": "HTTP 201; key_id=key_7f7bc10126bf4671"
+        },
+        {
+          "action": "GET /auth/api-keys with user bearer before linking",
+          "expected": "Created key not visible",
+          "observed": "HTTP 200 with []"
+        },
+        {
+          "action": "POST /auth/link-key with user bearer and key_id",
+          "expected": "HTTP 200",
+          "observed": "HTTP 200"
+        },
+        {
+          "action": "GET /auth/api-keys with user bearer after linking",
+          "expected": "Created key becomes visible",
+          "observed": "HTTP 200 and response includes key_7f7bc10126bf4671"
+        },
+        {
+          "action": "Inspect local D1 api_keys row for key_id",
+          "expected": "user_id set to current user",
+          "observed": "SQLite row shows user_id=c9efe675-6045-4d51-9c7e-3d73b3c2a38c"
+        }
+      ],
+      "evidence": {
+        "linkRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val010_link.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val010_link.body -w '%{http_code}' -X POST http://localhost:8787/auth/link-key -H 'Authorization: Bearer <USER_BEARER_TOKEN>' -H 'Content-Type: application/json' --data '{\"key_id\":\"key_7f7bc10126bf4671\"}'",
+        "status": {
+          "create": 201,
+          "listBefore": 200,
+          "link": 200,
+          "listAfter": 200
+        },
+        "listBeforeBody": "[]",
+        "listAfterBodySnippet": "[{\"key_id\":\"key_7f7bc10126bf4671\",\"key_prefix\":\"0af0a283\",\"name\":\"utv-ai-scope-b-r3-val010-link\"...}]",
+        "dbQuery": {
+          "dbFile": "/Users/moritzbierling/werk/repos/spikes-hosted/worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/4866809e7ee06d37d6b5db373dc327ac1bc06fd638484460a99b4ee2c5f5b401.sqlite",
+          "query": "SELECT id,user_id,scopes,revoked_at,expires_at,created_at FROM api_keys WHERE id='key_7f7bc10126bf4671';",
+          "resultCsv": "id,user_id,scopes,revoked_at,expires_at,created_at\\nkey_7f7bc10126bf4671,c9efe675-6045-4d51-9c7e-3d73b3c2a38c,full,,,2026-03-10T18:27:21.722Z"
+        },
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val010_list_before.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val010_link.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val010_list_after.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val010_db_row_4866809e7ee06d37d6b5db373dc327ac1bc06fd638484460a99b4ee2c5f5b401.sqlite.csv"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-011",
+      "title": "Scoped key — read only",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create read-scoped API key",
+          "expected": "HTTP 201",
+          "observed": "HTTP 201; key_id=key_165e4e0dbafd425d"
+        },
+        {
+          "action": "GET /shares with read key",
+          "expected": "HTTP 200",
+          "observed": "HTTP 200 with []"
+        },
+        {
+          "action": "POST /shares with read key",
+          "expected": "HTTP 403 SCOPE_DENIED",
+          "observed": "HTTP 403 with code SCOPE_DENIED"
+        }
+      ],
+      "evidence": {
+        "getRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val011_get_shares.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val011_get_shares.body -w '%{http_code}' -X GET http://localhost:8787/shares -H 'Authorization: Bearer <VAL011_READ_API_KEY>'",
+        "postRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val011_post_shares.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val011_post_shares.body -w '%{http_code}' -X POST http://localhost:8787/shares -H 'Authorization: Bearer <VAL011_READ_API_KEY>' -F 'index=@/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/utv-ai-scope-b-r3-share.html;filename=index.html;type=text/html'",
+        "status": {
+          "getShares": 200,
+          "postShares": 403
+        },
+        "postSharesBody": "{\"error\":\"Insufficient scope for this operation\",\"code\":\"SCOPE_DENIED\"}",
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val011_get_shares.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val011_post_shares.body"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-012",
+      "title": "Scoped key — write only",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create write-scoped API key",
+          "expected": "HTTP 201",
+          "observed": "HTTP 201; key_id=key_8e0141f7a1714a86"
+        },
+        {
+          "action": "POST /shares with write key",
+          "expected": "HTTP 201",
+          "observed": "HTTP 201; share_id=40da0024-3896-4361-a11f-d46b0da55f70"
+        },
+        {
+          "action": "GET /shares with write key",
+          "expected": "HTTP 403 SCOPE_DENIED",
+          "observed": "HTTP 403 with code SCOPE_DENIED"
+        }
+      ],
+      "evidence": {
+        "postRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val012_post_shares.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val012_post_shares.body -w '%{http_code}' -X POST http://localhost:8787/shares -H 'Authorization: Bearer <VAL012_WRITE_API_KEY>' -F 'index=@/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/utv-ai-scope-b-r3-share.html;filename=index.html;type=text/html'",
+        "getRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val012_get_shares.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val012_get_shares.body -w '%{http_code}' -X GET http://localhost:8787/shares -H 'Authorization: Bearer <VAL012_WRITE_API_KEY>'",
+        "status": {
+          "postShares": 201,
+          "getShares": 403
+        },
+        "postSharesBodySnippet": "{\"ok\":true,\"share_id\":\"40da0024-3896-4361-a11f-d46b0da55f70\",\"slug\":\"share-kgdhu\"}",
+        "getSharesBody": "{\"error\":\"Insufficient scope for this operation\",\"code\":\"SCOPE_DENIED\"}",
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val012_post_shares.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val012_get_shares.body"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-013",
+      "title": "Expired key rejected",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create key with expires_at in the past",
+          "expected": "HTTP 201",
+          "observed": "HTTP 201; key_id=key_863425600c5f4e54"
+        },
+        {
+          "action": "GET /me with expired key",
+          "expected": "HTTP 401 AUTH_FAILED",
+          "observed": "HTTP 401 with code AUTH_FAILED"
+        }
+      ],
+      "evidence": {
+        "createRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val013_create.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val013_create.body -w '%{http_code}' -X POST http://localhost:8787/auth/api-key -H 'CF-Connecting-IP: 198.51.100.32' -H 'Content-Type: application/json' --data '{\"name\":\"utv-ai-scope-b-r3-val013-expired\",\"scopes\":\"full\",\"expires_at\":\"2020-01-01T00:00:00.000Z\"}'",
+        "meRequest": "curl -sS -D /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val013_me.headers -o /tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val013_me.body -w '%{http_code}' -X GET http://localhost:8787/me -H 'Authorization: Bearer <VAL013_EXPIRED_API_KEY>'",
+        "status": {
+          "create": 201,
+          "me": 401
+        },
+        "meBody": "{\"error\":\"Invalid or revoked bearer token\",\"code\":\"AUTH_FAILED\"}",
+        "artifacts": [
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val013_create.body",
+          "/tmp/utv-ai-scope-b-r3-id-key-mgmt-scopes/val013_me.body"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Two local Miniflare D1 SQLite files were present; one returned 'no such table: api_keys' during initial inspection.",
+      "resolved": true,
+      "resolution": "Used the SQLite file that contains api_keys and validated linkage there.",
+      "affectedAssertions": [
+        "VAL-ID-010"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "curl",
+    "sqlite3",
+    "jq"
+  ],
+  "summary": "Tested 7 assertions (VAL-ID-007..013) for namespace utv-ai-scope-b-r3: 7 passed, 0 failed, 0 blocked, 0 skipped."
+}

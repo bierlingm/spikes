@@ -1,0 +1,24 @@
+{
+  "milestone": "agent-identity",
+  "round": 2,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-ID-015"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Documented local `/auth/api-key` 10/hour/IP rate-limit behavior and guidance to reuse namespace-scoped keys during reruns.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/agent-identity/user-testing/synthesis.round1.json"
+}

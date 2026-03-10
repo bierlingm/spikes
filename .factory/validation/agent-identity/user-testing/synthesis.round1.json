@@ -1,0 +1,46 @@
+{
+  "milestone": "agent-identity",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 19,
+    "passed": 18,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-ID-001",
+    "VAL-ID-002",
+    "VAL-ID-003",
+    "VAL-ID-004",
+    "VAL-ID-005",
+    "VAL-ID-006",
+    "VAL-ID-007",
+    "VAL-ID-008",
+    "VAL-ID-009",
+    "VAL-ID-010",
+    "VAL-ID-011",
+    "VAL-ID-012",
+    "VAL-ID-013",
+    "VAL-ID-014",
+    "VAL-ID-016",
+    "VAL-ID-017",
+    "VAL-CROSS-004",
+    "VAL-CROSS-005"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-ID-015",
+      "reason": "`spikes auth list-keys` does not expose key status metadata; CLI table output is `Key Prefix | Name | Scopes | Created`, and `--json` payload also lacks a status field."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added guidance from flow reports: selecting the correct Miniflare SQLite file for `api_keys`, using `SPIKES_TOKEN` after revoking `auth.api_key` in isolated CLI runs, and namespace-scoped D1 tier seeding when checkout is unavailable locally.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

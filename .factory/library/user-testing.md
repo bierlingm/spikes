@@ -43,6 +43,10 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - CLI `whoami` currently calls `https://spikes.sh/me` directly. If production routing serves static HTML at that path, CLI identity assertions can be blocked even when local worker `GET /me` works at `http://localhost:8787/me`.
 - `spikes pull --from <share-url>` respects `SPIKES_API_URL` and now parses paginated worker responses (`{ "data": [...], "next_cursor": ... }`) correctly (validated in monetization rerun round 3).
 - Share HTML currently injects widget script with `data-endpoint="https://spikes.sh"`; local widget submissions may not hit `localhost:8787` unless endpoint behavior is overridden.
+- Local Miniflare D1 state can contain multiple SQLite files; when validating API-key linkage, select the DB file that actually contains the `api_keys` table before concluding schema issues.
+- In isolated CLI auth tests, revoking the stored `auth.api_key` can break subsequent key-management commands in the same HOME; pass `SPIKES_TOKEN=<bearer>` explicitly for follow-up commands.
+- `/auth/api-key` enforces 10/hour/IP rate limiting in local worker runs; repeated setup attempts can hit 429 and constrain extra key-status fixture generation, so prefer reusing namespace-scoped keys where possible.
+- If local billing checkout endpoints return `500 Billing not configured`, you can seed `users.tier='pro'` in local D1 for a namespace-scoped user to validate Pro unlimited-limit behavior.
 - MCP (rmcp SDK) requires `notifications/initialized` after `initialize` before `tools/list` / `tools/call`; skipping it can yield protocol-state errors.
 - When piping multiple JSON-RPC lines into `spikes mcp serve`, keep stdin open long enough for all responses (small inter-line delays help avoid premature pipe close).
 - MCP `create_share` may normalize/truncate a requested share name and append a generated suffix; validate downstream list checks against the returned slug/URL rather than the raw requested name.

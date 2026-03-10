@@ -1,0 +1,181 @@
+{
+  "milestone": "agent-identity",
+  "groupId": "id-cli-auth",
+  "testedAt": "2026-03-10T18:27:50Z",
+  "credentials": {
+    "account": "utv-ai-cli-c-r3@example.com",
+    "namespace": "utv-ai-cli-c-r3"
+  },
+  "assignedAssertions": [
+    "VAL-ID-014",
+    "VAL-ID-015",
+    "VAL-ID-016"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-ID-014",
+      "title": "CLI create-key",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Bootstrap bearer token via POST /auth/login + POST /auth/verify, then run spikes login --token <bearer> with isolated HOME/XDG and SPIKES_API_URL=http://localhost:8787",
+          "expected": "CLI login succeeds and writes bearer token into isolated auth.toml",
+          "observed": "Login succeeded (exit 0) with output {\"message\":\"Logged in successfully\",\"success\":true}"
+        },
+        {
+          "action": "Run spikes auth create-key --name utv-ai-cli-c-r3-test --json",
+          "expected": "CLI calls POST /auth/api-key and returns api_key/key_id",
+          "observed": "Exit 0 with ok=true, api_key sk_spikes_9b0009f8..., key_id key_56cdfe96c3954765"
+        },
+        {
+          "action": "Inspect isolated auth.toml",
+          "expected": "auth.toml stores API key separately from bearer token",
+          "observed": "auth.toml contains both auth.token and auth.api_key fields in separate entries"
+        }
+      ],
+      "evidence": {
+        "network": {
+          "login": {
+            "request": "POST http://localhost:8787/auth/login",
+            "status": 202,
+            "responseBody": "{\"ok\":true,\"message\":\"Check your email\",\"_test_token\":\"02737a2e-de3b-4d19-a6ce-7a47e054ab8d\"}"
+          },
+          "verify": {
+            "request": "POST http://localhost:8787/auth/verify",
+            "status": 200,
+            "responseBody": "{\"ok\":true,\"token\":\"e9983b45-ef18-4c5b-9025-555bc440b73f\",\"user\":{\"id\":\"b6afe740-e2c6-4fa4-ae82-515471b4c22c\",\"email\":\"utv-ai-cli-c-r3@example.com\",\"tier\":\"free\"}}"
+          }
+        },
+        "commands": [
+          "HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home XDG_CONFIG_HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes login --token <bearer> --json",
+          "HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home XDG_CONFIG_HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth create-key --name utv-ai-cli-c-r3-test --json"
+        ],
+        "terminalSnapshots": [
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_login_stdout.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_login_stderr.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_login_exit_code.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_create_key_stdout.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_create_key_stderr.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_create_key_exit_code.txt"
+        ],
+        "authToml": {
+          "path": "/tmp/spikes-utv-utv-ai-cli-c-r3-home/Library/Application Support/spikes/auth.toml",
+          "mode": "-rw-------",
+          "contentSnippet": "[auth]\\ntoken = \"e9983b45-ef18-4c5b-9025-555bc440b73f\"\\napi_key = \"sk_spikes_9b0009f8a35cfebdc00534bbd738b4d4853ae0461c18b8785f77364f51769056\""
+        }
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-015",
+      "title": "CLI list-keys",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run spikes auth list-keys after creating a key",
+          "expected": "Output includes key_prefix, name, and status",
+          "observed": "Output includes Key Prefix and Name, but table columns are Key Prefix | Name | Scopes | Created (no status column)"
+        },
+        {
+          "action": "Run spikes auth list-keys --json",
+          "expected": "Structured output includes status metadata",
+          "observed": "JSON entries include key_id, key_prefix, name, scopes, timestamps; no status field"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home XDG_CONFIG_HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home/.config SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<bearer> /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth list-keys",
+          "HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home XDG_CONFIG_HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home/.config SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<bearer> /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth list-keys --json"
+        ],
+        "terminalSnapshots": [
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_stdout.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_stderr.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_exit_code.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_with_token_stdout.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_with_token_json_stdout.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_with_token_exit_code.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_list_keys_with_token_json_exit_code.txt"
+        ],
+        "outputSnippets": {
+          "table": "Key Prefix | Name | Scopes | Created",
+          "json": "[{\"key_id\":\"key_b1d4634bae5f4178\",\"key_prefix\":\"fbbf02ad\",\"name\":\"utv-ai-cli-c-r3-test-2\",\"scopes\":\"full\",\"monthly_cap_cents\":null,\"expires_at\":null,\"created_at\":\"2026-03-10T18:27:38.875Z\",\"last_used_at\":\"2026-03-10T18:27:38.966Z\"}]"
+        }
+      },
+      "issues": "CLI list output does not expose a status field for each key as required by VAL-ID-015."
+    },
+    {
+      "id": "VAL-ID-016",
+      "title": "CLI revoke-key",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run spikes auth revoke-key key_56cdfe96c3954765 --json",
+          "expected": "CLI confirms key revocation",
+          "observed": "Exit 0 with {\"key_id\":\"key_56cdfe96c3954765\",\"message\":\"API key revoked\",\"ok\":true}"
+        },
+        {
+          "action": "Call GET /me with revoked API key",
+          "expected": "Revoked key no longer authenticates",
+          "observed": "HTTP 401 with {\"error\":\"Invalid or revoked bearer token\",\"code\":\"AUTH_FAILED\"}"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home XDG_CONFIG_HOME=/tmp/spikes-utv-utv-ai-cli-c-r3-home/.config SPIKES_API_URL=http://localhost:8787 /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes auth revoke-key key_56cdfe96c3954765 --json",
+          "curl -sS -H 'Authorization: Bearer <revoked-api-key>' http://localhost:8787/me"
+        ],
+        "terminalSnapshots": [
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_revoke_key_stdout.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_revoke_key_stderr.txt",
+          "/tmp/spikes-utv-utv-ai-cli-c-r3-home/evidence/cli_revoke_key_exit_code.txt"
+        ],
+        "network": {
+          "request": "GET http://localhost:8787/me (Authorization: Bearer sk_spikes_9b0009f8...)",
+          "status": 401,
+          "responseBody": "{\"error\":\"Invalid or revoked bearer token\",\"code\":\"AUTH_FAILED\"}"
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Assigned credentials include a password, but deterministic bootstrap for this flow uses magic-link endpoints (/auth/login + /auth/verify) to obtain the bearer token used by spikes login --token.",
+      "resolved": true,
+      "resolution": "Used the assigned account only, completed /auth/login + /auth/verify, then logged in via spikes login --token.",
+      "affectedAssertions": [
+        "VAL-ID-014",
+        "VAL-ID-015",
+        "VAL-ID-016"
+      ]
+    },
+    {
+      "description": "After revoking the API key stored in auth.toml, subsequent auth commands without SPIKES_TOKEN failed with 'Authentication failed' because the revoked key remained configured.",
+      "resolved": true,
+      "resolution": "Set SPIKES_TOKEN=<bearer> per command to continue list-keys verification in the same isolated HOME.",
+      "affectedAssertions": [
+        "VAL-ID-015",
+        "VAL-ID-016"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "spikes CLI (/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes)",
+    "curl",
+    "python3"
+  ],
+  "summary": {
+    "testedAt": "2026-03-10T18:27:50Z",
+    "account": "utv-ai-cli-c-r3@example.com",
+    "namespace": "utv-ai-cli-c-r3",
+    "counts": {
+      "total": 3,
+      "pass": 2,
+      "fail": 1,
+      "blocked": 0,
+      "skipped": 0
+    },
+    "notes": "CLI auth flow worked end-to-end for create-key and revoke-key in isolated HOME/XDG with SPIKES_API_URL=http://localhost:8787; list-keys failed contract expectation because status is not shown in output."
+  }
+}

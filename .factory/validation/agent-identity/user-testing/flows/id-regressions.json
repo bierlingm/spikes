@@ -1,0 +1,244 @@
+{
+  "milestone": "agent-identity",
+  "groupId": "id-regressions",
+  "testedAt": "2026-03-10T18:30:20Z",
+  "credentials": {
+    "account": "utv-ai-regress-d-r3@example.com",
+    "namespace": "utv-ai-regress-d-r3"
+  },
+  "assignedAssertions": [
+    "VAL-ID-017",
+    "VAL-CROSS-004",
+    "VAL-CROSS-005"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-ID-017",
+      "title": "Magic link auth still works",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /auth/login with assigned namespace email",
+          "expected": "HTTP 202 and _test_token",
+          "observed": "HTTP 202 with _test_token returned"
+        },
+        {
+          "action": "POST /auth/verify with login_token",
+          "expected": "HTTP 200 and bearer token",
+          "observed": "HTTP 200 with token a55ba23e-4c3c-49b5-ac9d-8665dfcc1bf9"
+        },
+        {
+          "action": "Use magic-link bearer token on authenticated endpoints",
+          "expected": "Token works for /me, /shares, /spikes, /usage and share creation",
+          "observed": "GET /me=200, GET /shares=200, GET /spikes=200, GET /usage=200, POST /shares=201"
+        }
+      ],
+      "evidence": {
+        "requests": [
+          {
+            "request": "POST http://localhost:8787/auth/login",
+            "status": 202,
+            "responseBody": "{\"ok\":true,\"message\":\"Check your email\",\"_test_token\":\"a0803d11-51b1-4ee6-9ed0-be522e66de06\"}"
+          },
+          {
+            "request": "POST http://localhost:8787/auth/verify",
+            "status": 200,
+            "responseBody": "{\"ok\":true,\"token\":\"a55ba23e-4c3c-49b5-ac9d-8665dfcc1bf9\",\"user\":{\"id\":\"377a2659-e1cb-4a12-bbd1-1d2562a766dd\",\"email\":\"utv-ai-regress-d-r3@example.com\",\"tier\":\"free\"}}"
+          },
+          {
+            "request": "GET http://localhost:8787/me (Authorization: Bearer <magic-token>)",
+            "status": 200,
+            "responseBody": "{\"email\":\"utv-ai-regress-d-r3@example.com\",\"tier\":\"free\"}"
+          },
+          {
+            "request": "POST http://localhost:8787/shares (multipart metadata)",
+            "status": 201,
+            "responseBody": "{\"ok\":true,\"url\":\"https://spikes.sh/s/utv-ai-regress-d-r3-id017-shar-xy83o\",\"share_id\":\"b887275a-a8a7-401e-88c7-958c3edc6a18\",\"slug\":\"utv-ai-regress-d-r3-id017-shar-xy83o\"}"
+          },
+          {
+            "request": "GET http://localhost:8787/usage (Authorization: Bearer <magic-token>)",
+            "status": 200,
+            "responseBody": "{\"spikes\":0,\"spike_limit\":1000,\"shares\":0,\"share_limit\":5,\"tier\":\"free\",\"reset_at\":null}"
+          }
+        ],
+        "artifactsDir": "/tmp/utv-ai-regress-d-r3-id-regressions"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-004",
+      "title": "Existing auth regression",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create API key with assigned CF test IP",
+          "expected": "HTTP 201 and api_key with sk_spikes_ prefix",
+          "observed": "HTTP 201 with key_id key_0d55d31a6c464a03 and api_key sk_spikes_*"
+        },
+        {
+          "action": "Use API key bearer on authenticated endpoints",
+          "expected": "API key auth works for core endpoints",
+          "observed": "GET /me=200, GET /shares=200, GET /spikes=200, GET /usage=200"
+        },
+        {
+          "action": "Use magic-link bearer alongside API key",
+          "expected": "Magic-link bearer remains valid while API key also works",
+          "observed": "GET /me with magic token=200 and GET /me with API key=200 in same run"
+        }
+      ],
+      "evidence": {
+        "requests": [
+          {
+            "request": "POST http://localhost:8787/auth/api-key (CF-Connecting-IP: 198.51.100.33)",
+            "status": 201,
+            "responseBody": "{\"ok\":true,\"api_key\":\"sk_spikes_8a2cc06fdb5c5425cb68796d5484eb394dcb7335407a3137cbb516b392ab1873\",\"key_id\":\"key_0d55d31a6c464a03\",\"name\":\"utv-ai-regress-d-r3-key-side-by-side\",\"scopes\":\"full\"}"
+          },
+          {
+            "request": "GET http://localhost:8787/me (Authorization: Bearer <api-key>)",
+            "status": 200,
+            "responseBody": "{\"key_id\":\"key_0d55d31a6c464a03\",\"name\":\"utv-ai-regress-d-r3-key-side-by-side\",\"scopes\":\"full\",\"key_prefix\":\"8a2cc06f\",\"tier\":\"free\"}"
+          },
+          {
+            "request": "GET http://localhost:8787/me (Authorization: Bearer <magic-token>)",
+            "status": 200,
+            "responseBody": "{\"email\":\"utv-ai-regress-d-r3@example.com\",\"tier\":\"pro\"}"
+          }
+        ],
+        "artifactsDir": "/tmp/utv-ai-regress-d-r3-id-regressions"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "title": "Existing tier regression",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Validate free-tier share cap with assigned account",
+          "expected": "Limit enforced at 5 total shares",
+          "observed": "Baseline shares=1; additional attempts statuses 201,201,201,201,429 with SHARE_LIMIT on the 5th new attempt (6th would also be blocked)"
+        },
+        {
+          "action": "Validate free-tier spike cap on namespaced share",
+          "expected": "Limit enforced at 1000 spikes/share",
+          "observed": "Share reached total_count=1000 with 201 responses; next write at total_count=1001 returned 429 SPIKE_LIMIT"
+        },
+        {
+          "action": "Check checkout availability for Pro path",
+          "expected": "Checkout endpoint available or fallback seeding used",
+          "observed": "GET /billing/checkout and /billing/checkout?tier=pro both returned 500 Billing not configured"
+        },
+        {
+          "action": "Apply allowed local D1 seed fallback for Pro and re-test limits",
+          "expected": "After tier='pro', creation limits are no longer enforced",
+          "observed": "D1 query shows tier free->pro; /me reports tier=pro; three share creates after free-limit all returned 201; spike write after prior SPIKE_LIMIT returned 201"
+        }
+      ],
+      "evidence": {
+        "freeTier": {
+          "shareLimit": {
+            "baselineCount": 1,
+            "attemptsCsv": "1,201 | 2,201 | 3,201 | 4,201 | 5,429",
+            "limitResponse": {
+              "request": "POST http://localhost:8787/shares (attempt 5 in this sequence)",
+              "status": 429,
+              "responseBody": "{\"error\":\"Share limit reached\",\"code\":\"SHARE_LIMIT\",\"upgrade_url\":\"https://spikes.sh/pro\"}"
+            }
+          },
+          "spikeLimit": {
+            "shareId": "b887275a-a8a7-401e-88c7-958c3edc6a18",
+            "sampleStatuses": [
+              {
+                "attempt": 1,
+                "totalCount": 2,
+                "status": 201
+              },
+              {
+                "attempt": 250,
+                "totalCount": 251,
+                "status": 201
+              },
+              {
+                "attempt": 500,
+                "totalCount": 501,
+                "status": 201
+              },
+              {
+                "attempt": 750,
+                "totalCount": 751,
+                "status": 201
+              },
+              {
+                "attempt": 999,
+                "totalCount": 1000,
+                "status": 201
+              },
+              {
+                "attempt": 1000,
+                "totalCount": 1001,
+                "status": 429
+              }
+            ],
+            "limitResponse": "{\"error\":\"Spike limit reached for this share\",\"code\":\"SPIKE_LIMIT\",\"upgrade_url\":\"https://spikes.sh/pro\"}"
+          }
+        },
+        "proTier": {
+          "checkoutUnavailable": {
+            "checkoutDefaultStatus": 500,
+            "checkoutDefaultBody": "{\"error\":\"Billing not configured\",\"code\":\"INTERNAL_ERROR\"}",
+            "checkoutProStatus": 500,
+            "checkoutProBody": "{\"error\":\"Billing not configured\",\"code\":\"INTERNAL_ERROR\"}"
+          },
+          "d1Seed": {
+            "before": "SELECT id,email,tier FROM users WHERE email='utv-ai-regress-d-r3@example.com' => tier=free",
+            "update": "UPDATE users SET tier='pro' WHERE email='utv-ai-regress-d-r3@example.com'",
+            "after": "SELECT id,email,tier FROM users WHERE email='utv-ai-regress-d-r3@example.com' => tier=pro"
+          },
+          "postSeedValidation": {
+            "me": {
+              "status": 200,
+              "body": "{\"email\":\"utv-ai-regress-d-r3@example.com\",\"tier\":\"pro\"}"
+            },
+            "shareCreateStatuses": [
+              201,
+              201,
+              201
+            ],
+            "spikeAfterFreeLimit": {
+              "status": 201,
+              "body": "{\"ok\":true,\"id\":\"fdc7ed44-fea3-4c7a-bf00-cdc4a15f05b8\"}"
+            }
+          }
+        },
+        "artifactsDir": "/tmp/utv-ai-regress-d-r3-id-regressions"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "POST /spikes validation requires project/projectKey; initial payload without projectKey returned 400 VALIDATION_ERROR.",
+      "resolved": true,
+      "resolution": "Added projectKey=utv-ai-regress-d-r3 to all spike payloads.",
+      "affectedAssertions": [
+        "VAL-CROSS-005"
+      ]
+    },
+    {
+      "description": "Stripe checkout unavailable in local worker (Billing not configured), preventing direct Pro checkout validation.",
+      "resolved": true,
+      "resolution": "Used allowed local D1 seeding fallback for assigned namespace user tier='pro', then re-validated unlimited behavior.",
+      "affectedAssertions": [
+        "VAL-CROSS-005"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "curl",
+    "wrangler d1 execute",
+    "jq",
+    "python3"
+  ],
+  "summary": "Validated VAL-ID-017, VAL-CROSS-004, and VAL-CROSS-005 for namespace utv-ai-regress-d-r3. Magic-link flow and API-key auth both worked side-by-side, free-tier limits (shares + spikes) were enforced, and Pro unlimited behavior was confirmed via the approved local D1 tier='pro' seed fallback because local checkout endpoints were not configured."
+}

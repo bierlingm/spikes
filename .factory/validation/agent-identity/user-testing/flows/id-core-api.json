@@ -1,0 +1,226 @@
+{
+  "milestone": "agent-identity",
+  "groupId": "id-core-api",
+  "testedAt": "2026-03-10T18:28:35Z",
+  "credentials": {
+    "account": "utv-ai-core-a-r3@example.com",
+    "namespace": "utv-ai-core-a-r3"
+  },
+  "assignedAssertions": [
+    "VAL-ID-001",
+    "VAL-ID-002",
+    "VAL-ID-003",
+    "VAL-ID-004",
+    "VAL-ID-005",
+    "VAL-ID-006"
+  ],
+  "assertionResults": [
+    {
+      "id": "VAL-ID-001",
+      "title": "Create API key — happy path",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /auth/api-key with JSON body {\"name\":\"utv-ai-core-a-r3-key-1\"} and CF-Connecting-IP: 198.51.100.31",
+          "expected": "HTTP 201 with ok=true, api_key prefix sk_spikes_, key_id prefix key_",
+          "observed": "HTTP 201 with ok=true, api_key=sk_spikes_..., key_id=key_7975dcb87a3b44c2"
+        }
+      ],
+      "evidence": {
+        "request": "curl -sS -D /tmp/utv-ai-core-a-r3-id-core-api/val006_req_1_headers.txt -o /tmp/utv-ai-core-a-r3-id-core-api/val006_req_1_body.json -w '%{http_code}' -X POST http://localhost:8787/auth/api-key -H 'CF-Connecting-IP: 198.51.100.31' -H 'Content-Type: application/json' --data '{\"name\":\"utv-ai-core-a-r3-key-1\"}'",
+        "status": 201,
+        "responseSnippet": "{\"ok\":true,\"api_key\":\"sk_spikes_...\",\"key_id\":\"key_7975dcb87a3b44c2\",\"name\":\"utv-ai-core-a-r3-key-1\",\"scopes\":\"full\"}",
+        "artifacts": [
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_req_1_headers.txt",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_req_1_body.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-002",
+      "title": "Create API key — no auth required",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /auth/api-key without Authorization header using assigned CF-Connecting-IP",
+          "expected": "HTTP 201 with no bearer auth",
+          "observed": "HTTP 201 and key created successfully"
+        }
+      ],
+      "evidence": {
+        "authorizationHeaderSent": false,
+        "status": 201,
+        "responseSnippet": "{\"ok\":true,\"api_key\":\"sk_spikes_...\",\"key_id\":\"key_7975dcb87a3b44c2\"}",
+        "artifacts": [
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_req_1_headers.txt",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_req_1_body.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-003",
+      "title": "API key authenticates API calls",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /me with Authorization: Bearer sk_spikes_<created-key>",
+          "expected": "HTTP 200 and body includes key_id + scopes",
+          "observed": "HTTP 200 with key_id=key_7975dcb87a3b44c2 and scopes=full"
+        }
+      ],
+      "evidence": {
+        "request": "curl -sS -D /tmp/utv-ai-core-a-r3-id-core-api/val003_me_headers.txt -o /tmp/utv-ai-core-a-r3-id-core-api/val003_me_body.json -w '%{http_code}' http://localhost:8787/me -H 'Authorization: Bearer <REDACTED_API_KEY>'",
+        "status": 200,
+        "responseSnippet": "{\"key_id\":\"key_7975dcb87a3b44c2\",\"name\":\"utv-ai-core-a-r3-key-1\",\"scopes\":\"full\",\"key_prefix\":\"aae3140c\"}",
+        "artifacts": [
+          "/tmp/utv-ai-core-a-r3-id-core-api/val003_me_headers.txt",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val003_me_body.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-004",
+      "title": "API key authenticates all endpoints",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /shares with API key bearer",
+          "expected": "HTTP 200 (not 401)",
+          "observed": "HTTP 200"
+        },
+        {
+          "action": "POST /shares with API key bearer and multipart metadata+file",
+          "expected": "HTTP 201 (not 401)",
+          "observed": "HTTP 201"
+        },
+        {
+          "action": "GET /spikes with API key bearer",
+          "expected": "HTTP 200 (not 401)",
+          "observed": "HTTP 200"
+        },
+        {
+          "action": "GET /usage with API key bearer",
+          "expected": "HTTP 200 (not 401)",
+          "observed": "HTTP 200"
+        }
+      ],
+      "evidence": {
+        "endpointStatuses": {
+          "GET /shares": 200,
+          "POST /shares": 201,
+          "GET /spikes": 200,
+          "GET /usage": 200
+        },
+        "responseSnippets": {
+          "GET /shares": "[]",
+          "POST /shares": "{\"ok\":true,\"share_id\":\"1529ed0e-63fd-4f94-946c-56fd322ce321\",\"slug\":\"utv-ai-core-a-r3-api-key-share-8hljz\"}",
+          "GET /usage": "{\"spikes\":0,\"spike_limit\":1000,\"shares\":0,\"share_limit\":5,\"tier\":\"free\",\"reset_at\":null}"
+        },
+        "artifacts": [
+          "/tmp/utv-ai-core-a-r3-id-core-api/val004_endpoint_statuses.csv",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val004_get_shares_body.json",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val004_post_shares_body.json",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val004_get_spikes_body.json",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val004_get_usage_body.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-005",
+      "title": "API key hash stored, not raw",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Query local D1 api_keys schema and the row for key_id=key_7975dcb87a3b44c2",
+          "expected": "Stored row contains hash/salt material only; raw key not stored",
+          "observed": "Row contains key_hash + key_salt + key_prefix; table schema has no raw api_key column"
+        }
+      ],
+      "evidence": {
+        "dbFile": "/Users/moritzbierling/werk/repos/spikes-hosted/worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/4866809e7ee06d37d6b5db373dc327ac1bc06fd638484460a99b4ee2c5f5b401.sqlite",
+        "sqliteChecks": [
+          "sqlite3 -header -csv <db> \"PRAGMA table_info(api_keys);\"",
+          "sqlite3 -header -csv <db> \"SELECT sql FROM sqlite_master WHERE type='table' AND name='api_keys';\"",
+          "sqlite3 -header -csv <db> \"SELECT id,key_hash,key_salt,key_prefix,name,user_id,scopes,monthly_cap_cents,expires_at,created_at,last_used_at,revoked_at FROM api_keys WHERE id='key_7975dcb87a3b44c2';\""
+        ],
+        "observed": {
+          "row": {
+            "id": "key_7975dcb87a3b44c2",
+            "key_hash": "c4d61483570a01cf274a5b1e7e057273f6ee119ae38a69040c154bb440a3bc5c",
+            "key_salt": "1ddcda78037bdcd4983978ed38145e32",
+            "key_prefix": "aae3140c",
+            "name": "utv-ai-core-a-r3-key-1",
+            "scopes": "full"
+          },
+          "hasRawApiKeyColumn": false,
+          "tableSql": "CREATE TABLE api_keys (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, key_prefix TEXT NOT NULL, name TEXT, user_id TEXT REFERENCES users(id) ON DELETE SET NULL, scopes TEXT NOT NULL DEFAULT 'full', monthly_cap_cents INTEGER, revoked_at TEXT, expires_at TEXT, created_at TEXT NOT NULL, last_used_at TEXT, key_salt TEXT)"
+        },
+        "artifacts": [
+          "/tmp/utv-ai-core-a-r3-id-core-api/val005_api_keys_table_info.csv",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val005_api_keys_table_sql.csv",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val005_api_key_row.csv",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val005_db_summary.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ID-006",
+      "title": "API key rate limited",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Send 11 rapid POST /auth/api-key requests from CF-Connecting-IP: 198.51.100.31",
+          "expected": "1-10 succeed, 11th returns 429 with Retry-After",
+          "observed": "Attempts 1-10 returned 201; attempt 11 returned 429 with Retry-After: 3600"
+        }
+      ],
+      "evidence": {
+        "requestPattern": "for i in $(seq 1 11); do curl -sS -D /tmp/utv-ai-core-a-r3-id-core-api/val006_req_${i}_headers.txt -o /tmp/utv-ai-core-a-r3-id-core-api/val006_req_${i}_body.json -w '%{http_code}' -X POST http://localhost:8787/auth/api-key -H 'CF-Connecting-IP: 198.51.100.31' -H 'Content-Type: application/json' --data '{\"name\":\"utv-ai-core-a-r3-key-${i}\"}'; done",
+        "statuses": [
+          201,
+          201,
+          201,
+          201,
+          201,
+          201,
+          201,
+          201,
+          201,
+          201,
+          429
+        ],
+        "retryAfterHeader": "3600",
+        "responseBody": "{\"error\":\"Rate limit exceeded\",\"code\":\"RATE_LIMIT\",\"retry_after\":3600}",
+        "artifacts": [
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_statuses.csv",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_req_11_headers.txt",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_req_11_body.json",
+          "/tmp/utv-ai-core-a-r3-id-core-api/val006_summary.json"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "GET /spikes returns existing global dataset in local worker state; endpoint auth verification for this assertion used status-code criteria (200/not 401) per contract.",
+      "resolved": true,
+      "resolution": "Recorded HTTP status evidence for each endpoint and preserved full body artifacts for traceability.",
+      "affectedAssertions": [
+        "VAL-ID-004"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "curl",
+    "sqlite3",
+    "python3"
+  ],
+  "summary": "Tested VAL-ID-001..VAL-ID-006 with namespace utv-ai-core-a-r3 and CF IP 198.51.100.31: all 6 assertions passed. API key creation/auth flows succeeded, D1 shows hashed/salted key storage without raw key column, and the 11th rapid create-key request returned 429 with Retry-After: 3600."
+}
