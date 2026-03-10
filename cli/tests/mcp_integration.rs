@@ -56,7 +56,7 @@ fn test_mcp_sequential_requests() {
 
 // HTTP Transport Tests
 
-/// Helper to start HTTP MCP server in background
+/// Helper to start HTTP MCP server in background with logging
 fn start_http_server(port: u16) -> Child {
     use std::process::Stdio;
 
@@ -136,7 +136,12 @@ fn test_mcp_http_initialize() {
     // Wait for server to start
     thread::sleep(Duration::from_millis(1000));
 
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .http1_only()
+        .build()
+        .expect("Failed to create HTTP client");
+
     let response = client
         .post(format!("http://127.0.0.1:{}/", port))
         .header("Content-Type", "application/json")
@@ -153,13 +158,22 @@ fn test_mcp_http_initialize() {
         }))
         .send();
 
-    stop_http_server(server);
-
     assert!(response.is_ok(), "Should get response from HTTP MCP server");
     let response = response.unwrap();
 
-    // Response is in SSE format
-    let body = response.text().unwrap();
+    // Verify the Mcp-Session-Id header is present (required by MCP Streamable HTTP spec)
+    let session_id = response
+        .headers()
+        .get("Mcp-Session-Id")
+        .and_then(|v| v.to_str().ok());
+    assert!(
+        session_id.is_some(),
+        "Initialize response must include Mcp-Session-Id header"
+    );
+
+    // Read response body using bytes() to avoid blocking on SSE streams
+    let body_bytes = response.bytes().expect("Failed to read response");
+    let body = String::from_utf8_lossy(&body_bytes);
     let json = extract_json_from_sse(&body)
         .expect("Response should contain valid JSON in SSE format");
 
@@ -168,6 +182,8 @@ fn test_mcp_http_initialize() {
     assert_eq!(json["id"], 1);
     assert!(json["result"].is_object());
     assert_eq!(json["result"]["serverInfo"]["name"], "spikes-mcp");
+
+    stop_http_server(server);
 }
 
 #[test]
@@ -179,7 +195,13 @@ fn test_mcp_http_tools_list() {
     // Wait for server to start
     thread::sleep(Duration::from_millis(1000));
 
-    let client = reqwest::blocking::Client::new();
+    // Create client with explicit timeout configuration for SSE streams
+    // Use HTTP/1.1 only to avoid connection reuse issues
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .http1_only()
+        .build()
+        .expect("Failed to create HTTP client");
 
     // Initialize first
     let init_response = client
@@ -199,25 +221,47 @@ fn test_mcp_http_tools_list() {
         .send();
 
     assert!(init_response.is_ok(), "Initialize should succeed");
+    let init_response = init_response.unwrap();
+
+    // CRITICAL: Capture the Mcp-Session-Id header from the initialize response
+    // The MCP Streamable HTTP spec requires session persistence via this header
+    let session_id = init_response
+        .headers()
+        .get("Mcp-Session-Id")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+        .expect("Initialize response must include Mcp-Session-Id header");
+
+    // Read the SSE response body using bytes() to avoid blocking on SSE streams
+    // SSE streams from rmcp return priming events followed by the actual response
+    let _init_bytes = init_response.bytes().expect("Failed to read init response");
     thread::sleep(Duration::from_millis(200));
 
     // Send initialized notification (required by MCP protocol)
-    let _ = client
+    // Include the session ID header to maintain session state
+    let notif_response = client
         .post(format!("http://127.0.0.1:{}/", port))
         .header("Content-Type", "application/json")
         .header("Accept", "application/json, text/event-stream")
+        .header("Mcp-Session-Id", &session_id)
         .json(&serde_json::json!({
             "jsonrpc": "2.0",
             "method": "notifications/initialized"
         }))
         .send();
+
+    // Notification returns 202 Accepted - read and discard response
+    if let Ok(resp) = notif_response {
+        let _ = resp.bytes();
+    }
     thread::sleep(Duration::from_millis(200));
 
-    // Then call tools/list
+    // Then call tools/list - include session ID header
     let tools_response = client
         .post(format!("http://127.0.0.1:{}/", port))
         .header("Content-Type", "application/json")
         .header("Accept", "application/json, text/event-stream")
+        .header("Mcp-Session-Id", &session_id)
         .json(&serde_json::json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -230,7 +274,8 @@ fn test_mcp_http_tools_list() {
 
     assert!(tools_response.is_ok(), "tools/list should succeed");
     let response = tools_response.unwrap();
-    let body = response.text().unwrap();
+    let body_bytes = response.bytes().expect("Failed to read tools response");
+    let body = String::from_utf8_lossy(&body_bytes);
 
     // Parse response - must contain valid JSON
     let json = extract_json_from_sse(&body)
@@ -238,14 +283,15 @@ fn test_mcp_http_tools_list() {
         .expect("Response should contain valid JSON");
 
     // Should list 9 tools - UNCONDITIONAL assertion (test must fail if tools not present)
-    assert!(json["result"]["tools"].is_array(), "Response must contain tools array");
+    assert!(
+        json["result"]["tools"].is_array(),
+        "Response must contain tools array"
+    );
     let tools = json["result"]["tools"].as_array().unwrap();
     assert_eq!(tools.len(), 9, "Should have 9 MCP tools");
 
     // Verify tool names
-    let tool_names: Vec<&str> = tools.iter()
-        .filter_map(|t| t["name"].as_str())
-        .collect();
+    let tool_names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
     assert!(tool_names.contains(&"get_spikes"), "Must have get_spikes tool");
     assert!(tool_names.contains(&"submit_spike"), "Must have submit_spike tool");
     assert!(tool_names.contains(&"get_usage"), "Must have get_usage tool");
