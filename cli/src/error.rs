@@ -2,11 +2,14 @@ use std::io;
 
 use thiserror::Error;
 
-/// Error codes returned by the API for rate limiting
+/// Error codes returned by the API for rate limiting, budget, and scope enforcement
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApiErrorCode {
     SpikeLimit,
     ShareLimit,
+    BudgetExceeded,
+    RateLimited,
+    ScopeDenied,
     Unknown(String),
 }
 
@@ -15,6 +18,9 @@ impl std::fmt::Display for ApiErrorCode {
         match self {
             ApiErrorCode::SpikeLimit => write!(f, "SPIKE_LIMIT"),
             ApiErrorCode::ShareLimit => write!(f, "SHARE_LIMIT"),
+            ApiErrorCode::BudgetExceeded => write!(f, "BUDGET_EXCEEDED"),
+            ApiErrorCode::RateLimited => write!(f, "RATE_LIMITED"),
+            ApiErrorCode::ScopeDenied => write!(f, "SCOPE_DENIED"),
             ApiErrorCode::Unknown(code) => write!(f, "{}", code),
         }
     }
@@ -25,6 +31,9 @@ impl From<&str> for ApiErrorCode {
         match s {
             "SPIKE_LIMIT" => ApiErrorCode::SpikeLimit,
             "SHARE_LIMIT" => ApiErrorCode::ShareLimit,
+            "BUDGET_EXCEEDED" => ApiErrorCode::BudgetExceeded,
+            "RATE_LIMITED" => ApiErrorCode::RateLimited,
+            "SCOPE_DENIED" => ApiErrorCode::ScopeDenied,
             other => ApiErrorCode::Unknown(other.to_string()),
         }
     }
@@ -74,6 +83,12 @@ pub enum Error {
     #[error("You've reached the free tier limit (5 shares). Delete a share or upgrade at https://spikes.sh/pro")]
     ShareLimitReached,
 
+    #[error("Budget exceeded: monthly spending cap reached. Raise your cap or wait for the next billing period.")]
+    BudgetExceeded,
+
+    #[error("Permission denied: your API key scope does not allow this operation.")]
+    ScopeDenied,
+
     #[error("Files too large. Max size is 50MB. Consider removing large assets.")]
     PayloadTooLarge,
 
@@ -110,11 +125,16 @@ pub fn map_http_error(status: u16, body: Option<&str>) -> Error {
     match status {
         401 => Error::AuthFailed,
         403 => {
-            // 403 could be auth-related or feature-gated
-            if let Some(ref err) = api_error {
-                Error::ApiError(err.clone())
-            } else {
-                Error::AuthFailed
+            // 403 could be auth-related, feature-gated, or scope-denied
+            match api_error.as_ref().and_then(|e| e.code.as_ref()) {
+                Some(ApiErrorCode::ScopeDenied) => Error::ScopeDenied,
+                _ => {
+                    if let Some(ref err) = api_error {
+                        Error::ApiError(err.clone())
+                    } else {
+                        Error::AuthFailed
+                    }
+                }
             }
         }
         404 => {
@@ -125,10 +145,11 @@ pub fn map_http_error(status: u16, body: Option<&str>) -> Error {
             }
         }
         429 => {
-            // Rate limit - check the code field to distinguish
+            // Rate limit or budget exceeded - check the code field to distinguish
             match api_error.as_ref().and_then(|e| e.code.as_ref()) {
                 Some(ApiErrorCode::SpikeLimit) => Error::SpikeLimitReached,
                 Some(ApiErrorCode::ShareLimit) => Error::ShareLimitReached,
+                Some(ApiErrorCode::BudgetExceeded) => Error::BudgetExceeded,
                 _ => Error::RequestFailed("Rate limit exceeded. Please wait a moment and try again.".to_string()),
             }
         }
@@ -318,7 +339,43 @@ mod tests {
     fn test_api_error_code_from_str() {
         assert_eq!(ApiErrorCode::from("SPIKE_LIMIT"), ApiErrorCode::SpikeLimit);
         assert_eq!(ApiErrorCode::from("SHARE_LIMIT"), ApiErrorCode::ShareLimit);
+        assert_eq!(ApiErrorCode::from("BUDGET_EXCEEDED"), ApiErrorCode::BudgetExceeded);
+        assert_eq!(ApiErrorCode::from("RATE_LIMITED"), ApiErrorCode::RateLimited);
+        assert_eq!(ApiErrorCode::from("SCOPE_DENIED"), ApiErrorCode::ScopeDenied);
         assert_eq!(ApiErrorCode::from("OTHER"), ApiErrorCode::Unknown("OTHER".to_string()));
+    }
+
+    #[test]
+    fn test_map_429_budget_exceeded() {
+        let body = r#"{"error":"Monthly budget cap reached","code":"BUDGET_EXCEEDED"}"#;
+        let error = map_http_error(429, Some(body));
+        assert!(matches!(error, Error::BudgetExceeded));
+        let err_lower = error.to_string().to_lowercase();
+        assert!(err_lower.contains("budget"), "Error message should contain 'budget', got: {}", error);
+        assert!(err_lower.contains("budget exceeded"));
+    }
+
+    #[test]
+    fn test_map_429_rate_limited_generic() {
+        // A 429 without BUDGET_EXCEEDED should still map to rate limit
+        let body = r#"{"error":"Too many requests","code":"RATE_LIMITED"}"#;
+        let error = map_http_error(429, Some(body));
+        assert!(error.to_string().contains("Rate limit exceeded"));
+    }
+
+    #[test]
+    fn test_map_403_scope_denied() {
+        let body = r#"{"error":"Insufficient scope","code":"SCOPE_DENIED"}"#;
+        let error = map_http_error(403, Some(body));
+        assert!(matches!(error, Error::ScopeDenied));
+        assert!(error.to_string().to_lowercase().contains("permission denied"));
+    }
+
+    #[test]
+    fn test_map_403_generic_is_auth_failed() {
+        // A 403 without SCOPE_DENIED code should still map to AuthFailed
+        let error = map_http_error(403, None);
+        assert!(matches!(error, Error::AuthFailed));
     }
 
     #[test]

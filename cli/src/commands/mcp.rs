@@ -576,6 +576,9 @@ impl SpikesService {
                 "Share created!\n  URL: {}\n  Slug: {}\n  Files: {}",
                 share_result.url, share_result.slug, share_result.file_count
             ))])),
+            Err(ref e @ Error::BudgetExceeded) | Err(ref e @ Error::ScopeDenied) | Err(ref e @ Error::AuthFailed) => {
+                Err(map_error_to_mcp(e))
+            }
             Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
                 "ERROR: {}",
                 e
@@ -1075,6 +1078,32 @@ fn fetch_usage(token: &str, api_base: &str) -> crate::error::Result<UsageData> {
 }
 
 // ============================================================================
+// MCP Error Mapping
+// ============================================================================
+
+/// Map a crate::error::Error to an MCP ErrorData with appropriate error code.
+///
+/// Budget exceeded and scope denied errors are mapped to specific MCP errors
+/// so that agents can handle them programmatically rather than parsing text.
+fn map_error_to_mcp(err: &Error) -> McpError {
+    match err {
+        Error::BudgetExceeded => McpError::invalid_request(
+            "Budget exceeded: monthly spending cap reached. Raise your cap or wait for the next billing period.",
+            None,
+        ),
+        Error::ScopeDenied => McpError::invalid_request(
+            "Permission denied: your API key scope does not allow this operation.",
+            None,
+        ),
+        Error::AuthFailed => McpError::invalid_request(
+            "Authentication failed. Run `spikes login` to refresh your token.",
+            None,
+        ),
+        _ => McpError::internal_error(err.to_string(), None),
+    }
+}
+
+// ============================================================================
 // Remote Mode Helper Functions
 // ============================================================================
 
@@ -1269,26 +1298,20 @@ async fn submit_spike_remote(
         Ok(resp) => resp,
         Err(ureq::Error::Status(status, response)) => {
             let body_text = response.into_string().ok();
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ERROR: {}",
-                map_http_error(status, body_text.as_deref())
-            ))]));
+            let err = map_http_error(status, body_text.as_deref());
+            return Err(map_error_to_mcp(&err));
         }
         Err(e) => {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "ERROR: {}",
-                map_network_error(&e.to_string())
-            ))]));
+            let err = map_network_error(&e.to_string());
+            return Err(McpError::internal_error(err.to_string(), None));
         }
     };
 
     let status = response.status();
     if status != 200 && status != 201 {
         let body_text = response.into_string().ok();
-        return Ok(CallToolResult::success(vec![Content::text(format!(
-            "ERROR: {}",
-            map_http_error(status, body_text.as_deref())
-        ))]));
+        let err = map_http_error(status, body_text.as_deref());
+        return Err(map_error_to_mcp(&err));
     }
 
     let body_text = response.into_string().ok();
@@ -2878,5 +2901,95 @@ mod tests {
         assert!(json.contains("Test Client"));
         assert!(json.contains("/test/path"));
         assert!(json.contains("key"));
+    }
+
+    // ========================================
+    // Unit Tests for VAL-CROSS-002: Budget Error Mapping
+    // ========================================
+
+    #[test]
+    fn test_map_error_to_mcp_budget_exceeded() {
+        // When the API returns 429 BUDGET_EXCEEDED, the MCP error should mention "budget"
+        let err = Error::BudgetExceeded;
+        let mcp_err = map_error_to_mcp(&err);
+
+        let err_str = format!("{:?}", mcp_err);
+        // Verify it's an invalid_request error
+        assert!(err_str.to_lowercase().contains("budget"),
+            "MCP error for BUDGET_EXCEEDED should mention 'budget', got: {}", err_str);
+    }
+
+    #[test]
+    fn test_map_error_to_mcp_budget_via_map_http_error() {
+        // End-to-end: 429 with BUDGET_EXCEEDED body → Error::BudgetExceeded → MCP error with "budget"
+        let body = r#"{"error":"Monthly budget cap reached","code":"BUDGET_EXCEEDED"}"#;
+        let err = map_http_error(429, Some(body));
+        assert!(matches!(err, Error::BudgetExceeded));
+
+        let mcp_err = map_error_to_mcp(&err);
+        let err_str = format!("{:?}", mcp_err);
+        assert!(err_str.to_lowercase().contains("budget"),
+            "MCP error should mention 'budget' for BUDGET_EXCEEDED 429");
+    }
+
+    #[test]
+    fn test_map_error_generic_429_still_rate_limit() {
+        // A generic 429 (no BUDGET_EXCEEDED code) should still say "rate limit"
+        let err = map_http_error(429, None);
+        let err_str = err.to_string();
+        assert!(err_str.to_lowercase().contains("rate limit"),
+            "Generic 429 should mention 'rate limit', got: {}", err_str);
+    }
+
+    // ========================================
+    // Unit Tests for VAL-CROSS-006: Read-scope Enforcement
+    // ========================================
+
+    #[test]
+    fn test_map_error_to_mcp_scope_denied() {
+        // When the API returns 403 SCOPE_DENIED, MCP error should mention "scope" or "permission"
+        let err = Error::ScopeDenied;
+        let mcp_err = map_error_to_mcp(&err);
+
+        let err_str = format!("{:?}", mcp_err);
+        let err_lower = err_str.to_lowercase();
+        assert!(err_lower.contains("scope") || err_lower.contains("permission"),
+            "MCP error for SCOPE_DENIED should mention 'scope' or 'permission', got: {}", err_str);
+    }
+
+    #[test]
+    fn test_map_error_to_mcp_scope_denied_via_map_http_error() {
+        // End-to-end: 403 with SCOPE_DENIED body → Error::ScopeDenied → MCP error with "scope"/"permission"
+        let body = r#"{"error":"Insufficient scope","code":"SCOPE_DENIED"}"#;
+        let err = map_http_error(403, Some(body));
+        assert!(matches!(err, Error::ScopeDenied));
+
+        let mcp_err = map_error_to_mcp(&err);
+        let err_str = format!("{:?}", mcp_err);
+        let err_lower = err_str.to_lowercase();
+        assert!(err_lower.contains("scope") || err_lower.contains("permission"),
+            "MCP error should mention 'scope' or 'permission' for SCOPE_DENIED 403");
+    }
+
+    #[test]
+    fn test_map_error_to_mcp_auth_failed() {
+        // Auth failures should also return MCP error (not success text)
+        let err = Error::AuthFailed;
+        let mcp_err = map_error_to_mcp(&err);
+
+        let err_str = format!("{:?}", mcp_err);
+        assert!(err_str.to_lowercase().contains("auth"),
+            "MCP error for AuthFailed should mention 'auth', got: {}", err_str);
+    }
+
+    #[test]
+    fn test_map_error_to_mcp_other_errors_internal() {
+        // Non-specific errors should map to internal_error
+        let err = Error::ServerFailure;
+        let mcp_err = map_error_to_mcp(&err);
+
+        let err_str = format!("{:?}", mcp_err);
+        assert!(err_str.contains("internal_error") || err_str.contains("Server error"),
+            "Generic errors should map to internal_error, got: {}", err_str);
     }
 }
