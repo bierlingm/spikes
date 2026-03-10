@@ -55,6 +55,156 @@ spikes list --json | jq '...'  # Feed to agents
 
 ---
 
+## Agent Quickstart
+
+Get an AI agent using Spikes MCP in 4 steps:
+
+1. **Install the CLI**
+   ```bash
+   curl -fsSL https://spikes.sh/install.sh | sh
+   ```
+
+2. **Create an API key**
+   ```bash
+   spikes auth create-key --name "my-agent"
+   ```
+   This generates an `sk_spikes_` prefixed API key and stores it in your auth config.
+
+3. **Configure MCP**
+
+   **Claude Desktop** — edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+   ```json
+   {
+     "mcpServers": {
+       "spikes": {
+         "command": "spikes",
+         "args": ["mcp", "serve"]
+       }
+     }
+   }
+   ```
+
+   **Cursor** — create `.cursor/mcp.json` in your project root:
+   ```json
+   {
+     "mcpServers": {
+       "spikes": {
+         "command": "spikes",
+         "args": ["mcp", "serve"]
+       }
+     }
+   }
+   ```
+
+   For remote mode (uses hosted API instead of local files), change args to `["mcp", "serve", "--remote"]`.
+
+4. **First query** — ask your agent:
+   > "Use the get_spikes tool to show me all unresolved feedback"
+
+---
+
+## MCP Tools
+
+Spikes exposes 9 MCP tools via `spikes mcp serve`. These tools let AI agents read, write, and manage feedback programmatically through the Model Context Protocol.
+
+### get_spikes
+Get all feedback spikes with optional filters for page, rating, or unresolved status. Returns formatted text with spike details.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `page` | String | optional | Filter by page name (e.g., 'index.html') |
+| `rating` | String | optional | Filter by rating: love, like, meh, or no |
+| `unresolved_only` | bool | optional | Only return unresolved spikes |
+
+**Returns:** Formatted text listing matching spikes with ID, type, page, rating, comments, reviewer, timestamp, and resolution status.
+
+### get_element_feedback
+Get feedback for a specific CSS selector. Zoom in on what reviewers said about a particular element.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `selector` | String | required | CSS selector to look up |
+| `page` | String | optional | Filter by page name |
+
+**Returns:** Formatted text listing all feedback items matching the selector.
+
+### get_hotspots
+Find elements with the most feedback. Identifies hotspots where reviewers clustered. Use this to prioritize what to fix first.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `limit` | u64 | optional | Maximum number of hotspots to return (default: 10) |
+
+**Returns:** Ranked list of CSS selectors ordered by feedback count.
+
+### submit_spike
+Create new feedback. Submit a spike with page, comments, and optional selector/rating. Agent-created spikes get logged to `.spikes/feedback.jsonl`.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `page` | String | required | Page name (e.g., 'index.html') |
+| `comments` | String | required | Feedback comments |
+| `url` | String | optional | URL of the page |
+| `selector` | String | optional | CSS selector for element feedback (creates element spike if provided) |
+| `element_text` | String | optional | Text content of the element |
+| `rating` | String | optional | Rating: love, like, meh, or no |
+| `reviewer_name` | String | optional | Reviewer name (defaults to "MCP Agent") |
+| `project_key` | String | optional | Project key for the feedback (defaults to "default") |
+
+**Returns:** Confirmation with spike ID, type, page, and comments.
+
+### resolve_spike
+Mark a spike as resolved. Sets resolved=true with timestamp. Use after addressing the feedback.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `spike_id` | String | required | Spike ID or prefix (minimum 4 characters) |
+
+**Returns:** Confirmation with resolved timestamp. Returns MCP error if spike not found.
+
+### delete_spike
+Permanently remove a spike from feedback history. Use sparingly — resolving is usually better.
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `spike_id` | String | required | Spike ID or prefix (minimum 4 characters) |
+
+**Returns:** Confirmation of deletion. Returns MCP error if spike not found.
+
+### create_share
+Upload a directory and get a shareable URL. Requires authentication (spikes login or API key).
+
+**Parameters:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `directory` | String | required | Directory path to upload |
+| `name` | String | optional | Name/slug for the share |
+| `password` | String | optional | Password protection for the share |
+
+**Returns:** Share URL, slug, and file count.
+
+### list_shares
+List all your shares. Shows URLs, spike counts, and creation dates. Requires authentication.
+
+**Parameters:** None
+
+**Returns:** List of shares with slug, name, URL, spike count, and creation date.
+
+### get_usage
+View your usage statistics. Shows spike/share counts and limits. Requires authentication.
+
+**Parameters:** None
+
+**Returns:** Usage data including tier, spike/share counts and limits. Agent tier includes cost_this_period_cents, monthly_cap_cents, and period_ends.
+
+---
+
 ## CLI Commands Reference
 
 ### spikes init
@@ -123,6 +273,43 @@ Start a local development server.
 spikes serve [--port <PORT>] [--dir <DIR>]
 ```
 Default port: 3847
+
+### spikes mcp serve
+Start the MCP server for AI agent integration.
+```bash
+spikes mcp serve [OPTIONS]
+```
+**Options:**
+- `--remote` — Use hosted API instead of local JSONL
+- `--transport <MODE>` — Transport mode: stdio (default) or http
+- `--port <PORT>` — HTTP port (default: 3848, only with --transport http)
+- `--bind <ADDR>` — Bind address (default: 127.0.0.1, only with --transport http)
+
+**Examples:**
+```bash
+spikes mcp serve                              # Local mode, stdio
+spikes mcp serve --remote                     # Remote mode, stdio
+spikes mcp serve --transport http --port 3848 # Local mode, HTTP
+spikes mcp serve --transport http --remote    # Remote mode, HTTP
+```
+
+### spikes auth create-key
+Generate an API key for agent access.
+```bash
+spikes auth create-key [--name <LABEL>] [--json]
+```
+
+### spikes auth list-keys
+List all API keys with status.
+```bash
+spikes auth list-keys [--json]
+```
+
+### spikes auth revoke-key
+Revoke an API key.
+```bash
+spikes auth revoke-key <KEY_ID> [--json]
+```
 
 ### spikes deploy
 Generate deployment scaffolding.
@@ -257,11 +444,21 @@ spikes list --json --rating no
 
 ## Pricing
 
-**$0 forever (MIT licensed):**
+**Free** — $0 forever:
+- 1,000 spikes/month, 5 shares
 - Full widget + CLI
 - Local workflow (inject + serve)
 - BYO backend (Cloudflare deploy)
-- Unlimited local usage
+
+**Agent** — consumption-based:
+- $0.001/spike, $0.01/share (metered)
+- API key access
+- Budget cap controls
+
+**Pro** — pay what you can ($9-$29+/mo):
+- Unlimited spikes and shares
+- Password-protected shares
+- Priority support
 
 ---
 

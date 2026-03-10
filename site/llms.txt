@@ -22,6 +22,114 @@
 - `spikes list --json`: Machine-readable output for AI agents
 - `spikes hotspots`: Find most-spiked elements
 - `spikes export --format json`: Export all feedback
+- `spikes mcp serve`: Start MCP server (stdio transport, local data)
+- `spikes mcp serve --remote`: Start MCP server using hosted API
+- `spikes mcp serve --transport http --port 3848`: Start MCP server over HTTP
+- `spikes auth create-key`: Generate an API key for agent access
+- `spikes auth list-keys`: List your API keys
+- `spikes auth revoke-key <key_id>`: Revoke an API key
+
+## MCP Tools
+
+Spikes exposes 9 MCP tools via `spikes mcp serve`. These tools let AI agents read, write, and manage feedback programmatically.
+
+### get_spikes
+Get all feedback spikes with optional filters.
+- `page` (String, optional): Filter by page name (e.g., 'index.html')
+- `rating` (String, optional): Filter by rating: love, like, meh, or no
+- `unresolved_only` (bool, optional): Only return unresolved spikes
+- Returns: Formatted text with spike details
+
+### get_element_feedback
+Get feedback for a specific CSS selector.
+- `selector` (String, required): CSS selector to look up
+- `page` (String, optional): Filter by page name
+- Returns: Formatted text with matching element feedback
+
+### get_hotspots
+Find elements with the most feedback.
+- `limit` (u64, optional): Maximum number of hotspots to return (default: 10)
+- Returns: Ranked list of selectors by feedback count
+
+### submit_spike
+Create new feedback.
+- `page` (String, required): Page name (e.g., 'index.html')
+- `comments` (String, required): Feedback comments
+- `url` (String, optional): URL of the page
+- `selector` (String, optional): CSS selector for element feedback
+- `element_text` (String, optional): Text content of the element
+- `rating` (String, optional): Rating: love, like, meh, or no
+- `reviewer_name` (String, optional): Reviewer name
+- `project_key` (String, optional): Project key for the feedback
+- Returns: Confirmation with spike ID
+
+### resolve_spike
+Mark a spike as resolved.
+- `spike_id` (String, required): Spike ID or prefix (minimum 4 characters)
+- Returns: Confirmation with resolved timestamp
+
+### delete_spike
+Permanently remove a spike.
+- `spike_id` (String, required): Spike ID or prefix (minimum 4 characters)
+- Returns: Confirmation of deletion
+
+### create_share
+Upload a directory and get a shareable URL.
+- `directory` (String, required): Directory path to upload
+- `name` (String, optional): Name/slug for the share
+- `password` (String, optional): Password protection
+- Returns: Share URL, slug, and file count
+
+### list_shares
+List all your shares.
+- No parameters
+- Returns: Share metadata (slug, URL, spike count, creation date)
+
+### get_usage
+View usage statistics.
+- No parameters
+- Returns: Spike/share counts, limits, tier, and cost info (agent tier)
+
+## Agent Quickstart
+
+1. **Install the CLI**
+   ```bash
+   curl -fsSL https://spikes.sh/install.sh | sh
+   ```
+
+2. **Create an API key**
+   ```bash
+   spikes auth create-key --name "my-agent"
+   ```
+
+3. **Configure MCP**
+
+   Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "spikes": {
+         "command": "spikes",
+         "args": ["mcp", "serve"]
+       }
+     }
+   }
+   ```
+
+   Cursor (`.cursor/mcp.json` in your project root):
+   ```json
+   {
+     "mcpServers": {
+       "spikes": {
+         "command": "spikes",
+         "args": ["mcp", "serve"]
+       }
+     }
+   }
+   ```
+
+4. **First query** — ask your agent:
+   > "Use the get_spikes tool to show me all feedback"
 
 ## Data Format
 
