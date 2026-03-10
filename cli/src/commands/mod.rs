@@ -1,3 +1,4 @@
+pub mod auth_keys;
 pub mod billing;
 pub mod config_cmd;
 pub mod delete;

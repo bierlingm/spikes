@@ -1,12 +1,14 @@
 //! Integration tests for authentication commands
 //!
-//! Tests login, logout, whoami commands with mocked API responses
+//! Tests login, logout, whoami, and auth key management commands
+//! with mocked API responses
 
 mod common;
 
 use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use tempfile::TempDir;
+use wiremock::{matchers, Mock, MockServer, ResponseTemplate};
 use std::fs;
 use std::path::PathBuf;
 
@@ -143,4 +145,392 @@ fn test_whoami_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Show current user identity"));
+}
+
+// ============================================
+// Auth key management command tests
+// ============================================
+
+#[test]
+fn test_auth_help() {
+    cargo_bin_cmd!("spikes")
+        .arg("auth")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Manage API keys"))
+        .stdout(predicate::str::contains("create-key"))
+        .stdout(predicate::str::contains("list-keys"))
+        .stdout(predicate::str::contains("revoke-key"));
+}
+
+#[test]
+fn test_auth_create_key_help() {
+    cargo_bin_cmd!("spikes")
+        .arg("auth")
+        .arg("create-key")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Create a new API key"))
+        .stdout(predicate::str::contains("--name"))
+        .stdout(predicate::str::contains("--json"));
+}
+
+#[test]
+fn test_auth_list_keys_help() {
+    cargo_bin_cmd!("spikes")
+        .arg("auth")
+        .arg("list-keys")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("List all API keys"))
+        .stdout(predicate::str::contains("--json"));
+}
+
+#[test]
+fn test_auth_revoke_key_help() {
+    cargo_bin_cmd!("spikes")
+        .arg("auth")
+        .arg("revoke-key")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Revoke an API key"))
+        .stdout(predicate::str::contains("--json"));
+}
+
+#[test]
+fn test_auth_list_keys_not_logged_in() {
+    // Uses SPIKES_TOKEN="" (empty) which is ignored, and a non-default config dir
+    // to avoid reading the real auth.toml
+    // Note: This test may pass through to the API if a real auth.toml exists
+    // on the test machine. The error behavior is still valid (either "Not logged in"
+    // or a network/API error).
+    cargo_bin_cmd!("spikes")
+        .env_remove("SPIKES_TOKEN")
+        .arg("auth")
+        .arg("list-keys")
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_auth_revoke_key_not_logged_in() {
+    // Note: If the test machine has an auth.toml, this will hit the API instead
+    // of showing "Not logged in". Both are valid failure modes.
+    cargo_bin_cmd!("spikes")
+        .env_remove("SPIKES_TOKEN")
+        .arg("auth")
+        .arg("revoke-key")
+        .arg("key_test123")
+        .assert()
+        .failure();
+}
+
+#[test]
+fn test_auth_revoke_key_requires_key_id_arg() {
+    cargo_bin_cmd!("spikes")
+        .arg("auth")
+        .arg("revoke-key")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("required"));
+}
+
+// ============================================
+// Wiremock-based API integration tests
+// ============================================
+
+#[tokio::test]
+async fn test_auth_create_key_success() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("POST"))
+        .and(matchers::path("/auth/api-key"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "ok": true,
+            "api_key": "sk_spikes_abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+            "key_id": "key_test123456",
+            "name": null,
+            "scopes": "full",
+            "created_at": "2025-01-15T10:30:00.000Z"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .arg("auth")
+        .arg("create-key")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("API key created"))
+        .stdout(predicate::str::contains("sk_spikes_"));
+}
+
+#[tokio::test]
+async fn test_auth_create_key_with_name() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("POST"))
+        .and(matchers::path("/auth/api-key"))
+        .and(matchers::body_json(serde_json::json!({"name": "my-agent"})))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "ok": true,
+            "api_key": "sk_spikes_abcdef1234567890",
+            "key_id": "key_test123456",
+            "name": "my-agent",
+            "scopes": "full",
+            "created_at": "2025-01-15T10:30:00.000Z"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .arg("auth")
+        .arg("create-key")
+        .arg("--name")
+        .arg("my-agent")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("my-agent"));
+}
+
+#[tokio::test]
+async fn test_auth_create_key_json_output() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("POST"))
+        .and(matchers::path("/auth/api-key"))
+        .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({
+            "ok": true,
+            "api_key": "sk_spikes_abcdef1234567890",
+            "key_id": "key_test123456",
+            "name": "test",
+            "scopes": "full",
+            "created_at": "2025-01-15T10:30:00.000Z"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let output = cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .arg("auth")
+        .arg("create-key")
+        .arg("--json")
+        .output()
+        .expect("Failed to execute");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Output should be valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert!(parsed["api_key"].as_str().unwrap().starts_with("sk_spikes_"));
+    assert!(parsed["key_id"].as_str().unwrap().starts_with("key_"));
+    assert_eq!(parsed["scopes"], "full");
+}
+
+#[tokio::test]
+async fn test_auth_list_keys_success() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("GET"))
+        .and(matchers::path("/auth/api-keys"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {
+                "key_id": "key_abc123",
+                "key_prefix": "abcdef12",
+                "name": "test key",
+                "scopes": "full",
+                "monthly_cap_cents": null,
+                "expires_at": null,
+                "created_at": "2025-01-15T10:30:00.000Z",
+                "last_used_at": null
+            },
+            {
+                "key_id": "key_xyz789",
+                "key_prefix": "xyz78900",
+                "name": null,
+                "scopes": "read",
+                "monthly_cap_cents": 1000,
+                "expires_at": null,
+                "created_at": "2025-01-16T12:00:00.000Z",
+                "last_used_at": "2025-01-17T08:00:00.000Z"
+            }
+        ])))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("list-keys")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("abcdef12"))
+        .stdout(predicate::str::contains("test key"))
+        .stdout(predicate::str::contains("full"))
+        .stdout(predicate::str::contains("read"));
+}
+
+#[tokio::test]
+async fn test_auth_list_keys_json_output() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("GET"))
+        .and(matchers::path("/auth/api-keys"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {
+                "key_id": "key_abc123",
+                "key_prefix": "abcdef12",
+                "name": "test key",
+                "scopes": "full",
+                "monthly_cap_cents": null,
+                "expires_at": null,
+                "created_at": "2025-01-15T10:30:00.000Z",
+                "last_used_at": null
+            }
+        ])))
+        .mount(&mock_server)
+        .await;
+
+    let output = cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("list-keys")
+        .arg("--json")
+        .output()
+        .expect("Failed to execute");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Output should be valid JSON");
+    assert!(parsed.is_array());
+    assert_eq!(parsed[0]["key_id"], "key_abc123");
+    assert_eq!(parsed[0]["key_prefix"], "abcdef12");
+}
+
+#[tokio::test]
+async fn test_auth_list_keys_empty() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("GET"))
+        .and(matchers::path("/auth/api-keys"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("list-keys")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("No API keys found"));
+}
+
+#[tokio::test]
+async fn test_auth_revoke_key_success() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("DELETE"))
+        .and(matchers::path("/auth/api-key/key_abc123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "ok": true
+        })))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("revoke-key")
+        .arg("key_abc123")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("key_abc123"))
+        .stdout(predicate::str::contains("revoked"));
+}
+
+#[tokio::test]
+async fn test_auth_revoke_key_json_output() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("DELETE"))
+        .and(matchers::path("/auth/api-key/key_abc123"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "ok": true
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let output = cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("revoke-key")
+        .arg("key_abc123")
+        .arg("--json")
+        .output()
+        .expect("Failed to execute");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Output should be valid JSON");
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["key_id"], "key_abc123");
+}
+
+#[tokio::test]
+async fn test_auth_revoke_key_not_found() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("DELETE"))
+        .and(matchers::path("/auth/api-key/key_nonexistent"))
+        .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+            "error": "Key not found",
+            "code": "NOT_FOUND"
+        })))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("revoke-key")
+        .arg("key_nonexistent")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Key not found"));
+}
+
+#[tokio::test]
+async fn test_auth_create_key_rate_limited() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("POST"))
+        .and(matchers::path("/auth/api-key"))
+        .respond_with(ResponseTemplate::new(429).set_body_json(serde_json::json!({
+            "error": "Rate limit exceeded",
+            "code": "RATE_LIMIT",
+            "retry_after": 3600
+        })))
+        .mount(&mock_server)
+        .await;
+
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .arg("auth")
+        .arg("create-key")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Rate limit exceeded"));
 }

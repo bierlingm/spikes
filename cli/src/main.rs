@@ -323,6 +323,12 @@ enum Commands {
         #[command(subcommand)]
         action: McpAction,
     },
+
+    /// Manage API keys for agent authentication
+    Auth {
+        #[command(subcommand)]
+        action: AuthAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -368,6 +374,37 @@ enum McpTransport {
     Stdio,
     /// Use HTTP transport with POST endpoint
     Http,
+}
+
+#[derive(Subcommand)]
+enum AuthAction {
+    /// Create a new API key for agent authentication
+    CreateKey {
+        /// Optional name/label for the key
+        #[arg(long)]
+        name: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List all API keys
+    ListKeys {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Revoke an API key
+    RevokeKey {
+        /// The key ID to revoke (e.g. key_abc123)
+        key_id: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -512,6 +549,17 @@ fn main() {
                     McpTransport::Http => commands::mcp::TransportMode::Http { port, bind },
                 };
                 commands::mcp::run(remote, transport_mode)
+            }
+        },
+        Some(Commands::Auth { action }) => match action {
+            AuthAction::CreateKey { name, json } => {
+                commands::auth_keys::create_key(name, json)
+            }
+            AuthAction::ListKeys { json } => {
+                commands::auth_keys::list_keys(json)
+            }
+            AuthAction::RevokeKey { key_id, json } => {
+                commands::auth_keys::revoke_key(&key_id, json)
             }
         },
     };
