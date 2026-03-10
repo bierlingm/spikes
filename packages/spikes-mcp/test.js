@@ -160,6 +160,6 @@ test("getCachedBinaryPath ends with /spikes", function () {
 // --- Download URL construction ---
 
 test("GITHUB_RELEASE_URL points to correct repo", function () {
-  assert.ok(lib.GITHUB_RELEASE_URL.includes("moritzbierling/spikes"));
+  assert.ok(lib.GITHUB_RELEASE_URL.includes("bierlingm/spikes"));
   assert.ok(lib.GITHUB_RELEASE_URL.includes("releases/latest/download"));
 });

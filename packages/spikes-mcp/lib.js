@@ -18,7 +18,7 @@ const http = require("http");
  * Matches the pattern used by action/action.yml.
  */
 const GITHUB_RELEASE_URL =
-  "https://github.com/moritzbierling/spikes/releases/latest/download";
+  "https://github.com/bierlingm/spikes/releases/latest/download";
 
 /**
  * Supported platform targets — same as action/action.yml.
@@ -47,7 +47,7 @@ function detectPlatform() {
     throw new Error(
       `Unsupported platform: ${platform}/${arch}\n` +
         `Spikes MCP supports:\n${supported}\n` +
-        `Open an issue if you need this platform: https://github.com/moritzbierling/spikes/issues`
+        `Open an issue if you need this platform: https://github.com/bierlingm/spikes/issues`
     );
   }
 

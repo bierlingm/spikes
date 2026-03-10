@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/moritzbierling/spikes",
+    "url": "https://github.com/bierlingm/spikes",
     "directory": "packages/spikes-mcp"
   },
   "homepage": "https://spikes.sh",
