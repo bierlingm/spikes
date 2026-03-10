@@ -358,6 +358,7 @@ async fn test_auth_list_keys_success() {
                 "name": "test key",
                 "scopes": "full",
                 "monthly_cap_cents": null,
+                "revoked_at": null,
                 "expires_at": null,
                 "created_at": "2025-01-15T10:30:00.000Z",
                 "last_used_at": null
@@ -368,6 +369,7 @@ async fn test_auth_list_keys_success() {
                 "name": null,
                 "scopes": "read",
                 "monthly_cap_cents": 1000,
+                "revoked_at": null,
                 "expires_at": null,
                 "created_at": "2025-01-16T12:00:00.000Z",
                 "last_used_at": "2025-01-17T08:00:00.000Z"
@@ -386,7 +388,9 @@ async fn test_auth_list_keys_success() {
         .stdout(predicate::str::contains("abcdef12"))
         .stdout(predicate::str::contains("test key"))
         .stdout(predicate::str::contains("full"))
-        .stdout(predicate::str::contains("read"));
+        .stdout(predicate::str::contains("read"))
+        .stdout(predicate::str::contains("Status"))
+        .stdout(predicate::str::contains("active"));
 }
 
 #[tokio::test]
@@ -402,6 +406,7 @@ async fn test_auth_list_keys_json_output() {
                 "name": "test key",
                 "scopes": "full",
                 "monthly_cap_cents": null,
+                "revoked_at": null,
                 "expires_at": null,
                 "created_at": "2025-01-15T10:30:00.000Z",
                 "last_used_at": null
@@ -425,6 +430,82 @@ async fn test_auth_list_keys_json_output() {
     assert!(parsed.is_array());
     assert_eq!(parsed[0]["key_id"], "key_abc123");
     assert_eq!(parsed[0]["key_prefix"], "abcdef12");
+    assert_eq!(parsed[0]["status"], "active");
+}
+
+#[tokio::test]
+async fn test_auth_list_keys_status_revoked_and_expired() {
+    let mock_server = MockServer::start().await;
+
+    Mock::given(matchers::method("GET"))
+        .and(matchers::path("/auth/api-keys"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([
+            {
+                "key_id": "key_revoked",
+                "key_prefix": "revo1234",
+                "name": "revoked key",
+                "scopes": "full",
+                "monthly_cap_cents": null,
+                "revoked_at": "2025-02-01T00:00:00.000Z",
+                "expires_at": null,
+                "created_at": "2025-01-15T10:30:00.000Z",
+                "last_used_at": null
+            },
+            {
+                "key_id": "key_expired",
+                "key_prefix": "expi5678",
+                "name": "expired key",
+                "scopes": "read",
+                "monthly_cap_cents": null,
+                "revoked_at": null,
+                "expires_at": "2020-01-01T00:00:00.000Z",
+                "created_at": "2019-01-15T10:30:00.000Z",
+                "last_used_at": null
+            },
+            {
+                "key_id": "key_active",
+                "key_prefix": "acti9012",
+                "name": "active key",
+                "scopes": "full",
+                "monthly_cap_cents": null,
+                "revoked_at": null,
+                "expires_at": null,
+                "created_at": "2025-01-15T10:30:00.000Z",
+                "last_used_at": null
+            }
+        ])))
+        .mount(&mock_server)
+        .await;
+
+    // Test table output shows all three statuses
+    cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("list-keys")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("revoked"))
+        .stdout(predicate::str::contains("expired"))
+        .stdout(predicate::str::contains("active"));
+
+    // Test JSON output includes status field
+    let output = cargo_bin_cmd!("spikes")
+        .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("SPIKES_TOKEN", "sk_spikes_testtoken")
+        .arg("auth")
+        .arg("list-keys")
+        .arg("--json")
+        .output()
+        .expect("Failed to execute");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).expect("Output should be valid JSON");
+    assert!(parsed.is_array());
+    assert_eq!(parsed[0]["status"], "revoked");
+    assert_eq!(parsed[1]["status"], "expired");
+    assert_eq!(parsed[2]["status"], "active");
 }
 
 #[tokio::test]

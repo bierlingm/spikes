@@ -33,9 +33,42 @@ pub struct ApiKeyEntry {
     pub name: Option<String>,
     pub scopes: String,
     pub monthly_cap_cents: Option<i64>,
+    pub revoked_at: Option<String>,
     pub expires_at: Option<String>,
     pub created_at: String,
     pub last_used_at: Option<String>,
+}
+
+impl ApiKeyEntry {
+    /// Derive key status from revoked_at and expires_at fields.
+    /// - If revoked_at is set → "revoked"
+    /// - If expires_at is set and in the past → "expired"
+    /// - Otherwise → "active"
+    pub fn status(&self) -> &'static str {
+        if self.revoked_at.is_some() {
+            return "revoked";
+        }
+        if let Some(ref expires) = self.expires_at {
+            // Parse ISO 8601 and compare to now
+            if is_past(expires) {
+                return "expired";
+            }
+        }
+        "active"
+    }
+}
+
+/// Check if an ISO 8601 timestamp is in the past.
+fn is_past(iso: &str) -> bool {
+    use chrono::Utc;
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(iso) {
+        dt < Utc::now()
+    } else {
+        // Try common ISO variants (e.g. "2025-01-15T10:30:00.000Z")
+        chrono::NaiveDateTime::parse_from_str(iso, "%Y-%m-%dT%H:%M:%S%.fZ")
+            .map(|ndt| ndt.and_utc() < Utc::now())
+            .unwrap_or(false)
+    }
 }
 
 /// Response from DELETE /auth/api-key/:key_id
@@ -131,9 +164,20 @@ pub fn list_keys(json: bool) -> Result<()> {
     let keys = fetch_keys(&token)?;
 
     if json {
+        // Add derived 'status' field to each key object
+        let keys_with_status: Vec<serde_json::Value> = keys
+            .iter()
+            .map(|key| {
+                let mut obj = serde_json::to_value(key).expect("Failed to serialize key");
+                if let Some(map) = obj.as_object_mut() {
+                    map.insert("status".to_string(), serde_json::Value::String(key.status().to_string()));
+                }
+                obj
+            })
+            .collect();
         println!(
             "{}",
-            serde_json::to_string_pretty(&keys)
+            serde_json::to_string_pretty(&keys_with_status)
                 .expect("Failed to serialize to JSON")
         );
     } else {
@@ -185,16 +229,18 @@ fn print_keys_table(keys: &[ApiKeyEntry]) {
     table
         .load_preset(UTF8_FULL_CONDENSED)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["Key Prefix", "Name", "Scopes", "Created"]);
+        .set_header(vec!["Key Prefix", "Name", "Scopes", "Status", "Created"]);
 
     for key in keys {
         let name_display = key.name.as_deref().unwrap_or("—");
         let created_display = format_date(&key.created_at);
+        let status = key.status();
 
         table.add_row(vec![
             Cell::new(format!("sk_spikes_{}…", key.key_prefix)),
             Cell::new(name_display),
             Cell::new(&key.scopes),
+            Cell::new(status),
             Cell::new(&created_display),
         ]);
     }
@@ -341,6 +387,7 @@ mod tests {
             "name": "my agent",
             "scopes": "full",
             "monthly_cap_cents": 1000,
+            "revoked_at": null,
             "expires_at": null,
             "created_at": "2025-01-15T10:30:00.000Z",
             "last_used_at": "2025-01-16T12:00:00.000Z"
@@ -352,6 +399,7 @@ mod tests {
         assert_eq!(entry.name, Some("my agent".to_string()));
         assert_eq!(entry.scopes, "full");
         assert_eq!(entry.monthly_cap_cents, Some(1000));
+        assert!(entry.revoked_at.is_none());
         assert!(entry.expires_at.is_none());
         assert!(entry.last_used_at.is_some());
     }
@@ -364,6 +412,7 @@ mod tests {
             "name": null,
             "scopes": "read",
             "monthly_cap_cents": null,
+            "revoked_at": null,
             "expires_at": null,
             "created_at": "2025-01-15T10:30:00.000Z",
             "last_used_at": null
@@ -373,7 +422,26 @@ mod tests {
         assert_eq!(entry.key_id, "key_xyz789");
         assert!(entry.name.is_none());
         assert!(entry.monthly_cap_cents.is_none());
+        assert!(entry.revoked_at.is_none());
         assert!(entry.last_used_at.is_none());
+    }
+
+    #[test]
+    fn test_api_key_entry_with_revoked_at() {
+        let json = r#"{
+            "key_id": "key_abc123",
+            "key_prefix": "abcdef12",
+            "name": "revoked key",
+            "scopes": "full",
+            "monthly_cap_cents": null,
+            "revoked_at": "2025-02-01T00:00:00.000Z",
+            "expires_at": null,
+            "created_at": "2025-01-15T10:30:00.000Z",
+            "last_used_at": null
+        }"#;
+
+        let entry: ApiKeyEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.revoked_at, Some("2025-02-01T00:00:00.000Z".to_string()));
     }
 
     #[test]
@@ -423,6 +491,7 @@ mod tests {
                 name: Some("test key".to_string()),
                 scopes: "full".to_string(),
                 monthly_cap_cents: None,
+                revoked_at: None,
                 expires_at: None,
                 created_at: "2025-01-15T10:30:00.000Z".to_string(),
                 last_used_at: None,
@@ -433,6 +502,7 @@ mod tests {
                 name: None,
                 scopes: "read".to_string(),
                 monthly_cap_cents: Some(500),
+                revoked_at: None,
                 expires_at: None,
                 created_at: "2025-01-16T12:00:00.000Z".to_string(),
                 last_used_at: Some("2025-01-17T08:00:00.000Z".to_string()),
@@ -440,6 +510,105 @@ mod tests {
         ];
         // Just ensure it doesn't panic
         print_keys_table(&keys);
+    }
+
+    // ============================================
+    // Status derivation tests
+    // ============================================
+
+    #[test]
+    fn test_status_active() {
+        let entry = ApiKeyEntry {
+            key_id: "key_1".to_string(),
+            key_prefix: "abcd1234".to_string(),
+            name: None,
+            scopes: "full".to_string(),
+            monthly_cap_cents: None,
+            revoked_at: None,
+            expires_at: None,
+            created_at: "2025-01-15T10:30:00.000Z".to_string(),
+            last_used_at: None,
+        };
+        assert_eq!(entry.status(), "active");
+    }
+
+    #[test]
+    fn test_status_revoked() {
+        let entry = ApiKeyEntry {
+            key_id: "key_2".to_string(),
+            key_prefix: "abcd1234".to_string(),
+            name: None,
+            scopes: "full".to_string(),
+            monthly_cap_cents: None,
+            revoked_at: Some("2025-02-01T00:00:00.000Z".to_string()),
+            expires_at: None,
+            created_at: "2025-01-15T10:30:00.000Z".to_string(),
+            last_used_at: None,
+        };
+        assert_eq!(entry.status(), "revoked");
+    }
+
+    #[test]
+    fn test_status_expired() {
+        let entry = ApiKeyEntry {
+            key_id: "key_3".to_string(),
+            key_prefix: "abcd1234".to_string(),
+            name: None,
+            scopes: "full".to_string(),
+            monthly_cap_cents: None,
+            revoked_at: None,
+            expires_at: Some("2020-01-01T00:00:00.000Z".to_string()),
+            created_at: "2019-01-15T10:30:00.000Z".to_string(),
+            last_used_at: None,
+        };
+        assert_eq!(entry.status(), "expired");
+    }
+
+    #[test]
+    fn test_status_future_expiry_is_active() {
+        let entry = ApiKeyEntry {
+            key_id: "key_4".to_string(),
+            key_prefix: "abcd1234".to_string(),
+            name: None,
+            scopes: "full".to_string(),
+            monthly_cap_cents: None,
+            revoked_at: None,
+            expires_at: Some("2099-12-31T23:59:59.000Z".to_string()),
+            created_at: "2025-01-15T10:30:00.000Z".to_string(),
+            last_used_at: None,
+        };
+        assert_eq!(entry.status(), "active");
+    }
+
+    #[test]
+    fn test_status_revoked_takes_precedence_over_expired() {
+        let entry = ApiKeyEntry {
+            key_id: "key_5".to_string(),
+            key_prefix: "abcd1234".to_string(),
+            name: None,
+            scopes: "full".to_string(),
+            monthly_cap_cents: None,
+            revoked_at: Some("2025-02-01T00:00:00.000Z".to_string()),
+            expires_at: Some("2020-01-01T00:00:00.000Z".to_string()),
+            created_at: "2019-01-15T10:30:00.000Z".to_string(),
+            last_used_at: None,
+        };
+        assert_eq!(entry.status(), "revoked");
+    }
+
+    #[test]
+    fn test_is_past_with_past_date() {
+        assert!(is_past("2020-01-01T00:00:00.000Z"));
+    }
+
+    #[test]
+    fn test_is_past_with_future_date() {
+        assert!(!is_past("2099-12-31T23:59:59.000Z"));
+    }
+
+    #[test]
+    fn test_is_past_with_invalid_date() {
+        assert!(!is_past("not-a-date"));
     }
 
     #[test]
