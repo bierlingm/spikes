@@ -1,0 +1,28 @@
+{
+  "featureId": "fix-api-key-backend-scrutiny",
+  "reviewedAt": "2026-03-10T17:15:31Z",
+  "commitId": "d59427adefd5263e9ed63ec7ae8485f3d53640f4",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The fix correctly moves API keys to PBKDF2+salt and adds scope checks on several routes and key-management handlers, but one original blocking scope gap remains unresolved.",
+    "issues": [
+      {
+        "file": "worker/src/index.ts",
+        "line": 86,
+        "severity": "blocking",
+        "description": "GET /spikes/:id still authorizes via validateAdminOrUserToken without a hasScope(auth, 'GET') check, so write-scoped API keys can read spike data. This does not satisfy the prior blocking finding about /spikes/:id scope enforcement. Evidence: worker/src/index.ts:86-90 plus worker/src/utils/validation.ts:52-60 (API keys are accepted by validateAdminOrUserToken)."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "worker-backend procedure requires manual wrangler verification and explicit deviation reporting, but this fix session reports followedProcedure=true without recording that the manual wrangler step was skipped.",
+      "evidence": "Fix transcript skeleton shows vitest/tsc/eslint runs but no wrangler dev/curl manual verification commands; handoff.skillFeedback.followedProcedure is true with no deviations."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/agent-identity/scrutiny/reviews/api-key-backend.json",
+  "summary": "Reviewed prior failure context, fix handoff/transcript, and commit d59427a (with original commit 667524c for comparison). Result: FAIL — PBKDF2 and key-management scope fixes landed, but /spikes/:id still lacks GET scope enforcement for API-key auth, leaving an original blocking scope issue unresolved."
+}

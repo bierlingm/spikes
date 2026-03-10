@@ -1,0 +1,21 @@
+{
+  "featureId": "fix-api-key-cli-scrutiny",
+  "reviewedAt": "2026-03-10T17:14:24Z",
+  "commitId": "d72463e1024a3d1a5497b64ee37c03d0c49913fa",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix fully addresses both previously failed findings: API key storage is now separated from bearer token storage, and test isolation now includes XDG_CONFIG_HOME (plus HOME restoration hardening). No remaining blocking code issues were found for the scoped failures.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The worker-cli skill requires tests-first flow plus explicit cargo build and manual command verification, but this fix handoff reports followedProcedure=true with verification showing only cargo test and cargo clippy.",
+      "evidence": "Skill requirements: .factory/skills/worker-cli/SKILL.md:31,54,56. Handoff verification commands: /Users/moritzbierling/.factory/missions/6b058c6b-ec13-463a-a3bc-a2e0152f047b/handoffs/2026-03-10T17-09-26-465Z__fix-api-key-cli-scrutiny__f52fb47e-9fea-4718-aed2-dd555f5bc037.json:14-21"
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/agent-identity/scrutiny/reviews/api-key-cli.json; .factory/validation/agent-identity/scrutiny/reviews/fix-mcp-datasource-test-isolation.json",
+  "summary": "Reviewed feature metadata, prior failed reviews, worker transcript skeleton, handoff, skill spec, and commit diff for d72463e1024a3d1a5497b64ee37c03d0c49913fa. The fix resolves the original blocking issues in both API key CLI behavior and cross-platform auth-config test isolation, so this rerun passes."
+}

@@ -1,11 +1,11 @@
 {
   "milestone": "agent-identity",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "validatorsRun": {
     "test": {
       "passed": true,
-      "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo test --jobs 5 && cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx vitest run",
+      "command": "cargo test --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml --jobs 5 && cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx vitest run",
       "exitCode": 0
     },
     "typecheck": {
@@ -15,73 +15,36 @@
     },
     "lint": {
       "passed": true,
-      "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx eslint src/ && cd /Users/moritzbierling/werk/repos/spikes/cli && cargo clippy -- -D warnings",
+      "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx eslint src/ && cargo clippy --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml -- -D warnings",
       "exitCode": 0
     }
   },
   "reviewsSummary": {
-    "total": 3,
-    "passed": 0,
-    "failed": 3,
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
     "failedFeatures": [
-      "api-key-backend",
-      "api-key-cli",
-      "fix-mcp-datasource-test-isolation"
+      "fix-api-key-backend-scrutiny"
     ]
   },
   "blockingIssues": [
     {
-      "featureId": "api-key-backend",
+      "featureId": "fix-api-key-backend-scrutiny",
       "severity": "blocking",
-      "description": "API key material is stored with SHA-256 (hashToken) instead of PBKDF2, violating required key hashing behavior."
-    },
-    {
-      "featureId": "api-key-backend",
-      "severity": "blocking",
-      "description": "Scope enforcement is incomplete: read/write scoped API keys are not consistently checked across authenticated endpoints (e.g., /spikes paths)."
-    },
-    {
-      "featureId": "api-key-backend",
-      "severity": "blocking",
-      "description": "API key management write actions (DELETE/PATCH /auth/api-key/:key_id) do not enforce auth.scopes, allowing read-scoped keys to mutate key state."
-    },
-    {
-      "featureId": "api-key-cli",
-      "severity": "blocking",
-      "description": "`spikes auth create-key` overwrites the single stored auth token instead of storing API key credentials alongside the existing bearer token as required by the feature description."
-    },
-    {
-      "featureId": "fix-mcp-datasource-test-isolation",
-      "severity": "blocking",
-      "description": "Test isolation only overrides HOME and does not isolate XDG_CONFIG_HOME, so token lookup can still leak from real auth.toml on Linux environments."
+      "description": "GET /spikes/:id still authorizes via validateAdminOrUserToken without a hasScope(auth, 'GET') check, so write-scoped API keys can read spike data."
     }
   ],
   "appliedUpdates": [],
-  "suggestedGuidanceUpdates": [
-    {
-      "target": "skills/worker-backend",
-      "suggestion": "Require explicit `followedProcedure=false` with a concrete deviation entry whenever implementation changes land before tests in a task that claims TDD-first flow.",
-      "evidence": "Feature api-key-backend transcript sequence shows schema/constants edits before `test/api-keys.test.ts` creation while handoff still marked followedProcedure=true.",
-      "isSystemic": false
-    },
-    {
-      "target": "skills/worker-cli",
-      "suggestion": "Clarify policy for handling known baseline test failures: if any tests are skipped, require deviation reporting and prohibit `followedProcedure=true` unless full-suite pass criteria were met.",
-      "evidence": "Feature api-key-cli handoff reported `cargo test --jobs 5 -- --skip ...` and also marked followedProcedure=true despite skill text requiring all tests to pass.",
-      "isSystemic": true
-    },
-    {
-      "target": "AGENTS.md",
-      "suggestion": "Add explicit cross-platform auth-config isolation guidance for tests: set both HOME and XDG_CONFIG_HOME when validating auth.toml/token resolution behavior.",
-      "evidence": "Feature fix-mcp-datasource-test-isolation addressed HOME only; reviewer found XDG_CONFIG_HOME can still leak host auth config.",
-      "isSystemic": true
-    }
-  ],
+  "suggestedGuidanceUpdates": [],
   "rejectedObservations": [
     {
-      "observation": "API-key hashing convention drift between shared guidance and implementation",
-      "reason": "captured as a concrete blocking implementation defect; no additional shared-state update is needed before fix work"
+      "observation": "worker-backend procedure adherence reporting for manual wrangler verification",
+      "reason": "already-documented in prior synthesis guidance recommendations; no new systemic evidence in this rerun"
+    },
+    {
+      "observation": "worker-cli procedure adherence reporting for required verification steps",
+      "reason": "already-documented in prior synthesis guidance recommendations; duplicate signal in this rerun"
     }
   ],
-  "previousRound": null
+  "previousRound": ".factory/validation/agent-identity/scrutiny/synthesis.round1.json"
 }
