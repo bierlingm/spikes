@@ -1,0 +1,60 @@
+{
+  "milestone": "mcp-completeness",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 22,
+    "passed": 19,
+    "failed": 3,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-MCP-001",
+    "VAL-MCP-002",
+    "VAL-MCP-003",
+    "VAL-MCP-004",
+    "VAL-MCP-005",
+    "VAL-MCP-006",
+    "VAL-MCP-007",
+    "VAL-MCP-008",
+    "VAL-MCP-009",
+    "VAL-MCP-010",
+    "VAL-MCP-011",
+    "VAL-MCP-020",
+    "VAL-MCP-022",
+    "VAL-MCP-023",
+    "VAL-MCP-025",
+    "VAL-MCP-030",
+    "VAL-MCP-031",
+    "VAL-MCP-033",
+    "VAL-MCP-034"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-MCP-021",
+      "reason": "Remote get_spikes did not return hosted API spike data as expected (auth/read path mismatch observed)."
+    },
+    {
+      "id": "VAL-MCP-024",
+      "reason": "Unreachable API returned descriptive text but not as JSON-RPC error (result payload contained ERROR text)."
+    },
+    {
+      "id": "VAL-MCP-032",
+      "reason": "HTTP + --remote did not return hosted API get_spikes data (same remote read failure reproduced over HTTP)."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance: MCP HTTP + Remote section for namespaced credentials, command-scoped SPIKES_TOKEN, and HTTP/remote evidence capture requirements.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Added known quirk that MCP create_share may normalize/truncate requested names and append suffixes; validations should assert against returned slug/URL.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

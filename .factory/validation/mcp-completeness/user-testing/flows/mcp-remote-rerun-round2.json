@@ -1,0 +1,146 @@
+{
+  "milestone": "mcp-completeness",
+  "groupId": "mcp-remote-rerun-round2",
+  "testedAt": "2026-03-10T13:03:13.906984+00:00",
+  "credentials": {
+    "account": "utv-mcp-rerun-9d8a@example.com",
+    "namespace": "mcp-rerun-9d8a"
+  },
+  "toolsUsed": [
+    "curl",
+    "spikes CLI (MCP stdio --remote)",
+    "spikes CLI (MCP HTTP --transport http --remote)"
+  ],
+  "assertionsTested": [
+    {
+      "id": "VAL-MCP-021",
+      "title": "Remote read tools work",
+      "status": "pass",
+      "reason": "In stdio remote mode, get_spikes returned hosted API data matching authenticated curl GET /spikes for the namespaced seeded record.",
+      "evidence": {
+        "authBootstrap": {
+          "loginCommand": "curl -sS -X POST http://localhost:8787/auth/login -w \"\nHTTP_STATUS:%{http_code}\" -H \"Content-Type: application/json\" --data \"{\\\"email\\\": \\\"utv-mcp-rerun-9d8a@example.com\\\"}\"",
+          "loginStatus": 202,
+          "verifyCommand": "curl -sS -X POST http://localhost:8787/auth/verify -w \"\nHTTP_STATUS:%{http_code}\" -H \"Content-Type: application/json\" --data \"{\\\"login_token\\\": \\\"<login_token>\\\"}\"",
+          "verifyStatus": 200
+        },
+        "seedSpike": {
+          "command": "curl -sS -X POST http://localhost:8787/spikes -w \"\nHTTP_STATUS:%{http_code}\" -H \"Content-Type: application/json\" --data \"{\\\"type\\\": \\\"page\\\", \\\"projectKey\\\": \\\"mcp-rerun-9d8a\\\", \\\"page\\\": \\\"mcp-rerun-9d8a-remote-read-1773147749.html\\\", \\\"url\\\": \\\"https://example.test/mcp-rerun-9d8a-remote-read-1773147749.html\\\", \\\"rating\\\": \\\"meh\\\", \\\"comments\\\": \\\"mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749\\\", \\\"reviewer\\\": {\\\"id\\\": \\\"mcp-rerun-9d8a-reviewer\\\", \\\"name\\\": \\\"mcp-rerun-9d8a-reviewer\\\"}, \\\"viewport\\\": {\\\"width\\\": 1440, \\\"height\\\": 900}, \\\"timestamp\\\": \\\"2026-03-10T13:02:29Z\\\"}\"",
+          "status": 201,
+          "responseSnippet": "{\"ok\":true,\"id\":\"6845ea70-f095-47cc-b308-891355e2e17c\"}",
+          "seedId": "6845ea70-f095-47cc-b308-891355e2e17c"
+        },
+        "curlGetSpikes": {
+          "command": "curl -sS -X GET http://localhost:8787/spikes?page=mcp-rerun-9d8a-remote-read-1773147749.html -w \"\nHTTP_STATUS:%{http_code}\" -H \"Authorization: Bearer <assigned>\"",
+          "status": 200,
+          "matchedId": "6845ea70-f095-47cc-b308-891355e2e17c",
+          "matchedComments": "mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749",
+          "responseSnippet": "{\"data\":[{\"id\":\"6845ea70-f095-47cc-b308-891355e2e17c\",\"type\":\"page\",\"projectKey\":\"mcp-rerun-9d8a\",\"page\":\"mcp-rerun-9d8a-remote-read-1773147749.html\",\"url\":\"https://example.test/mcp-rerun-9d8a-remote-read-1773147749.html\",\"reviewer\":{\"id\":\"mcp-rerun-9d8a-reviewer\",\"name\":\"mcp-rerun-9d8a-reviewer\",\"email\":null},\"selector\":null,\"xpath\":null,\"elementText\":null,\"boundingBox\":null,\"rating\":\"meh\",\"comments\":\"mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749\",\"timestamp\":\"2026-03-10T13:02:29Z\",\"viewport\":{\""
+        },
+        "mcpGetSpikesStdio": {
+          "command": "SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<assigned> HOME=/tmp/spikes-utv-mcp-rerun-9d8a/home /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes mcp serve --remote",
+          "initializeResponse": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+              "protocolVersion": "2024-11-05",
+              "capabilities": {
+                "tools": {}
+              },
+              "serverInfo": {
+                "name": "spikes-mcp",
+                "version": "0.3.1"
+              }
+            }
+          },
+          "toolResponse": {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Found 1 spike(s):\n\n[6845ea70] page on mcp-rerun-9d8a-remote-read-1773147749.html\n  Rating: meh\n  Comments: mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749\n  Reviewer: mcp-rerun-9d8a-reviewer\n  Timestamp: 2026-03-10T13:02:29Z\n  Status: Unresolved\n\n"
+                }
+              ],
+              "isError": false
+            }
+          },
+          "toolTextSnippet": "Found 1 spike(s):\n\n[6845ea70] page on mcp-rerun-9d8a-remote-read-1773147749.html\n  Rating: meh\n  Comments: mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749\n  Reviewer: mcp-rerun-9d8a-reviewer\n  Timestamp: 2026-03-10T13:02:29Z\n  Status: Unresolved\n\n",
+          "stderrTail": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed"
+        },
+        "matchChecks": {
+          "idPrefixMatched": true,
+          "commentMarkerMatched": true
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-024",
+      "title": "Remote mode API unreachable",
+      "status": "pass",
+      "reason": "With an unreachable SPIKES_API_URL, read-tool call returned JSON-RPC error semantics (error object) instead of a successful result containing ERROR text.",
+      "evidence": {
+        "command": "SPIKES_API_URL=http://127.0.0.1:9 SPIKES_TOKEN=<assigned> HOME=/tmp/spikes-utv-mcp-rerun-9d8a/home /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes mcp serve --remote",
+        "initializeResponse": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+              "tools": {}
+            },
+            "serverInfo": {
+              "name": "spikes-mcp",
+              "version": "0.3.1"
+            }
+          }
+        },
+        "toolResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "error": {
+            "code": -32603,
+            "message": "Connection failed. Check your internet connection."
+          }
+        },
+        "hasErrorObject": true,
+        "hasResultObject": false,
+        "stderrTail": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed"
+      }
+    },
+    {
+      "id": "VAL-MCP-032",
+      "title": "HTTP transport composes with remote",
+      "status": "pass",
+      "reason": "In HTTP transport + remote mode, MCP initialize/initialized/tools/call succeeded and get_spikes returned the hosted API seeded record over HTTP transport.",
+      "evidence": {
+        "serverCommand": "SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<assigned> HOME=/tmp/spikes-utv-mcp-rerun-9d8a/home /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes mcp serve --transport http --remote --port 3848",
+        "initialize": {
+          "command": "curl -sS -D - -X POST http://127.0.0.1:3848/ -H \"Content-Type: application/json\" -H \"Accept: application/json, text/event-stream\" --data \"{\\\"jsonrpc\\\": \\\"2.0\\\", \\\"id\\\": 1, \\\"method\\\": \\\"initialize\\\", \\\"params\\\": {\\\"protocolVersion\\\": \\\"2024-11-05\\\", \\\"capabilities\\\": {}, \\\"clientInfo\\\": {\\\"name\\\": \\\"utv-mcp-rerun\\\", \\\"version\\\": \\\"1.0\\\"}}}\"",
+          "status": 200,
+          "sessionHeader": "c6deccdf-a8c1-4025-8a00-0c2862ea2b12",
+          "responseSnippet": "data: \nid: 0\nretry: 3000\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"spikes-mcp\",\"version\":\"0.3.1\"}}}"
+        },
+        "initializedNotification": {
+          "command": "curl -sS -D - -X POST http://127.0.0.1:3848/ -H \"Content-Type: application/json\" -H \"Accept: application/json, text/event-stream\" --data \"{\\\"jsonrpc\\\": \\\"2.0\\\", \\\"method\\\": \\\"notifications/initialized\\\", \\\"params\\\": {}}\" -H \"Mcp-Session-Id: c6deccdf-a8c1-4025-8a00-0c2862ea2b12\"",
+          "status": 202
+        },
+        "toolCall": {
+          "command": "curl -sS -D - -X POST http://127.0.0.1:3848/ -H \"Content-Type: application/json\" -H \"Accept: application/json, text/event-stream\" --data \"{\\\"jsonrpc\\\": \\\"2.0\\\", \\\"id\\\": 2, \\\"method\\\": \\\"tools/call\\\", \\\"params\\\": {\\\"name\\\": \\\"get_spikes\\\", \\\"arguments\\\": {\\\"page\\\": \\\"mcp-rerun-9d8a-remote-read-1773147749.html\\\"}}}\" -H \"Mcp-Session-Id: c6deccdf-a8c1-4025-8a00-0c2862ea2b12\"",
+          "status": 200,
+          "responseSnippet": "data: \nid: 0\nretry: 3000\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Found 1 spike(s):\\n\\n[6845ea70] page on mcp-rerun-9d8a-remote-read-1773147749.html\\n  Rating: meh\\n  Comments: mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749\\n  Reviewer: mcp-rerun-9d8a-reviewer\\n  Timestamp: 2026-03-10T13:02:29Z\\n  Status: Unresolved\\n\\n\"}],\"isError\":false}}\nid: 0/0"
+        },
+        "curlParity": {
+          "curlStatus": 200,
+          "curlMatchedId": "6845ea70-f095-47cc-b308-891355e2e17c",
+          "curlMatchedComments": "mcp-rerun-9d8a REMOTE_READ_MARKER 1773147749"
+        },
+        "serverStderrTail": "[spikes-mcp] Starting MCP server on HTTP (REMOTE mode)...\n[spikes-mcp] HTTP server listening on http://127.0.0.1:3848"
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Retested 3 assertions (VAL-MCP-021, VAL-MCP-024, VAL-MCP-032): 3 passed, 0 failed, 0 blocked."
+}
