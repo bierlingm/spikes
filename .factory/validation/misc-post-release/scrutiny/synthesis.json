@@ -1,0 +1,46 @@
+{
+  "milestone": "misc-post-release",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cargo test --jobs 5 --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml && cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx vitest run",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx eslint src/ && cargo clippy --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml -- -D warnings",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skills",
+      "suggestion": "Update worker-fullstack guidance to explicitly cover post-release validation-only tasks (e.g., evidence expectations and verification scope) so these tasks are treated as first-class work rather than implementation outliers.",
+      "evidence": "misc-post-release review for post-release-npm-wrapper-validation recorded a skill-procedure gap for validation-only/post-release verification flow.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Define and enforce a canonical GitHub repository slug for release artifacts and references across wrappers/docs/actions to prevent URL drift regressions.",
+      "evidence": "misc-post-release review found mixed slug usage across files (bierlingm/spikes and moritzbierling/spikes), the same class of drift that caused the npm wrapper download failure.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}

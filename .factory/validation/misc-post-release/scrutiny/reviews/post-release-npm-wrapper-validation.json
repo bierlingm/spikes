@@ -1,0 +1,26 @@
+{
+  "featureId": "post-release-npm-wrapper-validation",
+  "reviewedAt": "2026-03-10T21:25:48Z",
+  "commitId": "9cb8eef8a39a6696f6d53987d0d0c24627cd7b17",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The commit correctly fixes the spikes-mcp release download base URL to the actual GitHub repository owner and keeps related metadata/tests consistent. This directly addresses the observed 404 download failure and aligns with the feature intent to validate post-release binary download and MCP startup behavior.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The worker-fullstack skill lacks explicit guidance for validation-only/post-release verification tasks, which this feature required. This gap is already reflected by worker feedback and suggests the skill procedure is less aligned with this task type.",
+      "evidence": "handoffs/2026-03-10T21-18-43-611Z__post-release-npm-wrapper-validation__64a6dfc8-21ff-4388-b656-77a62a2f0a81.json -> handoff.skillFeedback.suggestedChanges[0]"
+    },
+    {
+      "area": "conventions",
+      "observation": "Canonical repository slug usage is inconsistent across the codebase (both bierlingm/spikes and moritzbierling/spikes), which enabled this wrapper regression and can reintroduce similar release-download failures in other surfaces.",
+      "evidence": "Current repo grep still shows old slug in multiple files: action/action.yml:96, README.md:134, site/agents.md:269, cli/Cargo.toml:7, cli/src/commands/update.rs:20, action/README.md:23/91/130"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. The feature intent is satisfied: the reviewed change points the npm wrapper to the correct release source and accompanying evidence shows post-release download + MCP initialize behavior now works. No blocking or non-blocking code defects were found in the scoped commit; two shared-state observations were recorded (skill guidance gap and repo-slug convention drift)."
+}
