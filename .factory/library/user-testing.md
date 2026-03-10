@@ -157,3 +157,4 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - For HTTP transport checks, run only one MCP HTTP server instance per validator and use unique ports if multiple background servers are needed.
 - For remote-mode checks, set `SPIKES_API_URL=http://localhost:8787` explicitly per command so no validator depends on global CLI auth config.
 - Capture evidence for initialize, notifications/initialized, tools/list, tools/call, and network-failure cases (command, status/JSON-RPC response, and relevant stderr lines).
+- **Critical for VAL-MCP-021 (remote read tools):** GET /spikes requires authentication (unlike POST /spikes which is public). Ensure the bearer token is properly stored in the local D1 `user_tokens` table BEFORE testing. Use the exact token returned by `/auth/verify`, not the login token. Verify token works via `curl -H "Authorization: Bearer $TOKEN" http://localhost:8787/spikes` before MCP testing.
