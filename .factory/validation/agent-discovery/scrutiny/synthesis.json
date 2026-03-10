@@ -1,0 +1,51 @@
+{
+  "milestone": "agent-discovery",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd cli && cargo test --jobs 5 && cd ../spikes-hosted/worker && npx vitest run",
+      "exitCode": 0
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd ../spikes-hosted/worker && npx tsc --noEmit",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd ../spikes-hosted/worker && npx eslint src/ && cd ../../spikes/cli && cargo clippy -- -D warnings",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add a convention for downloaded executable integrity verification (checksum/signature validation before execution), especially for release-asset wrappers and CI download steps.",
+      "evidence": "scrutiny review for npm-mcp-wrapper flagged direct download/extract/execute without artifact verification in packages/spikes-mcp/lib.js, with a similar unverified download pattern in action/action.yml.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills",
+      "suggestion": "Update worker-fullstack skill guidance to align markdown location rules with declared scope for site content (llms.txt/llms-full.txt/agents.md), and add an npm packaging sanity step (e.g., npm pack --dry-run) for package-manifest changes.",
+      "evidence": "Multiple reviews observed SKILL.md mismatch between site-content scope and './docs/' markdown instruction; npm-mcp-wrapper review also found package.json files-manifest drift that a pack dry-run would catch.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Feature-level grep-based llms tool-count verification is brittle.",
+      "reason": "ambiguous-owner"
+    }
+  ],
+  "previousRound": null
+}

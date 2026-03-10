@@ -1,0 +1,39 @@
+{
+  "featureId": "npm-mcp-wrapper",
+  "reviewedAt": "2026-03-10T19:42:42Z",
+  "commitId": "9ca0807c4b6670732c9deda234a5b6921c98a151",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation satisfies the feature description and expected behaviors: platform/arch mapping matches action targets, binary download + cache path are implemented, stdio launch is wired via `spikes mcp serve`, and unsupported/download error paths are clear. I found two non-blocking issues around release-artifact integrity and package manifest hygiene.",
+    "issues": [
+      {
+        "file": "packages/spikes-mcp/lib.js",
+        "line": 200,
+        "severity": "non_blocking",
+        "description": "The wrapper downloads, extracts, and executes a release binary without checksum/signature verification. A compromised release artifact or redirect target would be executed directly."
+      },
+      {
+        "file": "packages/spikes-mcp/package.json",
+        "line": 26,
+        "severity": "non_blocking",
+        "description": "The package `files` whitelist includes `README.md`, but the package directory has no README file. This creates manifest drift and omits expected package docs in publish artifacts."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Shared conventions do not define integrity verification requirements for downloaded executables; current patterns allow direct execution of downloaded release artifacts.",
+      "evidence": "packages/spikes-mcp/lib.js:200-213 downloads/extracts/chmods the binary with no hash check; action/action.yml download step similarly curl+tars+chmods with no verification."
+    },
+    {
+      "area": "skills",
+      "observation": "The worker-fullstack skill's npm-package guidance does not include a packaging sanity check (for example `npm pack --dry-run`) to validate `files` manifest entries against real files.",
+      "evidence": "packages/spikes-mcp/package.json:23-27 lists README.md, but `/packages/spikes-mcp` contains no README.md; dry-run package output only includes index.js, lib.js, and package.json."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass: feature contract is implemented and behavior is aligned with requirements. Two non-blocking findings were recorded (artifact integrity verification and package manifest hygiene), plus shared-state observations for conventions/skill improvements."
+}

@@ -1,0 +1,28 @@
+{
+  "featureId": "mcp-install-and-registry",
+  "reviewedAt": "2026-03-10T19:41:54Z",
+  "commitId": "dbff567",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Feature implementation covers the contract: new `spikes mcp install` command (with `--json`), detection/output behavior for Claude Desktop and Cursor, `smithery.yaml` with 9 tools matching source, and `site/agents.md` with required agent-facing sections and tool parity. No blocking correctness, regression, security, or contract-compliance issues were found.",
+    "issues": [
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 1650,
+        "severity": "non_blocking",
+        "description": "Manual Claude Desktop config path is hard-coded to a macOS location in the no-client-detected JSON/manual output. On Linux/Windows this path hint is inaccurate, though the config block itself remains valid."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "`worker-fullstack` skill has inconsistent documentation guidance for markdown location: it explicitly includes site-content work (including `agents.md`) but the procedure section says to create/update markdown files in `./docs/`.",
+      "evidence": ".factory/skills/worker-fullstack/SKILL.md:13 lists site content (`agents.md`), while line 38 says markdown should be in `./docs/`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS: The mcp-install-and-registry feature is implemented as specified, with all required deliverables present and aligned to the source tool surface (9 MCP tools). One minor non-blocking UX/docs-path issue was noted."
+}

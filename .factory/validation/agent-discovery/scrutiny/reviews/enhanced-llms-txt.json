@@ -1,0 +1,26 @@
+{
+  "featureId": "enhanced-llms-txt",
+  "reviewedAt": "2026-03-10T19:42:42Z",
+  "commitId": "44a97f3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation in commit 44a97f3 satisfies the feature scope: both site/llms.txt and site/llms-full.txt now document all 9 MCP tools with parameter names/types/requiredness, include a 4-step agent quickstart, and provide valid Claude Desktop and Cursor MCP JSON config blocks. Tool names match cli/src/commands/mcp.rs and no correctness, regression, or security issues were found in this feature diff.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The feature-level verification step for llms.txt tool coverage is brittle because it counts raw name occurrences across the whole file instead of counting MCP tool entries/sections. This can report false negatives once quickstart examples mention tool names.",
+      "evidence": "features.json:694 expects grep count 'should be 9'; handoff for this feature reports count=10 due an extra get_spikes mention in quickstart (handoffs/2026-03-10T19-23-55-396Z__enhanced-llms-txt__ff1d8a66-5c32-4326-b681-7f199351ab13.json:28)."
+    },
+    {
+      "area": "skills",
+      "observation": "worker-fullstack skill procedure has a documentation-location mismatch: it says docs updates should go in ./docs/, while the same skill's scope explicitly includes site content such as llms.txt/llms-full.txt. Clarifying this would reduce ambiguity for doc-oriented site tasks.",
+      "evidence": ".factory/skills/worker-fullstack/SKILL.md lists 'Site content (llms.txt, agents.md, llms-full.txt)' in scope (line 13), but the procedure says 'Create or update markdown files in ./docs/' (lines 37-38)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature enhanced-llms-txt end-to-end (handoff, transcript skeleton, skill, and commit diff). The feature passes: required llms updates are present and consistent with MCP source definitions. Logged two non-blocking shared-state observations about verification and skill guidance clarity."
+}
