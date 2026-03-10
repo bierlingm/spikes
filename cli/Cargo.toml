@@ -29,6 +29,7 @@ dirs = "5"
 webbrowser = "1"
 rmcp = { version = "0.17", features = ["server", "transport-io", "macros"] }
 schemars = "1.0"
+nanoid = "0.4"
 
 [dev-dependencies]
 assert_cmd = "2"
