@@ -44,6 +44,8 @@ pub struct AuthConfig {
 pub struct AuthSection {
     /// Bearer token for API authentication
     pub token: Option<String>,
+    /// API key (sk_spikes_ prefixed) stored separately from bearer token
+    pub api_key: Option<String>,
 }
 
 impl AuthConfig {
@@ -56,6 +58,7 @@ impl AuthConfig {
                 return Ok(AuthConfig {
                     auth: AuthSection {
                         token: Some(token),
+                        api_key: None,
                     },
                 });
             }
@@ -144,14 +147,57 @@ impl AuthConfig {
         Ok(config.auth.token)
     }
 
-    /// Save a new token to the auth file
+    /// Save a new token to the auth file, preserving existing api_key
     pub fn save_token(token: &str) -> Result<()> {
+        // Load existing config to preserve api_key
+        let existing = Self::load_from_file().unwrap_or_default();
         let config = AuthConfig {
             auth: AuthSection {
                 token: Some(token.to_string()),
+                api_key: existing.auth.api_key,
             },
         };
         config.save()
+    }
+
+    /// Save a new API key to the auth file, preserving existing bearer token
+    pub fn save_api_key(key: &str) -> Result<()> {
+        // Load existing config to preserve token
+        let existing = Self::load_from_file().unwrap_or_default();
+        let config = AuthConfig {
+            auth: AuthSection {
+                token: existing.auth.token,
+                api_key: Some(key.to_string()),
+            },
+        };
+        config.save()
+    }
+
+    /// Load the API key from the auth file (does not check env var)
+    pub fn load_api_key() -> Option<String> {
+        Self::load_from_file()
+            .ok()
+            .and_then(|c| c.auth.api_key)
+    }
+
+    /// Load auth config from file only (no env var override).
+    /// Used internally to preserve fields when saving.
+    fn load_from_file() -> Result<Self> {
+        let auth_path = auth_path()?;
+
+        if !auth_path.exists() {
+            return Ok(Self::default());
+        }
+
+        let content = fs::read_to_string(&auth_path)?;
+        let config: AuthConfig = toml::from_str(&content).map_err(|e| {
+            Error::Io(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Invalid auth.toml: {}", e),
+            ))
+        })?;
+
+        Ok(config)
     }
 
     /// Clear the stored token (delete auth file)
@@ -226,6 +272,7 @@ mod tests {
         let config = AuthConfig {
             auth: AuthSection {
                 token: Some("test-token-123".to_string()),
+                api_key: None,
             },
         };
 
@@ -294,21 +341,39 @@ mod tests {
     #[test]
     #[serial(spike_token)]
     fn test_spike_token_env_empty_ignored() {
-        // Save current value
+        // Save current values
         let original = std::env::var("SPIKES_TOKEN").ok();
+        let original_home = std::env::var("HOME").ok();
+        let original_xdg = std::env::var("XDG_CONFIG_HOME").ok();
+
+        // Isolate from real auth.toml
+        let temp_dir = tempfile::tempdir().unwrap();
+        std::env::set_var("HOME", temp_dir.path());
+        std::env::set_var("XDG_CONFIG_HOME", temp_dir.path().join(".config"));
 
         // Set empty env var - should be ignored
         std::env::set_var("SPIKES_TOKEN", "");
 
         // Empty env var should be ignored, fall back to file (or None)
-        let _config = AuthConfig::load().unwrap();
-        // Token should come from file or be None, not the empty env var
+        let config = AuthConfig::load().unwrap();
+        // Token should be None since env var is empty and no auth.toml exists
+        assert!(config.auth.token.is_none());
 
-        // Restore original value
+        // Restore original values
         if let Some(val) = original {
             std::env::set_var("SPIKES_TOKEN", val);
         } else {
             std::env::remove_var("SPIKES_TOKEN");
+        }
+        if let Some(val) = original_home {
+            std::env::set_var("HOME", val);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        if let Some(val) = original_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", val);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
         }
     }
 
@@ -321,6 +386,7 @@ mod tests {
         let config = AuthConfig {
             auth: AuthSection {
                 token: Some("test-token".to_string()),
+                api_key: None,
             },
         };
 
@@ -360,6 +426,7 @@ mod tests {
         let config = AuthConfig {
             auth: AuthSection {
                 token: Some("secret-token-xyz".to_string()),
+                api_key: None,
             },
         };
 
@@ -386,6 +453,7 @@ token = "deserialized-token"
 
         let config: AuthConfig = toml::from_str(toml_str).unwrap();
         assert!(config.auth.token.is_none());
+        assert!(config.auth.api_key.is_none());
     }
 
     #[test]
@@ -447,5 +515,64 @@ token = "deserialized-token"
         } else {
             std::env::remove_var(SPIKES_API_URL_ENV);
         }
+    }
+
+    #[test]
+    fn test_auth_config_default_has_no_api_key() {
+        let config = AuthConfig::default();
+        assert!(config.auth.api_key.is_none());
+    }
+
+    #[test]
+    fn test_toml_with_api_key() {
+        let toml_str = r#"
+[auth]
+token = "bearer-token-123"
+api_key = "sk_spikes_testkey"
+"#;
+
+        let config: AuthConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.auth.token, Some("bearer-token-123".to_string()));
+        assert_eq!(config.auth.api_key, Some("sk_spikes_testkey".to_string()));
+    }
+
+    #[test]
+    fn test_toml_with_api_key_only() {
+        let toml_str = r#"
+[auth]
+api_key = "sk_spikes_onlykey"
+"#;
+
+        let config: AuthConfig = toml::from_str(toml_str).unwrap();
+        assert!(config.auth.token.is_none());
+        assert_eq!(config.auth.api_key, Some("sk_spikes_onlykey".to_string()));
+    }
+
+    #[test]
+    fn test_toml_serialization_with_api_key() {
+        let config = AuthConfig {
+            auth: AuthSection {
+                token: Some("my-token".to_string()),
+                api_key: Some("sk_spikes_mykey".to_string()),
+            },
+        };
+
+        let toml_str = toml::to_string_pretty(&config).unwrap();
+        assert!(toml_str.contains("[auth]"));
+        assert!(toml_str.contains("my-token"));
+        assert!(toml_str.contains("sk_spikes_mykey"));
+    }
+
+    #[test]
+    fn test_toml_backwards_compat_without_api_key() {
+        // Old format without api_key should still deserialize
+        let toml_str = r#"
+[auth]
+token = "old-format-token"
+"#;
+
+        let config: AuthConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.auth.token, Some("old-format-token".to_string()));
+        assert!(config.auth.api_key.is_none());
     }
 }

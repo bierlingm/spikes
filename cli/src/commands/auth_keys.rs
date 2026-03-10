@@ -83,8 +83,8 @@ pub fn create_key(name: Option<String>, json: bool) -> Result<()> {
 
     let key_response: CreateKeyResponse = serde_json::from_str(&body)?;
 
-    // Store the API key in auth.toml
-    AuthConfig::save_token(&key_response.api_key)?;
+    // Store the API key separately in auth.toml (does NOT overwrite bearer token)
+    AuthConfig::save_api_key(&key_response.api_key)?;
 
     if json {
         println!(
@@ -118,7 +118,9 @@ pub fn create_key(name: Option<String>, json: bool) -> Result<()> {
 // ============================================
 
 pub fn list_keys(json: bool) -> Result<()> {
-    let token = AuthConfig::token()?
+    // Prefer api_key for key management operations, fall back to bearer token
+    let token = AuthConfig::load_api_key()
+        .or_else(|| AuthConfig::token().ok().flatten())
         .ok_or_else(|| {
             Error::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -207,7 +209,9 @@ fn print_keys_table(keys: &[ApiKeyEntry]) {
 // ============================================
 
 pub fn revoke_key(key_id: &str, json: bool) -> Result<()> {
-    let token = AuthConfig::token()?
+    // Prefer api_key for key management operations, fall back to bearer token
+    let token = AuthConfig::load_api_key()
+        .or_else(|| AuthConfig::token().ok().flatten())
         .ok_or_else(|| {
             Error::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,

@@ -2192,7 +2192,9 @@ mod tests {
         // Isolate from real filesystem so auth.toml doesn't interfere
         let temp_dir = tempfile::tempdir().unwrap();
         let original_home = std::env::var("HOME").ok();
+        let original_xdg = std::env::var("XDG_CONFIG_HOME").ok();
         std::env::set_var("HOME", temp_dir.path());
+        std::env::set_var("XDG_CONFIG_HOME", temp_dir.path().join(".config"));
 
         // Save original env var
         let original = std::env::var("SPIKES_TOKEN").ok();
@@ -2217,6 +2219,13 @@ mod tests {
         }
         if let Some(val) = original_home {
             std::env::set_var("HOME", val);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        if let Some(val) = original_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", val);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
         }
     }
 
@@ -2226,12 +2235,14 @@ mod tests {
         // Isolate from real filesystem so auth.toml cannot be found
         let temp_dir = tempfile::tempdir().unwrap();
         let original_home = std::env::var("HOME").ok();
+        let original_xdg = std::env::var("XDG_CONFIG_HOME").ok();
         std::env::set_var("HOME", temp_dir.path());
+        std::env::set_var("XDG_CONFIG_HOME", temp_dir.path().join(".config"));
 
         // Save original env var
         let original = std::env::var("SPIKES_TOKEN").ok();
         
-        // Remove token — with HOME pointing to empty temp dir,
+        // Remove token — with HOME and XDG_CONFIG_HOME pointing to empty temp dir,
         // AuthConfig::load() won't find auth.toml either
         std::env::remove_var("SPIKES_TOKEN");
         
@@ -2244,6 +2255,13 @@ mod tests {
         }
         if let Some(val) = original_home {
             std::env::set_var("HOME", val);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        if let Some(val) = original_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", val);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
         }
     }
 
@@ -2253,7 +2271,9 @@ mod tests {
         // Isolate from real filesystem so auth.toml doesn't interfere
         let temp_dir = tempfile::tempdir().unwrap();
         let original_home = std::env::var("HOME").ok();
+        let original_xdg = std::env::var("XDG_CONFIG_HOME").ok();
         std::env::set_var("HOME", temp_dir.path());
+        std::env::set_var("XDG_CONFIG_HOME", temp_dir.path().join(".config"));
 
         // Save original env vars
         let original_token = std::env::var("SPIKES_TOKEN").ok();
@@ -2284,6 +2304,13 @@ mod tests {
         }
         if let Some(val) = original_home {
             std::env::set_var("HOME", val);
+        } else {
+            std::env::remove_var("HOME");
+        }
+        if let Some(val) = original_xdg {
+            std::env::set_var("XDG_CONFIG_HOME", val);
+        } else {
+            std::env::remove_var("XDG_CONFIG_HOME");
         }
     }
 

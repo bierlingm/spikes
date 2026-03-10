@@ -203,13 +203,13 @@ fn test_auth_revoke_key_help() {
 
 #[test]
 fn test_auth_list_keys_not_logged_in() {
-    // Uses SPIKES_TOKEN="" (empty) which is ignored, and a non-default config dir
-    // to avoid reading the real auth.toml
-    // Note: This test may pass through to the API if a real auth.toml exists
-    // on the test machine. The error behavior is still valid (either "Not logged in"
-    // or a network/API error).
+    // Isolate from machine auth config by pointing HOME and XDG_CONFIG_HOME
+    // to an empty temp directory so no auth.toml can be found
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     cargo_bin_cmd!("spikes")
         .env_remove("SPIKES_TOKEN")
+        .env("HOME", temp_dir.path())
+        .env("XDG_CONFIG_HOME", temp_dir.path().join(".config"))
         .arg("auth")
         .arg("list-keys")
         .assert()
@@ -218,10 +218,13 @@ fn test_auth_list_keys_not_logged_in() {
 
 #[test]
 fn test_auth_revoke_key_not_logged_in() {
-    // Note: If the test machine has an auth.toml, this will hit the API instead
-    // of showing "Not logged in". Both are valid failure modes.
+    // Isolate from machine auth config by pointing HOME and XDG_CONFIG_HOME
+    // to an empty temp directory so no auth.toml can be found
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     cargo_bin_cmd!("spikes")
         .env_remove("SPIKES_TOKEN")
+        .env("HOME", temp_dir.path())
+        .env("XDG_CONFIG_HOME", temp_dir.path().join(".config"))
         .arg("auth")
         .arg("revoke-key")
         .arg("key_test123")
@@ -246,6 +249,7 @@ fn test_auth_revoke_key_requires_key_id_arg() {
 #[tokio::test]
 async fn test_auth_create_key_success() {
     let mock_server = MockServer::start().await;
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     Mock::given(matchers::method("POST"))
         .and(matchers::path("/auth/api-key"))
@@ -262,6 +266,8 @@ async fn test_auth_create_key_success() {
 
     cargo_bin_cmd!("spikes")
         .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("HOME", temp_dir.path())
+        .env("XDG_CONFIG_HOME", temp_dir.path().join(".config"))
         .arg("auth")
         .arg("create-key")
         .assert()
@@ -273,6 +279,7 @@ async fn test_auth_create_key_success() {
 #[tokio::test]
 async fn test_auth_create_key_with_name() {
     let mock_server = MockServer::start().await;
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     Mock::given(matchers::method("POST"))
         .and(matchers::path("/auth/api-key"))
@@ -290,6 +297,8 @@ async fn test_auth_create_key_with_name() {
 
     cargo_bin_cmd!("spikes")
         .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("HOME", temp_dir.path())
+        .env("XDG_CONFIG_HOME", temp_dir.path().join(".config"))
         .arg("auth")
         .arg("create-key")
         .arg("--name")
@@ -302,6 +311,7 @@ async fn test_auth_create_key_with_name() {
 #[tokio::test]
 async fn test_auth_create_key_json_output() {
     let mock_server = MockServer::start().await;
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     Mock::given(matchers::method("POST"))
         .and(matchers::path("/auth/api-key"))
@@ -318,6 +328,8 @@ async fn test_auth_create_key_json_output() {
 
     let output = cargo_bin_cmd!("spikes")
         .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("HOME", temp_dir.path())
+        .env("XDG_CONFIG_HOME", temp_dir.path().join(".config"))
         .arg("auth")
         .arg("create-key")
         .arg("--json")
@@ -515,6 +527,7 @@ async fn test_auth_revoke_key_not_found() {
 #[tokio::test]
 async fn test_auth_create_key_rate_limited() {
     let mock_server = MockServer::start().await;
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
 
     Mock::given(matchers::method("POST"))
         .and(matchers::path("/auth/api-key"))
@@ -528,6 +541,8 @@ async fn test_auth_create_key_rate_limited() {
 
     cargo_bin_cmd!("spikes")
         .env("SPIKES_API_URL", format!("http://{}", mock_server.address()))
+        .env("HOME", temp_dir.path())
+        .env("XDG_CONFIG_HOME", temp_dir.path().join(".config"))
         .arg("auth")
         .arg("create-key")
         .assert()
