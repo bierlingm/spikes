@@ -80,41 +80,76 @@ All commands support `--json` for scripting. See [full CLI reference](docs/cli-r
 
 ## AI Agent Integration
 
-Spikes speaks agent natively. Two ways to feed feedback into your AI workflow:
+Spikes speaks agent natively. Your AI coding assistant can read, write, and manage feedback without ever leaving its workflow.
 
-### MCP Server
+```bash
+npx spikes-mcp            # Zero-install MCP server — just works
+# or: spikes mcp serve    # If you have the CLI installed
+```
 
-`spikes mcp serve` starts a Model Context Protocol server (stdio transport) that exposes three tools:
+### MCP Server — 9 Tools
+
+`spikes mcp serve` starts a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes 9 tools:
 
 | Tool | Purpose |
 |------|---------|
 | `get_spikes` | List feedback with filters (page, rating, unresolved) |
 | `get_element_feedback` | Get feedback for a specific CSS selector |
 | `get_hotspots` | Find elements with the most feedback |
+| `submit_spike` | Create feedback programmatically |
+| `resolve_spike` | Mark feedback as addressed |
+| `delete_spike` | Remove a spike |
+| `create_share` | Upload files, get a shareable URL |
+| `list_shares` | See your active shares |
+| `get_usage` | Check usage stats, limits, and spend |
 
-Agents like Claude and Cursor can query your feedback directly:
+Supports **stdio** and **HTTP** transports, **local** and **remote** data modes:
 
 ```bash
-# Start the MCP server
-spikes mcp serve
-
-# In your agent's MCP config, add:
-# { "command": "spikes", "args": ["mcp", "serve"] }
+spikes mcp serve                              # stdio, local JSONL
+spikes mcp serve --remote                     # stdio, hosted API
+spikes mcp serve --transport http --port 3848 # HTTP for sandboxed agents
 ```
+
+### API Keys
+
+Agents get their own identity. No email, no magic link, no human step:
+
+```bash
+spikes auth create-key --name "my-agent"   # → sk_spikes_...
+spikes auth list-keys                       # See all keys
+spikes auth revoke-key <key_id>            # Revoke
+```
+
+Keys support read/write/full scopes and optional budget caps.
+
+### Agent-Tier Billing
+
+Consumption-based pricing for agent-scale usage. Pay per spike, not per seat:
+
+```bash
+spikes usage    # See current spend and limits
+```
+
+Budget enforcement returns `429 BUDGET_EXCEEDED` when caps are hit — agents can check before they burn.
 
 ### Context Exports
 
 Export structured markdown optimized for agent consumption:
 
 ```bash
-# Cursor-optimized context
 spikes export --format cursor-context > cursor-feedback.md
-
-# Claude-optimized context  
 spikes export --format claude-context > claude-feedback.md
 ```
 
-Both formats include blocking issues, hotspots, and element-specific notes — structured for immediate agent action.
+### Discovery
+
+- **[llms.txt](https://spikes.sh/llms.txt)** — All 9 MCP tools, parameters, agent quickstart
+- **[agents.md](https://spikes.sh/agents.md)** — Machine-readable landing page for agents
+- **[Smithery](https://smithery.ai)** — Listed in the MCP server registry
+- `spikes mcp install` — Generates config for Claude Desktop / Cursor
+
+Full details: [llms.txt](https://spikes.sh/llms.txt) · [agents.md](https://spikes.sh/agents.md)
 
 ---
 
