@@ -228,10 +228,10 @@ impl SpikesService {
                 match load_spikes() {
                     Ok(s) => s,
                     Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: Could not load spikes: {}",
-                            e
-                        ))]));
+                        return Err(McpError::internal_error(
+                            format!("Could not load spikes: {}", e),
+                            None,
+                        ));
                     }
                 }
             }
@@ -239,10 +239,7 @@ impl SpikesService {
                 match fetch_remote_spikes(token, api_base, args.page.as_deref(), args.rating.as_deref(), args.unresolved_only.unwrap_or(false)) {
                     Ok(s) => s,
                     Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: {}",
-                            e
-                        ))]));
+                        return Err(McpError::internal_error(e.to_string(), None));
                     }
                 }
             }
@@ -310,10 +307,10 @@ impl SpikesService {
                 match load_spikes() {
                     Ok(s) => s,
                     Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: Could not load spikes: {}",
-                            e
-                        ))]));
+                        return Err(McpError::internal_error(
+                            format!("Could not load spikes: {}", e),
+                            None,
+                        ));
                     }
                 }
             }
@@ -321,10 +318,7 @@ impl SpikesService {
                 match fetch_remote_spikes(token, api_base, None, None, false) {
                     Ok(s) => s,
                     Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: {}",
-                            e
-                        ))]));
+                        return Err(McpError::internal_error(e.to_string(), None));
                     }
                 }
             }
@@ -386,10 +380,10 @@ impl SpikesService {
                 match load_spikes() {
                     Ok(s) => s,
                     Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: Could not load spikes: {}",
-                            e
-                        ))]));
+                        return Err(McpError::internal_error(
+                            format!("Could not load spikes: {}", e),
+                            None,
+                        ));
                     }
                 }
             }
@@ -397,10 +391,7 @@ impl SpikesService {
                 match fetch_remote_spikes(token, api_base, None, None, false) {
                     Ok(s) => s,
                     Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: {}",
-                            e
-                        ))]));
+                        return Err(McpError::internal_error(e.to_string(), None));
                     }
                 }
             }
