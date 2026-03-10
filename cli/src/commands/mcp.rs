@@ -1507,6 +1507,7 @@ async fn run_http(data_source: DataSource, remote: bool, port: u16, bind: String
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     // Test helper to create sample spikes
     fn create_test_spikes() -> Vec<Spike> {
@@ -2186,7 +2187,13 @@ mod tests {
     }
 
     #[test]
+    #[serial(env_token)]
     fn test_data_source_remote_with_token() {
+        // Isolate from real filesystem so auth.toml doesn't interfere
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", temp_dir.path());
+
         // Save original env var
         let original = std::env::var("SPIKES_TOKEN").ok();
         
@@ -2208,18 +2215,26 @@ mod tests {
         } else {
             std::env::remove_var("SPIKES_TOKEN");
         }
+        if let Some(val) = original_home {
+            std::env::set_var("HOME", val);
+        }
     }
 
     #[test]
+    #[serial(env_token)]
     fn test_data_source_remote_without_token() {
+        // Isolate from real filesystem so auth.toml cannot be found
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", temp_dir.path());
+
         // Save original env var
         let original = std::env::var("SPIKES_TOKEN").ok();
         
-        // Remove token
+        // Remove token — with HOME pointing to empty temp dir,
+        // AuthConfig::load() won't find auth.toml either
         std::env::remove_var("SPIKES_TOKEN");
         
-        // Need to also clear auth.toml - we'll just check that it errors
-        // Since we can't easily mock auth.toml, this test verifies error handling
         let result = DataSource::new(true);
         assert!(result.is_err());
         
@@ -2227,10 +2242,19 @@ mod tests {
         if let Some(val) = original {
             std::env::set_var("SPIKES_TOKEN", val);
         }
+        if let Some(val) = original_home {
+            std::env::set_var("HOME", val);
+        }
     }
 
     #[test]
+    #[serial(env_token)]
     fn test_data_source_remote_api_base_env() {
+        // Isolate from real filesystem so auth.toml doesn't interfere
+        let temp_dir = tempfile::tempdir().unwrap();
+        let original_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", temp_dir.path());
+
         // Save original env vars
         let original_token = std::env::var("SPIKES_TOKEN").ok();
         let original_api = std::env::var("SPIKES_API_URL").ok();
@@ -2257,6 +2281,9 @@ mod tests {
             std::env::set_var("SPIKES_API_URL", val);
         } else {
             std::env::remove_var("SPIKES_API_URL");
+        }
+        if let Some(val) = original_home {
+            std::env::set_var("HOME", val);
         }
     }
 
