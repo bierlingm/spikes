@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::sync::Mutex;
 
 use rmcp::{
     ErrorData as McpError, ServerHandler, ServiceExt,
@@ -183,6 +184,15 @@ pub struct GetUsageArgs {}
 // SpikesService - MCP Server Implementation
 // ============================================================================
 
+/// Cached scope information for API key tokens, used to avoid repeated
+/// GET /me calls for scope checking.
+#[derive(Clone, Debug, Default)]
+struct CachedScope {
+    /// The resolved scope string (e.g., "read", "write", "full").
+    /// `None` means not yet fetched; `Some` means fetched and cached.
+    scope: Option<String>,
+}
+
 /// MCP server that exposes spikes feedback as tools for AI agents.
 ///
 /// Tools provided:
@@ -199,6 +209,8 @@ pub struct GetUsageArgs {}
 pub struct SpikesService {
     tool_router: ToolRouter<SpikesService>,
     data_source: DataSource,
+    /// Cached scope for API key tokens (session lifetime cache)
+    cached_scope: std::sync::Arc<Mutex<CachedScope>>,
 }
 
 #[tool_router]
@@ -208,6 +220,7 @@ impl SpikesService {
         Self {
             tool_router: Self::tool_router(),
             data_source,
+            cached_scope: std::sync::Arc::new(Mutex::new(CachedScope::default())),
         }
     }
 
@@ -451,6 +464,8 @@ impl SpikesService {
                 submit_spike_local(args).await
             }
             DataSource::Remote { token, api_base } => {
+                // Enforce scope: read-only API keys cannot write
+                check_write_scope(token, api_base, &self.cached_scope)?;
                 submit_spike_remote(args, token, api_base).await
             }
         }
@@ -509,6 +524,11 @@ impl SpikesService {
         &self,
         Parameters(args): Parameters<CreateShareArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
+        // Enforce scope for remote API key tokens: read-only keys cannot write
+        if let DataSource::Remote { token, api_base } = &self.data_source {
+            check_write_scope(token, api_base, &self.cached_scope)?;
+        }
+
         // Get token from data source or check auth
         let token = match &self.data_source {
             DataSource::Remote { token, .. } => token.clone(),
@@ -742,6 +762,103 @@ impl Default for SpikesService {
     fn default() -> Self {
         Self::new(DataSource::Local)
     }
+}
+
+// ============================================================================
+// Scope Enforcement for Remote Write Operations
+// ============================================================================
+
+/// Fetch the scope of an API key by calling GET /me.
+///
+/// Returns the scope string (e.g., "read", "write", "full").
+/// Non-API-key tokens are assumed to have "full" scope.
+fn fetch_api_key_scope(token: &str, api_base: &str) -> crate::error::Result<String> {
+    let url = format!("{}/me", api_base.trim_end_matches('/'));
+
+    let response = match ureq::get(&url)
+        .set("Authorization", &format!("Bearer {}", token))
+        .call()
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
+
+    let body = response
+        .into_string()
+        .map_err(|e| Error::RequestFailed(format!("Failed to read /me response: {}", e)))?;
+
+    let parsed: serde_json::Value = serde_json::from_str(&body)?;
+
+    // GET /me with an API key returns { scopes: "read"|"write"|"full", ... }
+    let scope = parsed
+        .get("scopes")
+        .and_then(|s| s.as_str())
+        .unwrap_or("full")
+        .to_string();
+
+    Ok(scope)
+}
+
+/// Check if a remote API key token has write scope.
+///
+/// For non-API-key tokens (those not starting with `sk_spikes_`), write is always allowed.
+/// For API key tokens, calls GET /me to fetch the scope (cached for session lifetime).
+///
+/// Returns Ok(()) if write is allowed, or Err(McpError) if scope is read-only.
+fn check_write_scope(
+    token: &str,
+    api_base: &str,
+    cached_scope: &std::sync::Arc<Mutex<CachedScope>>,
+) -> std::result::Result<(), McpError> {
+    // Only check scope for API key tokens
+    if !token.starts_with("sk_spikes_") {
+        return Ok(());
+    }
+
+    // Check cache first
+    {
+        let cache = cached_scope.lock().unwrap();
+        if let Some(ref scope) = cache.scope {
+            if scope == "read" {
+                return Err(McpError::invalid_request(
+                    "Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions.",
+                    None,
+                ));
+            }
+            // Cached as "write" or "full" — allow
+            return Ok(());
+        }
+    }
+
+    // Fetch scope from GET /me and cache it
+    let scope = match fetch_api_key_scope(token, api_base) {
+        Ok(s) => s,
+        Err(e) => {
+            // If we can't determine scope, fail open with a warning
+            // (the actual API call will enforce scope server-side where possible)
+            eprintln!("[spikes-mcp] WARNING: Could not check API key scope: {}", e);
+            return Ok(());
+        }
+    };
+
+    // Cache the result
+    {
+        let mut cache = cached_scope.lock().unwrap();
+        cache.scope = Some(scope.clone());
+    }
+
+    if scope == "read" {
+        return Err(McpError::invalid_request(
+            "Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions.",
+            None,
+        ));
+    }
+
+    Ok(())
 }
 
 #[tool_handler]
@@ -2991,5 +3108,212 @@ mod tests {
         let err_str = format!("{:?}", mcp_err);
         assert!(err_str.contains("internal_error") || err_str.contains("Server error"),
             "Generic errors should map to internal_error, got: {}", err_str);
+    }
+
+    // ========================================
+    // Unit Tests for VAL-CROSS-006: CLI-side Scope Enforcement
+    // ========================================
+
+    #[test]
+    fn test_check_write_scope_allows_non_api_key_tokens() {
+        // Regular bearer tokens (not sk_spikes_*) should always be allowed
+        let cache = std::sync::Arc::new(Mutex::new(CachedScope::default()));
+        let result = check_write_scope("regular-bearer-token-xyz", "http://localhost:8787", &cache);
+        assert!(result.is_ok(), "Non-API-key tokens should always pass scope check");
+    }
+
+    #[test]
+    fn test_check_write_scope_blocks_read_only_cached() {
+        // Pre-populate cache with "read" scope
+        let cache = std::sync::Arc::new(Mutex::new(CachedScope {
+            scope: Some("read".to_string()),
+        }));
+
+        let result = check_write_scope("sk_spikes_testkey123", "http://localhost:8787", &cache);
+        assert!(result.is_err(), "Read-scoped API key should be denied write access");
+
+        let err = result.unwrap_err();
+        let err_str = format!("{:?}", err);
+        let err_lower = err_str.to_lowercase();
+        assert!(err_lower.contains("permission denied") || err_lower.contains("read-only"),
+            "Error should mention 'permission denied' or 'read-only', got: {}", err_str);
+    }
+
+    #[test]
+    fn test_check_write_scope_allows_full_cached() {
+        // Pre-populate cache with "full" scope
+        let cache = std::sync::Arc::new(Mutex::new(CachedScope {
+            scope: Some("full".to_string()),
+        }));
+
+        let result = check_write_scope("sk_spikes_fullkey456", "http://localhost:8787", &cache);
+        assert!(result.is_ok(), "Full-scoped API key should be allowed write access");
+    }
+
+    #[test]
+    fn test_check_write_scope_allows_write_cached() {
+        // Pre-populate cache with "write" scope
+        let cache = std::sync::Arc::new(Mutex::new(CachedScope {
+            scope: Some("write".to_string()),
+        }));
+
+        let result = check_write_scope("sk_spikes_writekey789", "http://localhost:8787", &cache);
+        assert!(result.is_ok(), "Write-scoped API key should be allowed write access");
+    }
+
+    #[test]
+    fn test_check_write_scope_cache_is_session_lifetime() {
+        // Verify that once cached, the scope is reused without re-fetching
+        let cache = std::sync::Arc::new(Mutex::new(CachedScope {
+            scope: Some("read".to_string()),
+        }));
+
+        // First check should fail
+        let result1 = check_write_scope("sk_spikes_key1", "http://unreachable:9999", &cache);
+        assert!(result1.is_err(), "First check with cached 'read' scope should fail");
+
+        // Second check should also fail (same cache, no HTTP call needed)
+        let result2 = check_write_scope("sk_spikes_key1", "http://unreachable:9999", &cache);
+        assert!(result2.is_err(), "Second check with cached 'read' scope should still fail");
+    }
+
+    #[tokio::test]
+    async fn test_submit_spike_remote_read_scoped_returns_scope_error() {
+        // Test the full flow: SpikesService with a read-scoped API key in Remote mode
+        // Pre-populate the cached scope so no HTTP call is needed
+        let service = SpikesService::new(DataSource::Remote {
+            token: "sk_spikes_readonly123".to_string(),
+            api_base: "http://localhost:8787".to_string(),
+        });
+
+        // Pre-populate cache with "read" scope
+        {
+            let mut cache = service.cached_scope.lock().unwrap();
+            cache.scope = Some("read".to_string());
+        }
+
+        let args = SubmitSpikeArgs {
+            page: "test.html".to_string(),
+            url: None,
+            selector: None,
+            element_text: None,
+            rating: None,
+            comments: "test comment".to_string(),
+            reviewer_name: None,
+            project_key: None,
+        };
+
+        let result = service.submit_spike(Parameters(args)).await;
+        assert!(result.is_err(), "submit_spike should return error for read-scoped key");
+
+        let err = result.unwrap_err();
+        let err_str = format!("{:?}", err);
+        let err_lower = err_str.to_lowercase();
+        assert!(
+            err_lower.contains("permission") || err_lower.contains("scope") || err_lower.contains("read-only"),
+            "Error should mention scope/permission, got: {}", err_str
+        );
+    }
+
+    #[tokio::test]
+    async fn test_submit_spike_remote_full_scoped_allowed() {
+        // Test that a full-scoped API key passes the scope check
+        // (will fail on HTTP call since no real server, but should pass scope check)
+        let service = SpikesService::new(DataSource::Remote {
+            token: "sk_spikes_fullkey456".to_string(),
+            api_base: "http://localhost:9999".to_string(), // unreachable
+        });
+
+        // Pre-populate cache with "full" scope
+        {
+            let mut cache = service.cached_scope.lock().unwrap();
+            cache.scope = Some("full".to_string());
+        }
+
+        let args = SubmitSpikeArgs {
+            page: "test.html".to_string(),
+            url: None,
+            selector: None,
+            element_text: None,
+            rating: None,
+            comments: "test comment".to_string(),
+            reviewer_name: None,
+            project_key: None,
+        };
+
+        let result = service.submit_spike(Parameters(args)).await;
+        // Should NOT fail with scope error — will fail with network error instead
+        // (since the server is unreachable, that's fine — we just want to verify scope check passes)
+        if let Err(ref err) = result {
+            let err_str = format!("{:?}", err);
+            let err_lower = err_str.to_lowercase();
+            assert!(
+                !err_lower.contains("permission denied") && !err_lower.contains("read-only"),
+                "Full-scoped key should not get scope error, got: {}", err_str
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_submit_spike_remote_regular_bearer_allowed() {
+        // Test that a regular bearer token (not sk_spikes_*) passes scope check
+        let service = SpikesService::new(DataSource::Remote {
+            token: "regular-bearer-token-abc".to_string(),
+            api_base: "http://localhost:9999".to_string(), // unreachable
+        });
+
+        let args = SubmitSpikeArgs {
+            page: "test.html".to_string(),
+            url: None,
+            selector: None,
+            element_text: None,
+            rating: None,
+            comments: "test comment".to_string(),
+            reviewer_name: None,
+            project_key: None,
+        };
+
+        let result = service.submit_spike(Parameters(args)).await;
+        // Should NOT fail with scope error — may fail with network error
+        if let Err(ref err) = result {
+            let err_str = format!("{:?}", err);
+            let err_lower = err_str.to_lowercase();
+            assert!(
+                !err_lower.contains("permission denied") && !err_lower.contains("read-only"),
+                "Regular bearer token should not get scope error, got: {}", err_str
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_create_share_remote_read_scoped_returns_scope_error() {
+        // Test that create_share also enforces scope for read-only API keys
+        let service = SpikesService::new(DataSource::Remote {
+            token: "sk_spikes_readonly789".to_string(),
+            api_base: "http://localhost:8787".to_string(),
+        });
+
+        // Pre-populate cache with "read" scope
+        {
+            let mut cache = service.cached_scope.lock().unwrap();
+            cache.scope = Some("read".to_string());
+        }
+
+        let args = CreateShareArgs {
+            directory: "/tmp/nonexistent-test-dir".to_string(),
+            name: None,
+            password: None,
+        };
+
+        let result = service.create_share(Parameters(args)).await;
+        assert!(result.is_err(), "create_share should return error for read-scoped key");
+
+        let err = result.unwrap_err();
+        let err_str = format!("{:?}", err);
+        let err_lower = err_str.to_lowercase();
+        assert!(
+            err_lower.contains("permission") || err_lower.contains("scope") || err_lower.contains("read-only"),
+            "Error should mention scope/permission, got: {}", err_str
+        );
     }
 }
