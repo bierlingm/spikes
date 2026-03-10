@@ -1,0 +1,28 @@
+{
+  "featureId": "mcp-scrutiny-fixes",
+  "reviewedAt": "2026-03-10T11:59:23Z",
+  "commitId": "72c43ba",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix commit addresses all prior blocking scrutiny findings from mcp-write-tools and mcp-remote-mode: local resolve/delete now return protocol-level McpError on not-found, remote spike list parsing now supports hosted API {data:[...], next_cursor} shape, remote resolve/delete no longer call non-existent worker routes, submit_spike_remote always provides projectKey, and HTTP tools/list assertions are now unconditional.",
+    "issues": [
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 2395,
+        "severity": "non_blocking",
+        "description": "New fetch_remote_spikes parsing tests validate the parsing expression on inline JSON values rather than exercising fetch_remote_spikes end-to-end with HTTP response fixtures/mocks, so regression protection for request/response integration remains lighter than it could be."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "worker-cli skill still appears partially out of sync with practical execution for this feature: transcript shows implementation edits before tests and no explicit cargo build step, despite the skill requiring tests-first and a build check.",
+      "evidence": "worker-cli SKILL.md procedure steps 3 and 7 vs transcript skeleton for workerSessionId 35b88dcb-0a8b-4050-84b8-29242d50441d (multiple Edit operations before new tests and verification commands listing cargo test/clippy/manual MCP check but no cargo build)."
+    }
+  ],
+  "addressesFailureFrom": "/Users/moritzbierling/werk/repos/spikes/.factory/validation/mcp-completeness/scrutiny/reviews/mcp-write-tools.json; /Users/moritzbierling/werk/repos/spikes/.factory/validation/mcp-completeness/scrutiny/reviews/mcp-remote-mode.json",
+  "summary": "PASS: The mcp-scrutiny-fixes implementation adequately resolves the previously blocking failures in both mcp-write-tools and mcp-remote-mode, and aligns remote-mode behavior with the hosted API contract for spike list shape and unsupported mutation routes."
+}

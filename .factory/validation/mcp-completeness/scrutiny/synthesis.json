@@ -1,11 +1,11 @@
 {
   "milestone": "mcp-completeness",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "validatorsRun": {
     "test": {
       "passed": true,
-      "command": "cargo test --jobs 5 --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml",
+      "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo test --jobs 5",
       "exitCode": 0
     },
     "typecheck": {
@@ -15,7 +15,7 @@
     },
     "lint": {
       "passed": true,
-      "command": "cargo clippy --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml -- -D warnings",
+      "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo clippy -- -D warnings",
       "exitCode": 0
     },
     "additional": [
@@ -30,93 +30,49 @@
         "passed": true,
         "command": "cd /Users/moritzbierling/werk/repos/spikes-hosted/worker && npx eslint src/",
         "exitCode": 0
+      },
+      {
+        "name": "check",
+        "passed": true,
+        "command": "cd /Users/moritzbierling/werk/repos/spikes/cli && cargo check",
+        "exitCode": 0
       }
     ]
   },
   "reviewsSummary": {
-    "total": 3,
-    "passed": 1,
-    "failed": 2,
-    "failedFeatures": [
-      "mcp-write-tools",
-      "mcp-remote-mode"
-    ]
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
-    {
-      "featureId": "mcp-write-tools",
-      "severity": "blocking",
-      "description": "resolve_spike maps SpikeNotFound to a successful CallToolResult containing \"ERROR:\" text instead of returning an MCP JSON-RPC error, violating VAL-MCP-005."
-    },
-    {
-      "featureId": "mcp-write-tools",
-      "severity": "blocking",
-      "description": "delete_spike maps SpikeNotFound to a successful CallToolResult containing \"ERROR:\" text instead of returning an MCP JSON-RPC error, violating VAL-MCP-007."
-    },
-    {
-      "featureId": "mcp-remote-mode",
-      "severity": "blocking",
-      "description": "fetch_remote_spikes parses [] or { spikes: [...] }, but hosted API returns paginated { data: [...], next_cursor }, causing remote read tools to miss data."
-    },
-    {
-      "featureId": "mcp-remote-mode",
-      "severity": "blocking",
-      "description": "Remote resolve_spike/delete_spike use PATCH/DELETE /spikes/:id, but worker currently exposes only GET /spikes/:id for spike-by-id."
-    },
-    {
-      "featureId": "mcp-remote-mode",
-      "severity": "blocking",
-      "description": "submit_spike_remote can omit both project/projectKey when project_key arg is absent, but worker schema requires at least one of these fields."
-    }
-  ],
+  "blockingIssues": [],
   "nonBlockingIssues": [
     {
-      "featureId": "mcp-write-tools",
+      "featureId": "mcp-scrutiny-fixes",
       "severity": "non_blocking",
-      "description": "Write-tool mutation tests are mostly serialization/helper checks and do not directly exercise resolve/delete success+error storage paths."
+      "description": "fetch_remote_spikes regression tests are parsing-focused and lighter on end-to-end HTTP fixture coverage."
     },
     {
-      "featureId": "mcp-http-transport",
+      "featureId": "mcp-http-session-fix",
       "severity": "non_blocking",
-      "description": "HTTP tools/list integration test can pass when tools payload is absent because assertions are conditionally skipped."
+      "description": "notifications/initialized response path is conditionally asserted in integration test, which can reduce diagnostics if that step fails intermittently."
     }
   ],
   "appliedUpdates": [
     {
       "target": "library",
-      "description": "Added MCP completeness scrutiny notes to .factory/library/architecture.md covering hosted /spikes response shape, missing PATCH/DELETE spike routes, required project/projectKey in spike schema, and rmcp Streamable HTTP handshake testing details.",
-      "sourceFeature": "mcp-remote-mode"
+      "description": "Expanded .factory/library/architecture.md with MCP HTTP session continuity details: propagate Mcp-Session-Id across requests and prefer reqwest bytes() decoding for SSE-style MCP test responses.",
+      "sourceFeature": "mcp-http-session-fix"
     }
   ],
   "suggestedGuidanceUpdates": [
     {
       "target": "skills/worker-cli",
-      "suggestion": "For any CLI feature that integrates with --remote or hosted APIs, require explicit contract verification against ../spikes-hosted/worker routes and response schemas before implementation and in tests.",
-      "evidence": "mcp-remote-mode assumed nonexistent mutation routes and wrong GET /spikes response shape, resulting in three blocking contract mismatches.",
-      "isSystemic": true
-    },
-    {
-      "target": "AGENTS.md",
-      "suggestion": "Add explicit MCP error semantics guidance: contract-required error cases must return MCP JSON-RPC errors, not successful tool results with embedded error text.",
-      "evidence": "mcp-write-tools returned success payloads for not-found resolve/delete paths, violating VAL-MCP-005 and VAL-MCP-007.",
-      "isSystemic": true
-    },
-    {
-      "target": "skills/worker-cli",
-      "suggestion": "Remove or correct stale instruction claiming commands/mcp.rs should be replaced entirely due to syntax errors, and tighten procedure adherence checks around TDD reporting.",
-      "evidence": "Recent successful features incrementally modified mcp.rs; reviewer found skill text stale and adherence signaling inconsistent with transcript order.",
+      "suggestion": "Align worker-cli skill procedure wording with practical execution and validation reporting expectations (tests-first/build-step guidance versus acceptable implementation order) to reduce false adherence mismatches in scrutiny.",
+      "evidence": "Review of mcp-scrutiny-fixes observed transcript/skill tension on step ordering and explicit build-step expectations despite successful validation outcomes.",
       "isSystemic": false
     }
   ],
-  "rejectedObservations": [
-    {
-      "observation": "Single-session note about missing explicit cargo build command in one worker transcript.",
-      "reason": "ambiguous"
-    },
-    {
-      "observation": "General statement that mission docs should enforce TDD ordering from transcript evidence alone.",
-      "reason": "duplicate"
-    }
-  ],
-  "previousRound": null
+  "rejectedObservations": [],
+  "previousRound": ".factory/validation/mcp-completeness/scrutiny/synthesis.round1.json"
 }

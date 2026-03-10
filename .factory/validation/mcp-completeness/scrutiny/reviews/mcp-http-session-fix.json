@@ -1,0 +1,28 @@
+{
+  "featureId": "mcp-http-session-fix",
+  "reviewedAt": "2026-03-10T11:58:19Z",
+  "commitId": "1f4c37bfcf789bfe86e68e45b99b9ca0e9629f7b",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix addresses the prior HTTP transport regression: the integration test now captures `Mcp-Session-Id` from initialize, sends it on `notifications/initialized` and `tools/list`, and parses SSE responses via `bytes()` to avoid blocking behavior. This resolves the earlier false-negative behavior and keeps assertions for `tools` unconditional.",
+    "issues": [
+      {
+        "file": "cli/tests/mcp_integration.rs",
+        "line": 254,
+        "severity": "non_blocking",
+        "description": "`notifications/initialized` response success is not asserted (`if let Ok(resp) = notif_response { ... }`). If that request fails intermittently, the test can proceed without explicitly validating this protocol step, reducing diagnostic quality."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "Shared library notes mention Accept header and initialized flow for rmcp Streamable HTTP, but do not explicitly capture two implementation-critical details discovered here: propagating `Mcp-Session-Id` across requests and preferring `reqwest` `bytes()` over `text()` for SSE response handling in this test setup.",
+      "evidence": "Transcript skeleton for session 57a0ac90-b41e-4f12-a995-9ee884f5b0b5 shows repeated debugging attempts around missing session context and SSE/body read behavior before converging on header propagation + bytes(); current .factory/library/architecture.md only states protocol sensitivity at a higher level."
+    }
+  ],
+  "addressesFailureFrom": "/Users/moritzbierling/werk/repos/spikes/.factory/validation/mcp-completeness/scrutiny/reviews/mcp-http-transport.json",
+  "summary": "Pass. The follow-up fix correctly implements MCP HTTP session continuity in integration tests and closes the prior review’s test-quality gap. One non-blocking assertion hardening opportunity remains for the initialized notification response path."
+}

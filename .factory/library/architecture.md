@@ -80,3 +80,5 @@ Split `index.ts` (~824 lines) into:
 - Worker router currently exposes `GET /spikes/:id` but does **not** expose `PATCH /spikes/:id` or `DELETE /spikes/:id`; remote MCP mutation tools must align to available API routes.
 - Worker spike schema requires at least one of `project` or `projectKey` for spike creation; remote MCP submit logic must always provide one.
 - rmcp Streamable HTTP testing is sensitive to protocol details (e.g., proper `Accept` header and `notifications/initialized` flow). Preserve these in integration test fixtures to avoid false negatives.
+- For streamable HTTP integration tests, propagate `Mcp-Session-Id` from the `initialize` response onto subsequent `notifications/initialized` and tool calls; otherwise rmcp treats later requests as uninitialized sessions.
+- In this test setup, prefer reading HTTP MCP responses via `reqwest` `bytes()` (then UTF-8 decode) instead of `text()` to avoid SSE/body-read edge behavior during sequential protocol requests.
