@@ -705,6 +705,26 @@ impl SpikesService {
                 output.push_str(&format!("  Shares: {}\n", shares_display));
                 output.push_str(&format!("  Spikes: {}\n", spikes_display));
 
+                // Agent tier: show cost, budget cap, and billing period
+                if usage_data.tier == "agent" {
+                    if let Some(cost_cents) = usage_data.cost_this_period_cents {
+                        let dollars = cost_cents / 100;
+                        let remainder = cost_cents % 100;
+                        output.push_str(&format!("  Cost this period: ${}.{:02}\n", dollars, remainder));
+                    }
+                    match usage_data.monthly_cap_cents {
+                        Some(cap) => {
+                            let dollars = cap / 100;
+                            let remainder = cap % 100;
+                            output.push_str(&format!("  Budget cap: ${}.{:02}\n", dollars, remainder));
+                        }
+                        None => output.push_str("  Budget cap: None\n"),
+                    }
+                    if let Some(ref period_ends) = usage_data.period_ends {
+                        output.push_str(&format!("  Period ends: {}\n", period_ends));
+                    }
+                }
+
                 Ok(CallToolResult::success(vec![Content::text(output)]))
             }
             Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
@@ -1015,6 +1035,12 @@ struct UsageData {
     shares: u64,
     share_limit: Option<u64>,
     tier: String,
+    /// Cost this billing period in cents (agent tier only)
+    cost_this_period_cents: Option<u64>,
+    /// Monthly budget cap in cents (agent tier only, None = no cap)
+    monthly_cap_cents: Option<u64>,
+    /// Billing period end date (agent tier only)
+    period_ends: Option<String>,
 }
 
 /// Fetch usage from the API
@@ -2124,6 +2150,9 @@ mod tests {
         assert_eq!(usage.shares, 3);
         assert_eq!(usage.share_limit, Some(5));
         assert_eq!(usage.tier, "free");
+        assert!(usage.cost_this_period_cents.is_none());
+        assert!(usage.monthly_cap_cents.is_none());
+        assert!(usage.period_ends.is_none());
     }
 
     #[test]
@@ -2140,6 +2169,49 @@ mod tests {
         assert_eq!(usage.spike_limit, None);
         assert_eq!(usage.share_limit, None);
         assert_eq!(usage.tier, "pro");
+        assert!(usage.cost_this_period_cents.is_none());
+        assert!(usage.monthly_cap_cents.is_none());
+        assert!(usage.period_ends.is_none());
+    }
+
+    #[test]
+    fn test_usage_data_agent_tier_with_cost_fields() {
+        let json = r#"{
+            "spikes": 250,
+            "spike_limit": null,
+            "shares": 8,
+            "share_limit": null,
+            "tier": "agent",
+            "cost_this_period_cents": 1234,
+            "monthly_cap_cents": 5000,
+            "period_ends": "2026-04-01T00:00:00Z"
+        }"#;
+
+        let usage: UsageData = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.tier, "agent");
+        assert_eq!(usage.cost_this_period_cents, Some(1234));
+        assert_eq!(usage.monthly_cap_cents, Some(5000));
+        assert_eq!(usage.period_ends, Some("2026-04-01T00:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_usage_data_agent_tier_no_cap() {
+        let json = r#"{
+            "spikes": 100,
+            "spike_limit": null,
+            "shares": 2,
+            "share_limit": null,
+            "tier": "agent",
+            "cost_this_period_cents": 500,
+            "monthly_cap_cents": null,
+            "period_ends": "2026-04-01T00:00:00Z"
+        }"#;
+
+        let usage: UsageData = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.tier, "agent");
+        assert_eq!(usage.cost_this_period_cents, Some(500));
+        assert!(usage.monthly_cap_cents.is_none());
+        assert_eq!(usage.period_ends, Some("2026-04-01T00:00:00Z".to_string()));
     }
 
     #[test]
