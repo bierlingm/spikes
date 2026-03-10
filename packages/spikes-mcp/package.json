@@ -1,0 +1,34 @@
+{
+  "name": "spikes-mcp",
+  "version": "0.3.1",
+  "description": "MCP server for Spikes — structured feedback for AI-assisted building. Downloads the platform binary and starts the MCP server on stdio.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moritzbierling/spikes",
+    "directory": "packages/spikes-mcp"
+  },
+  "homepage": "https://spikes.sh",
+  "keywords": [
+    "mcp",
+    "spikes",
+    "feedback",
+    "ai",
+    "agent",
+    "model-context-protocol"
+  ],
+  "bin": {
+    "spikes-mcp": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "lib.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "test": "node --test test.js"
+  }
+}
