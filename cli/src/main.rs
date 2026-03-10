@@ -342,7 +342,11 @@ enum DeployBackend {
 #[derive(Subcommand)]
 enum McpAction {
     /// Start the MCP server (stdio transport)
-    Serve,
+    Serve {
+        /// Use hosted API instead of local JSONL (requires SPIKES_TOKEN or auth.toml)
+        #[arg(long)]
+        remote: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -481,7 +485,7 @@ fn main() {
         Some(Commands::Upgrade { json }) => commands::upgrade::run(json),
         Some(Commands::Usage { json }) => commands::usage::run(UsageOptions { json }),
         Some(Commands::Mcp { action }) => match action {
-            McpAction::Serve => commands::mcp::run(),
+            McpAction::Serve { remote } => commands::mcp::run(remote),
         },
     };
 
