@@ -27,7 +27,7 @@ walkdir = "2"
 ureq = { version = "2", features = ["json"] }
 dirs = "5"
 webbrowser = "1"
-rmcp = { version = "0.17", features = ["server", "transport-io", "macros"] }
+rmcp = { version = "0.17", features = ["server", "transport-io", "macros", "transport-streamable-http-server"] }
 schemars = "1.0"
 nanoid = "0.4"
 

@@ -1443,27 +1443,34 @@ mod urlencoding {
 // Entry Point
 // ============================================================================
 
-/// Run the MCP server using stdio transport.
+/// Transport mode for MCP server
+#[derive(Clone, Debug)]
+pub enum TransportMode {
+    /// Use standard input/output for JSON-RPC (default)
+    Stdio,
+    /// Use HTTP transport with POST endpoint
+    Http {
+        /// Port to listen on
+        port: u16,
+        /// Bind address
+        bind: String,
+    },
+}
+
+/// Run the MCP server with the specified transport mode.
 ///
 /// This function is synchronous but internally uses tokio runtime.
-/// All logging goes to stderr; stdout is reserved for JSON-RPC.
-pub fn run(remote: bool) -> crate::error::Result<()> {
+/// All logging goes to stderr; stdout is reserved for JSON-RPC (stdio mode).
+pub fn run(remote: bool, transport: TransportMode) -> crate::error::Result<()> {
     // Use tokio runtime for async operations
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| crate::error::Error::RequestFailed(format!("Failed to create tokio runtime: {}", e)))?;
 
-    rt.block_on(async_run(remote))
+    rt.block_on(async_run(remote, transport))
 }
 
 /// Async implementation of the MCP server
-async fn async_run(remote: bool) -> crate::error::Result<()> {
-    // All logging must go to stderr; stdout is for JSON-RPC
-    if remote {
-        eprintln!("[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...");
-    } else {
-        eprintln!("[spikes-mcp] Starting MCP server on stdio (LOCAL mode)...");
-    }
-
+async fn async_run(remote: bool, transport: TransportMode) -> crate::error::Result<()> {
     // Create data source based on --remote flag
     let data_source = match DataSource::new(remote) {
         Ok(ds) => ds,
@@ -1472,6 +1479,21 @@ async fn async_run(remote: bool) -> crate::error::Result<()> {
             return Err(e);
         }
     };
+
+    match transport {
+        TransportMode::Stdio => run_stdio(data_source, remote).await,
+        TransportMode::Http { port, bind } => run_http(data_source, remote, port, bind).await,
+    }
+}
+
+/// Run MCP server using stdio transport
+async fn run_stdio(data_source: DataSource, remote: bool) -> crate::error::Result<()> {
+    // All logging must go to stderr; stdout is for JSON-RPC
+    if remote {
+        eprintln!("[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...");
+    } else {
+        eprintln!("[spikes-mcp] Starting MCP server on stdio (LOCAL mode)...");
+    }
 
     let service = SpikesService::new(data_source);
 
@@ -1490,6 +1512,60 @@ async fn async_run(remote: bool) -> crate::error::Result<()> {
         .map_err(|e| crate::error::Error::RequestFailed(format!("MCP server error: {}", e)))?;
 
     eprintln!("[spikes-mcp] Server stopped: {:?}", quit_reason);
+
+    Ok(())
+}
+
+/// Run MCP server using HTTP transport
+async fn run_http(data_source: DataSource, remote: bool, port: u16, bind: String) -> crate::error::Result<()> {
+    use axum::Router;
+    use rmcp::transport::streamable_http_server::tower::StreamableHttpService;
+    use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use tokio::net::TcpListener;
+
+    // All logging goes to stderr
+    if remote {
+        eprintln!("[spikes-mcp] Starting MCP server on HTTP (REMOTE mode)...");
+    } else {
+        eprintln!("[spikes-mcp] Starting MCP server on HTTP (LOCAL mode)...");
+    }
+
+    // Parse bind address
+    let addr: SocketAddr = format!("{}:{}", bind, port)
+        .parse()
+        .map_err(|e| crate::error::Error::RequestFailed(format!("Invalid bind address: {}", e)))?;
+
+    // Create session manager for HTTP transport
+    let session_manager = Arc::new(LocalSessionManager::default());
+
+    // Create the StreamableHttpService
+    // The service factory creates a new SpikesService for each session
+    let data_source_clone = data_source.clone();
+    let http_service = StreamableHttpService::new(
+        move || Ok(SpikesService::new(data_source_clone.clone())),
+        session_manager,
+        Default::default(),
+    );
+
+    // Create axum router with the HTTP service at the root path
+    let app = Router::new()
+        .route("/", axum::routing::any(|req| async move {
+            http_service.clone().handle(req).await
+        }));
+
+    // Bind to the address
+    let listener = TcpListener::bind(addr)
+        .await
+        .map_err(|e| crate::error::Error::RequestFailed(format!("Failed to bind to {}: {}", addr, e)))?;
+
+    eprintln!("[spikes-mcp] HTTP server listening on http://{}", addr);
+
+    // Run the server
+    axum::serve(listener, app)
+        .await
+        .map_err(|e| crate::error::Error::RequestFailed(format!("HTTP server error: {}", e)))?;
 
     Ok(())
 }
@@ -2259,5 +2335,79 @@ mod tests {
         assert_eq!(urlencoding::encode("index.html"), "index.html");
         assert_eq!(urlencoding::encode("page name"), "page%20name");
         assert_eq!(urlencoding::encode("test@example.com"), "test%40example.com");
+    }
+
+    // ========================================
+    // Unit Tests for TransportMode
+    // ========================================
+
+    #[test]
+    fn test_transport_mode_stdio() {
+        let mode = TransportMode::Stdio;
+        assert!(matches!(mode, TransportMode::Stdio));
+    }
+
+    #[test]
+    fn test_transport_mode_http() {
+        let mode = TransportMode::Http {
+            port: 3848,
+            bind: "127.0.0.1".to_string(),
+        };
+        match mode {
+            TransportMode::Http { port, bind } => {
+                assert_eq!(port, 3848);
+                assert_eq!(bind, "127.0.0.1");
+            }
+            _ => panic!("Expected HTTP transport mode"),
+        }
+    }
+
+    #[test]
+    fn test_transport_mode_http_default_port() {
+        // Verify default port matches expected value
+        let mode = TransportMode::Http {
+            port: 3848,
+            bind: "127.0.0.1".to_string(),
+        };
+        if let TransportMode::Http { port, .. } = mode {
+            assert_eq!(port, 3848, "Default HTTP port should be 3848");
+        }
+    }
+
+    #[test]
+    fn test_transport_mode_http_custom_bind() {
+        let mode = TransportMode::Http {
+            port: 8080,
+            bind: "0.0.0.0".to_string(),
+        };
+        if let TransportMode::Http { port, bind } = mode {
+            assert_eq!(port, 8080);
+            assert_eq!(bind, "0.0.0.0");
+        }
+    }
+
+    #[test]
+    fn test_transport_mode_clone() {
+        let mode = TransportMode::Http {
+            port: 3848,
+            bind: "127.0.0.1".to_string(),
+        };
+        let cloned = mode.clone();
+        assert!(matches!(cloned, TransportMode::Http { .. }));
+    }
+
+    #[test]
+    fn test_transport_mode_debug() {
+        let mode = TransportMode::Stdio;
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("Stdio"));
+
+        let mode = TransportMode::Http {
+            port: 3848,
+            bind: "127.0.0.1".to_string(),
+        };
+        let debug_str = format!("{:?}", mode);
+        assert!(debug_str.contains("Http"));
+        assert!(debug_str.contains("3848"));
     }
 }

@@ -341,12 +341,33 @@ enum DeployBackend {
 
 #[derive(Subcommand)]
 enum McpAction {
-    /// Start the MCP server (stdio transport)
+    /// Start the MCP server (stdio transport by default)
     Serve {
         /// Use hosted API instead of local JSONL (requires SPIKES_TOKEN or auth.toml)
         #[arg(long)]
         remote: bool,
+
+        /// Transport mode: stdio or http (default: stdio)
+        #[arg(long, value_enum, default_value = "stdio")]
+        transport: McpTransport,
+
+        /// Port for HTTP transport (default: 3848, only used with --transport http)
+        #[arg(long, default_value = "3848")]
+        port: u16,
+
+        /// Bind address for HTTP transport (default: 127.0.0.1, only used with --transport http)
+        #[arg(long, default_value = "127.0.0.1")]
+        bind: String,
     },
+}
+
+/// MCP transport mode
+#[derive(Clone, Debug, clap::ValueEnum)]
+enum McpTransport {
+    /// Use standard input/output for JSON-RPC (default)
+    Stdio,
+    /// Use HTTP transport with POST endpoint
+    Http,
 }
 
 #[derive(Subcommand)]
@@ -485,7 +506,13 @@ fn main() {
         Some(Commands::Upgrade { json }) => commands::upgrade::run(json),
         Some(Commands::Usage { json }) => commands::usage::run(UsageOptions { json }),
         Some(Commands::Mcp { action }) => match action {
-            McpAction::Serve { remote } => commands::mcp::run(remote),
+            McpAction::Serve { remote, transport, port, bind } => {
+                let transport_mode = match transport {
+                    McpTransport::Stdio => commands::mcp::TransportMode::Stdio,
+                    McpTransport::Http => commands::mcp::TransportMode::Http { port, bind },
+                };
+                commands::mcp::run(remote, transport_mode)
+            }
         },
     };
 
