@@ -365,6 +365,13 @@ enum McpAction {
         #[arg(long, default_value = "127.0.0.1")]
         bind: String,
     },
+
+    /// Generate MCP config for Claude Desktop, Cursor, or other clients
+    Install {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// MCP transport mode
@@ -549,6 +556,9 @@ fn main() {
                     McpTransport::Http => commands::mcp::TransportMode::Http { port, bind },
                 };
                 commands::mcp::run(remote, transport_mode)
+            }
+            McpAction::Install { json } => {
+                commands::mcp::install(json)
             }
         },
         Some(Commands::Auth { action }) => match action {

@@ -1,0 +1,145 @@
+# Smithery registry manifest for Spikes MCP server
+# https://smithery.ai
+
+name: spikes
+description: >
+  Feedback collection for AI-assisted building. Click elements, leave comments,
+  get exact CSS selectors. Structured JSON output for Claude Code, Cursor, and
+  other AI coding assistants. Read, write, and manage feedback programmatically.
+
+startCommand:
+  type: stdio
+  configSchema: {}
+  commandFunction: |
+    (config) => ({ command: "npx", args: ["-y", "spikes-mcp"] })
+
+tools:
+  - name: get_spikes
+    description: >
+      Get all feedback spikes with optional filters for page, rating, or
+      unresolved status. Returns formatted text with spike details.
+    parameters:
+      - name: page
+        type: string
+        required: false
+        description: Filter by page name (e.g., 'index.html')
+      - name: rating
+        type: string
+        required: false
+        description: "Filter by rating: love, like, meh, or no"
+      - name: unresolved_only
+        type: boolean
+        required: false
+        description: Only return unresolved spikes
+
+  - name: get_element_feedback
+    description: >
+      Get feedback for a specific CSS selector. Zoom in on what reviewers said
+      about a particular element.
+    parameters:
+      - name: selector
+        type: string
+        required: true
+        description: CSS selector to look up
+      - name: page
+        type: string
+        required: false
+        description: Filter by page name
+
+  - name: get_hotspots
+    description: >
+      Find elements with the most feedback. Identifies hotspots where reviewers
+      clustered. Use to prioritize what to fix first.
+    parameters:
+      - name: limit
+        type: integer
+        required: false
+        description: "Maximum number of hotspots to return (default: 10)"
+
+  - name: submit_spike
+    description: >
+      Create new feedback. Submit a spike with page, comments, and optional
+      selector/rating. Agent-created spikes get logged to .spikes/feedback.jsonl.
+    parameters:
+      - name: page
+        type: string
+        required: true
+        description: Page name (e.g., 'index.html')
+      - name: comments
+        type: string
+        required: true
+        description: Feedback comments
+      - name: url
+        type: string
+        required: false
+        description: URL of the page
+      - name: selector
+        type: string
+        required: false
+        description: CSS selector for element feedback
+      - name: element_text
+        type: string
+        required: false
+        description: Text content of the element
+      - name: rating
+        type: string
+        required: false
+        description: "Rating: love, like, meh, or no"
+      - name: reviewer_name
+        type: string
+        required: false
+        description: Reviewer name
+      - name: project_key
+        type: string
+        required: false
+        description: Project key for the feedback
+
+  - name: resolve_spike
+    description: >
+      Mark a spike as resolved. Sets resolved=true with timestamp.
+      Use after addressing the feedback.
+    parameters:
+      - name: spike_id
+        type: string
+        required: true
+        description: Spike ID or prefix (minimum 4 characters)
+
+  - name: delete_spike
+    description: >
+      Permanently remove a spike by ID. Use sparingly — resolving is usually
+      better.
+    parameters:
+      - name: spike_id
+        type: string
+        required: true
+        description: Spike ID or prefix (minimum 4 characters)
+
+  - name: create_share
+    description: >
+      Upload a directory and get a shareable URL. Requires login
+      (spikes login). Returns URL for collecting feedback.
+    parameters:
+      - name: directory
+        type: string
+        required: true
+        description: Directory path to upload
+      - name: name
+        type: string
+        required: false
+        description: Name/slug for the share
+      - name: password
+        type: string
+        required: false
+        description: Password protection
+
+  - name: list_shares
+    description: >
+      List all your shares. Shows URLs, spike counts, and creation dates.
+      Requires login.
+    parameters: []
+
+  - name: get_usage
+    description: >
+      View usage statistics. Shows spike/share counts, limits, tier, and cost
+      info for agent tier. Requires login.
+    parameters: []

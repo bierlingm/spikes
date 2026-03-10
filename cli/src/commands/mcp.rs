@@ -1527,6 +1527,173 @@ async fn run_http(data_source: DataSource, remote: bool, port: u16, bind: String
 }
 
 // ============================================================================
+// Install Command — detect MCP clients and generate config
+// ============================================================================
+
+/// Detected MCP client
+#[derive(Debug, Clone, Serialize)]
+struct DetectedClient {
+    name: String,
+    config_path: String,
+    config: serde_json::Value,
+}
+
+/// Result of the install command
+#[derive(Debug, Clone, Serialize)]
+struct InstallResult {
+    detected_clients: Vec<DetectedClient>,
+    manual_configs: Vec<DetectedClient>,
+}
+
+/// Generate the spikes MCP config JSON block
+fn spikes_mcp_config() -> serde_json::Value {
+    serde_json::json!({
+        "mcpServers": {
+            "spikes": {
+                "command": "spikes",
+                "args": ["mcp", "serve"]
+            }
+        }
+    })
+}
+
+/// Generate the spikes MCP config JSON block for npx
+fn spikes_mcp_config_npx() -> serde_json::Value {
+    serde_json::json!({
+        "mcpServers": {
+            "spikes": {
+                "command": "npx",
+                "args": ["-y", "spikes-mcp"]
+            }
+        }
+    })
+}
+
+/// Check if Claude Desktop config directory exists
+fn detect_claude_desktop() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        if let Some(home) = dirs::home_dir() {
+            let config_path = home.join("Library/Application Support/Claude/claude_desktop_config.json");
+            let config_dir = home.join("Library/Application Support/Claude");
+            if config_dir.exists() {
+                return Some(config_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(config) = dirs::config_dir() {
+            let config_path = config.join("Claude/claude_desktop_config.json");
+            let config_dir = config.join("Claude");
+            if config_dir.exists() {
+                return Some(config_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(appdata) = dirs::config_dir() {
+            let config_path = appdata.join("Claude/claude_desktop_config.json");
+            let config_dir = appdata.join("Claude");
+            if config_dir.exists() {
+                return Some(config_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if Cursor config directory exists (project-level .cursor/)
+fn detect_cursor() -> Option<String> {
+    let cursor_dir = std::path::Path::new(".cursor");
+    if cursor_dir.exists() && cursor_dir.is_dir() {
+        let config_path = cursor_dir.join("mcp.json");
+        return Some(config_path.to_string_lossy().to_string());
+    }
+    None
+}
+
+/// Run the `spikes mcp install` command.
+///
+/// Detects installed MCP clients and outputs the appropriate config block.
+/// If no clients detected, prints manual config examples for both.
+pub fn install(json: bool) -> crate::error::Result<()> {
+    let mut detected: Vec<DetectedClient> = Vec::new();
+
+    // Detect Claude Desktop
+    if let Some(config_path) = detect_claude_desktop() {
+        detected.push(DetectedClient {
+            name: "Claude Desktop".to_string(),
+            config_path,
+            config: spikes_mcp_config(),
+        });
+    }
+
+    // Detect Cursor
+    if let Some(config_path) = detect_cursor() {
+        detected.push(DetectedClient {
+            name: "Cursor".to_string(),
+            config_path,
+            config: spikes_mcp_config(),
+        });
+    }
+
+    if json {
+        let manual = if detected.is_empty() {
+            vec![
+                DetectedClient {
+                    name: "Claude Desktop".to_string(),
+                    config_path: "~/Library/Application Support/Claude/claude_desktop_config.json".to_string(),
+                    config: spikes_mcp_config(),
+                },
+                DetectedClient {
+                    name: "Cursor".to_string(),
+                    config_path: ".cursor/mcp.json".to_string(),
+                    config: spikes_mcp_config(),
+                },
+            ]
+        } else {
+            Vec::new()
+        };
+
+        let result = InstallResult {
+            detected_clients: detected,
+            manual_configs: manual,
+        };
+
+        println!("{}", serde_json::to_string_pretty(&result)?);
+        return Ok(());
+    }
+
+    // Human-readable output
+    if detected.is_empty() {
+        println!("🔍 No MCP clients detected.\n");
+        println!("Add this config block to connect Spikes to your MCP client:\n");
+        println!("📎 Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)");
+        println!("{}\n", serde_json::to_string_pretty(&spikes_mcp_config())?);
+        println!("📎 Cursor (.cursor/mcp.json)");
+        println!("{}\n", serde_json::to_string_pretty(&spikes_mcp_config())?);
+        println!("💡 Or use npx (no install needed):");
+        println!("{}", serde_json::to_string_pretty(&spikes_mcp_config_npx())?);
+    } else {
+        for client in &detected {
+            println!("✅ {} detected", client.name);
+            println!("   Config: {}\n", client.config_path);
+            println!("Add this to your config file:\n");
+            println!("{}\n", serde_json::to_string_pretty(&client.config)?);
+        }
+        println!("💡 Or use npx (no install needed):");
+        println!("{}", serde_json::to_string_pretty(&spikes_mcp_config_npx())?);
+    }
+
+    Ok(())
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -2629,5 +2796,87 @@ mod tests {
         let expected = project_key.unwrap_or_else(|| "default".to_string());
 
         assert_eq!(expected, "my-project", "Should use provided project_key when Some");
+    }
+
+    // ========================================
+    // Unit Tests for Install Command
+    // ========================================
+
+    #[test]
+    fn test_spikes_mcp_config_structure() {
+        let config = spikes_mcp_config();
+        let servers = config.get("mcpServers").expect("should have mcpServers");
+        let spikes = servers.get("spikes").expect("should have spikes entry");
+        assert_eq!(spikes.get("command").unwrap().as_str().unwrap(), "spikes");
+        let args = spikes.get("args").unwrap().as_array().unwrap();
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0].as_str().unwrap(), "mcp");
+        assert_eq!(args[1].as_str().unwrap(), "serve");
+    }
+
+    #[test]
+    fn test_spikes_mcp_config_npx_structure() {
+        let config = spikes_mcp_config_npx();
+        let servers = config.get("mcpServers").expect("should have mcpServers");
+        let spikes = servers.get("spikes").expect("should have spikes entry");
+        assert_eq!(spikes.get("command").unwrap().as_str().unwrap(), "npx");
+        let args = spikes.get("args").unwrap().as_array().unwrap();
+        assert_eq!(args.len(), 2);
+        assert_eq!(args[0].as_str().unwrap(), "-y");
+        assert_eq!(args[1].as_str().unwrap(), "spikes-mcp");
+    }
+
+    #[test]
+    fn test_install_result_serialization() {
+        let result = InstallResult {
+            detected_clients: vec![DetectedClient {
+                name: "Claude Desktop".to_string(),
+                config_path: "/path/to/config.json".to_string(),
+                config: spikes_mcp_config(),
+            }],
+            manual_configs: Vec::new(),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("Claude Desktop"));
+        assert!(json.contains("/path/to/config.json"));
+        assert!(json.contains("mcpServers"));
+    }
+
+    #[test]
+    fn test_install_result_empty_detected() {
+        let result = InstallResult {
+            detected_clients: Vec::new(),
+            manual_configs: vec![
+                DetectedClient {
+                    name: "Claude Desktop".to_string(),
+                    config_path: "~/path".to_string(),
+                    config: spikes_mcp_config(),
+                },
+                DetectedClient {
+                    name: "Cursor".to_string(),
+                    config_path: ".cursor/mcp.json".to_string(),
+                    config: spikes_mcp_config(),
+                },
+            ],
+        };
+
+        let json = serde_json::to_string_pretty(&result).unwrap();
+        assert!(json.contains("manual_configs"));
+        assert!(json.contains("Claude Desktop"));
+        assert!(json.contains("Cursor"));
+    }
+
+    #[test]
+    fn test_detected_client_serialization() {
+        let client = DetectedClient {
+            name: "Test Client".to_string(),
+            config_path: "/test/path".to_string(),
+            config: serde_json::json!({"key": "value"}),
+        };
+        let json = serde_json::to_string(&client).unwrap();
+        assert!(json.contains("Test Client"));
+        assert!(json.contains("/test/path"));
+        assert!(json.contains("key"));
     }
 }
