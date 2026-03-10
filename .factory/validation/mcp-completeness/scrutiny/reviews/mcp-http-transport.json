@@ -1,0 +1,38 @@
+{
+  "featureId": "mcp-http-transport",
+  "reviewedAt": "2026-03-10T11:16:19Z",
+  "commitId": "017a8fc7650ba57f62314a7a1523cf4c9d4a1f88",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation matches the feature contract: MCP now supports --transport stdio|http, HTTP mode serves JSON-RPC via rmcp Streamable HTTP on axum, default bind is 127.0.0.1, and --remote composes through the shared DataSource path. I found one non-blocking test-quality issue that can hide regressions in HTTP tools/list verification.",
+    "issues": [
+      {
+        "file": "cli/tests/mcp_integration.rs",
+        "line": 237,
+        "severity": "non_blocking",
+        "description": "test_mcp_http_tools_list conditionally skips all assertions when the response body does not contain \"tools\" (lines 237-258). This allows the test to pass even when tools/list fails, reducing confidence for VAL-MCP-031 coverage."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "worker-cli skill requires TDD (tests first), but transcript shows implementation edits to main.rs and mcp.rs before adding HTTP transport tests. skillFeedback still reports followedProcedure=true, so procedure adherence signaling is unreliable.",
+      "evidence": "Skill requirement: .factory/skills/worker-cli/SKILL.md:31 (\"Write tests FIRST (TDD)\"). Transcript: worker-transcripts.jsonl entry for b3ef3a1b-db71-4d0d-8e11-3ecb65899013 shows \"Now let me update main.rs...\" and mcp.rs edits before \"Now let me add unit tests for the HTTP transport\"."
+    },
+    {
+      "area": "skills",
+      "observation": "worker-cli skill contains stale instruction claiming commands/mcp.rs should be replaced entirely due to syntax errors, but the file is valid and was incrementally updated. This can misdirect future workers.",
+      "evidence": ".factory/skills/worker-cli/SKILL.md:24 says \"commands/mcp.rs — MCP server (REPLACE entirely, has syntax error)\"; current file compiles and was modified incrementally in commit 017a8fc."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Mission shared library lacks protocol-level notes for rmcp Streamable HTTP handshake details (Accept header and initialized notification), which caused extra trial-and-error during implementation.",
+      "evidence": "Transcript skeleton includes \"The HTTP server requires specific Accept headers\" and \"The HTTP transport needs the initialized notification\" during debugging; .factory/library/architecture.md only states transport choice at a high level and does not capture these specifics."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Pass. HTTP transport implementation is contract-aligned and secure-by-default (localhost binding), with stdio default preserved and remote composition intact. One non-blocking integration-test weakness could mask tools/list regressions and should be tightened in a follow-up."
+}

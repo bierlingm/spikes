@@ -73,3 +73,10 @@ Split `index.ts` (~824 lines) into:
 - Downgrade flows use a two-step pattern: update user tier, then clear Pro-only share fields (`password_hash`, `password_salt`, `webhook_url`, `webhook_secret`).
 - Stripe idempotency uses `stripe_events`: check for existing event before processing and record the event after successful handling.
 - Upgrade CTAs are currently standardized to `https://spikes.sh/pro` across Worker limit responses and CLI messaging.
+
+## MCP Completeness Scrutiny Notes (2026-03-10)
+
+- Hosted Worker `GET /spikes` returns paginated payload shape `{ data: Spike[], next_cursor?: string | null }` (not a raw array and not `{ spikes: [...] }`).
+- Worker router currently exposes `GET /spikes/:id` but does **not** expose `PATCH /spikes/:id` or `DELETE /spikes/:id`; remote MCP mutation tools must align to available API routes.
+- Worker spike schema requires at least one of `project` or `projectKey` for spike creation; remote MCP submit logic must always provide one.
+- rmcp Streamable HTTP testing is sensitive to protocol details (e.g., proper `Accept` header and `notifications/initialized` flow). Preserve these in integration test fixtures to avoid false negatives.

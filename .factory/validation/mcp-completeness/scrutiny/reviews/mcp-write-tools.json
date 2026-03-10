@@ -1,0 +1,45 @@
+{
+  "featureId": "mcp-write-tools",
+  "reviewedAt": "2026-03-10T11:16:20Z",
+  "commitId": "0512a32",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature adds all 6 requested write tools and registers 9 tools total, but it does not meet the validation contract for error semantics on not-found paths. Specifically, resolve/delete return successful tool results containing \"ERROR:\" text instead of MCP JSON-RPC errors.",
+    "issues": [
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 453,
+        "severity": "blocking",
+        "description": "`resolve_spike` maps `Error::SpikeNotFound` to `CallToolResult::success(...)` with an error string instead of returning an MCP error. This violates expected behavior/VAL-MCP-005, which requires an MCP JSON-RPC error when the spike ID is not found."
+      },
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 484,
+        "severity": "blocking",
+        "description": "`delete_spike` maps `Error::SpikeNotFound` to `CallToolResult::success(...)` with an error string instead of returning an MCP error. This violates expected behavior/VAL-MCP-007, which requires an MCP JSON-RPC error when the spike ID is not found."
+      },
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 1431,
+        "severity": "non_blocking",
+        "description": "Tests labeled as mutation-logic tests for write tools mostly validate enum choices/serialization/helpers and do not directly exercise resolve/delete mutation behavior against storage error/success paths. This weakens coverage relative to the feature requirement to add unit tests for each tool's mutation logic."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Mission shared state does not explicitly document MCP tool error semantics (when to return structured MCP errors vs successful results containing error text), which likely contributed to contract misalignment for not-found paths.",
+      "evidence": "Mission contract requires MCP errors for VAL-MCP-005/007, but AGENTS.md and .factory/library/architecture.md do not state an explicit MCP error-return convention; commit 0512a32 `cli/src/commands/mcp.rs:453-456,484-487` returns success payloads with `ERROR:` text."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker CLI skill prescribes tests-first TDD and a cargo build check, but transcript shows implementation edits happened before new tests and no explicit cargo build command was run.",
+      "evidence": "worker-cli SKILL.md steps 3 and 7 vs transcript skeleton for session `e92959f4-3baa-4176-94ff-8e3a10079c0d` (multiple Edit calls before test additions; verification commands include cargo test/clippy but not cargo build)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review result: FAIL. The feature is mostly implemented, but two contract-critical behaviors fail: `resolve_spike` and `delete_spike` return success-text errors instead of MCP JSON-RPC errors for missing IDs."
+}

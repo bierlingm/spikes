@@ -1,0 +1,45 @@
+{
+  "featureId": "mcp-remote-mode",
+  "reviewedAt": "2026-03-10T11:18:15Z",
+  "commitId": "30b9617",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature introduces the `--remote` flag and a DataSource abstraction, but core remote-mode behavior does not match the hosted API contract, so multiple MCP tools cannot function correctly in remote mode.",
+    "issues": [
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 1118,
+        "severity": "blocking",
+        "description": "`fetch_remote_spikes` only parses either a raw JSON array or an object containing a `spikes` field, but the worker API returns paginated payloads as `{ data: [...], next_cursor: ... }`. This causes remote read tools to return empty/missing results instead of real spikes (see worker contract: `spikes-hosted/worker/src/handlers/spikes.ts` lines 203, 252-254)."
+      },
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 1325,
+        "severity": "blocking",
+        "description": "Remote `resolve_spike`/`delete_spike` call `PATCH /spikes/:id` and `DELETE /spikes/:id`, but the worker router only defines `GET /spikes/:id` (and no spike PATCH/DELETE routes), so these tools will fail in remote mode (see `spikes-hosted/worker/src/index.ts` lines 76-78)."
+      },
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 1233,
+        "severity": "blocking",
+        "description": "`submit_spike_remote` only sends `projectKey` when `project_key` is provided. The MCP arg is optional, but the worker schema requires at least one of `project` or `projectKey`; therefore valid MCP calls (page+comments only) can fail validation remotely (see `spikes-hosted/worker/src/schema.ts` lines 58-61 and 81-83)."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The `worker-cli` skill does not strongly enforce API-contract verification against `../spikes-hosted/worker` for remote-mode features, which allowed incorrect endpoint/response assumptions to ship.",
+      "evidence": "Transcript skeleton for session `04788f64-02f2-4591-bab5-0499c408ad0e` shows only CLI file reads and DataSource-focused tests; no worker route/schema reads and no remote API contract tests."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared library docs capture the DataSource concept but not key remote API wire contracts (e.g., GET /spikes returns paginated `data`, and spike mutation endpoints are not exposed), which increases risk of contract drift.",
+      "evidence": "`.factory/library/architecture.md` mentions DataSource pattern but omits response/endpoint specifics; worker implementation shows actual contract in `spikes-hosted/worker/src/handlers/spikes.ts` (lines 203, 252-254) and `spikes-hosted/worker/src/index.ts` (lines 76-78)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review result: FAIL. Remote mode scaffolding exists, but remote read parsing and remote mutation endpoint assumptions are incompatible with the hosted API contract, and submit_spike can fail schema validation when `project_key` is omitted."
+}
