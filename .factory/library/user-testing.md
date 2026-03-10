@@ -45,6 +45,7 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Share HTML currently injects widget script with `data-endpoint="https://spikes.sh"`; local widget submissions may not hit `localhost:8787` unless endpoint behavior is overridden.
 - MCP (rmcp SDK) requires `notifications/initialized` after `initialize` before `tools/list` / `tools/call`; skipping it can yield protocol-state errors.
 - When piping multiple JSON-RPC lines into `spikes mcp serve`, keep stdin open long enough for all responses (small inter-line delays help avoid premature pipe close).
+- MCP `create_share` may normalize/truncate a requested share name and append a generated suffix; validate downstream list checks against the returned slug/URL rather than the raw requested name.
 
 ## Flow Validator Guidance: Hosted Worker API
 
@@ -148,3 +149,11 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Run `cargo build` and `cargo test` from `cli/` in an isolated namespace workspace or direct repo root without mutating tracked files.
 - Record concrete evidence: command, exit code, and key output snippets (compiled target summary and total tests passed).
 - If build/test fails, capture first failing test or compiler error line verbatim and mark assertion as failed or blocked with root cause.
+
+## Flow Validator Guidance: MCP HTTP + Remote
+
+- Use one namespace-scoped temp workspace per validator (for example `/tmp/spikes-utv-<namespace>-mcp-http`) and keep `.spikes/feedback.jsonl` fixtures local to that workspace.
+- Use a namespace-scoped auth identity: request login token via local worker `/auth/login`, exchange via `/auth/verify`, and pass the resulting bearer token through command-scoped `SPIKES_TOKEN` only.
+- For HTTP transport checks, run only one MCP HTTP server instance per validator and use unique ports if multiple background servers are needed.
+- For remote-mode checks, set `SPIKES_API_URL=http://localhost:8787` explicitly per command so no validator depends on global CLI auth config.
+- Capture evidence for initialize, notifications/initialized, tools/list, tools/call, and network-failure cases (command, status/JSON-RPC response, and relevant stderr lines).

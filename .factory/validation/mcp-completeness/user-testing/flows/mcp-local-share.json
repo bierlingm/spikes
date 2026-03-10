@@ -1,0 +1,177 @@
+{
+  "milestone": "mcp-completeness",
+  "groupId": "mcp-local-share",
+  "testedAt": "2026-03-10T12:14:16Z",
+  "credentials": {
+    "account": "utv-mcp-net-9900@example.com",
+    "namespace": "mcp-local-share-9900b"
+  },
+  "toolsUsed": [
+    "curl",
+    "cargo run -- mcp serve (stdio JSON-RPC)",
+    "spikes shares --json",
+    "spikes usage --json"
+  ],
+  "assertionsTested": [
+    {
+      "id": "VAL-MCP-008",
+      "title": "Create share via MCP",
+      "status": "pass",
+      "reason": "MCP create_share returned a share URL/slug and the same slug appears in CLI shares output.",
+      "evidence": {
+        "bootstrapAuth": {
+          "login": "POST /auth/login -> 202 with _test_token",
+          "verify": "POST /auth/verify -> 200 with bearer token"
+        },
+        "mcpRequest": {
+          "method": "tools/call",
+          "name": "create_share",
+          "arguments": {
+            "directory": "/tmp/spikes-utv-mcp-local-share-9900b/mcp-local-share-9900b-share-src",
+            "name": "mcp-local-share-9900b-share-20260310121312"
+          }
+        },
+        "mcpResponseText": "Share created!\n  URL: https://spikes.sh/s/mcp-local-share-9900b-share-20-tb9m0\n  Slug: mcp-local-share-9900b-share-20-tb9m0\n  Files: 3",
+        "createdSlug": "mcp-local-share-9900b-share-20-tb9m0",
+        "createdUrl": "https://spikes.sh/s/mcp-local-share-9900b-share-20-tb9m0",
+        "cliValidation": {
+          "command": "SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<assigned> spikes shares --json",
+          "matchingShare": {
+            "created_at": "2026-03-10T12:13:14.748Z",
+            "id": "be60a0ea-eaed-4dc8-bb71-7119757e1afc",
+            "slug": "mcp-local-share-9900b-share-20-tb9m0",
+            "spike_count": 0,
+            "url": "https://spikes.sh/s/mcp-local-share-9900b-share-20-tb9m0"
+          }
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-009",
+      "title": "List shares via MCP",
+      "status": "pass",
+      "reason": "MCP list_shares returned active share metadata that matches spikes shares --json for slug/url/spike_count/created_at.",
+      "evidence": {
+        "mcpRequest": {
+          "method": "tools/call",
+          "name": "list_shares",
+          "arguments": {}
+        },
+        "mcpResponseText": "Found 1 share(s):\n\n[mcp-local-share-9900b-share-20-tb9m0] \n  URL: https://spikes.sh/s/mcp-local-share-9900b-share-20-tb9m0\n  Spikes: 0\n  Created: 2026-03-10T12:13:14.748Z\n\n",
+        "cliSharesJson": {
+          "shares": [
+            {
+              "created_at": "2026-03-10T12:13:14.748Z",
+              "id": "be60a0ea-eaed-4dc8-bb71-7119757e1afc",
+              "slug": "mcp-local-share-9900b-share-20-tb9m0",
+              "spike_count": 0,
+              "url": "https://spikes.sh/s/mcp-local-share-9900b-share-20-tb9m0"
+            }
+          ],
+          "usage": {
+            "share_limit": 5,
+            "shares_count": 1,
+            "spike_limit": 1000,
+            "spikes": 0,
+            "tier": "free"
+          }
+        },
+        "matchChecks": {
+          "slug": true,
+          "url": true,
+          "spike_count": true,
+          "created_at": true
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-010",
+      "title": "Get usage via MCP",
+      "status": "pass",
+      "reason": "MCP get_usage returned tier/share/spike usage values matching spikes usage --json.",
+      "evidence": {
+        "mcpRequest": {
+          "method": "tools/call",
+          "name": "get_usage",
+          "arguments": {}
+        },
+        "mcpResponseText": "Usage (FREE tier):\n\n  Shares: 1/5\n  Spikes: 0/1000\n",
+        "cliUsageJson": {
+          "spikes": 0,
+          "spike_limit": 1000,
+          "shares": 1,
+          "share_limit": 5,
+          "tier": "free",
+          "reset_at": null
+        },
+        "matchChecks": {
+          "tier": true,
+          "shares": true,
+          "share_limit": true,
+          "spikes": true,
+          "spike_limit": true
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-011",
+      "title": "Existing read tools unaffected",
+      "status": "pass",
+      "reason": "tools/list returned all 9 tools including original read tools, and get_spikes returned the namespace fixture from local .spikes/feedback.jsonl.",
+      "evidence": {
+        "initializeResponse": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+              "tools": {}
+            },
+            "serverInfo": {
+              "name": "spikes-mcp",
+              "version": "0.3.1"
+            }
+          }
+        },
+        "toolsList": {
+          "count": 9,
+          "names": [
+            "create_share",
+            "delete_spike",
+            "get_element_feedback",
+            "get_hotspots",
+            "get_spikes",
+            "get_usage",
+            "list_shares",
+            "resolve_spike",
+            "submit_spike"
+          ],
+          "originalReadToolsPresent": true
+        },
+        "getSpikesRequest": {
+          "method": "tools/call",
+          "name": "get_spikes",
+          "arguments": {}
+        },
+        "getSpikesResponseText": "Found 1 spike(s):\n\n[mcp-loca] page on mcp-local-share-9900b-fixture.html\n  Rating: meh\n  Comments: mcp-local-share-9900b local fixture spike\n  Reviewer: mcp-local-share-9900b-reviewer\n  Timestamp: 2026-03-10T12:12:15.844211Z\n  Status: Unresolved\n\n",
+        "fixtureEvidence": {
+          "fixtureFile": "/tmp/spikes-utv-mcp-local-share-9900b/.spikes/feedback.jsonl",
+          "containsNamespaceMarker": true
+        }
+      }
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Requested create_share name was normalized/truncated by backend and returned with a generated suffix; matching must use returned slug/URL rather than raw requested name.",
+      "resolved": true,
+      "resolution": "Validated VAL-MCP-008/009 against returned slug from MCP response and confirmed same slug in spikes shares --json.",
+      "affectedAssertions": [
+        "VAL-MCP-008",
+        "VAL-MCP-009"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions (VAL-MCP-008/009/010/011): all passed using assigned account/namespace against local MCP stdio with hosted API on localhost:8787."
+}

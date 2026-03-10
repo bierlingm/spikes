@@ -1,0 +1,62 @@
+{
+  "milestone": "mcp-completeness",
+  "groupId": "mcp-http-local",
+  "testedAt": "2026-03-10T12:13:19Z",
+  "credentials": {
+    "account": "none required (local mode)",
+    "namespace": "mcp-http-9900d"
+  },
+  "toolsUsed": [
+    "cargo run",
+    "curl",
+    "lsof"
+  ],
+  "assertionsTested": [
+    {
+      "id": "VAL-MCP-030",
+      "title": "HTTP transport starts",
+      "status": "pass",
+      "reason": "`spikes mcp serve --transport http --port 3848` started successfully and served HTTP responses on localhost:3848.",
+      "evidence": {
+        "serverStartup": "[spikes-mcp] HTTP server listening on http://127.0.0.1:3848",
+        "httpProbe": "curl -i http://localhost:3848/ -> HTTP/1.1 406 Not Acceptable (expected MCP endpoint response surface)",
+        "workspace": "/tmp/spikes-utv-mcp-http-9900d"
+      }
+    },
+    {
+      "id": "VAL-MCP-031",
+      "title": "HTTP transport serves MCP",
+      "status": "pass",
+      "reason": "HTTP JSON-RPC session succeeded for initialize, notifications/initialized, tools/list, and tools/call(get_spikes).",
+      "evidence": {
+        "initialize": "POST / with initialize -> HTTP/1.1 200, mcp-session-id header present, serverInfo.name=spikes-mcp",
+        "initialized": "POST notifications/initialized with mcp-session-id -> HTTP/1.1 202 Accepted",
+        "toolsList": "POST tools/list with mcp-session-id -> HTTP/1.1 200 and tools array returned",
+        "toolCall": "POST tools/call get_spikes -> HTTP/1.1 200 and text result includes fixture comment 'fixture spike for mcp-http-9900d'"
+      }
+    },
+    {
+      "id": "VAL-MCP-033",
+      "title": "HTTP binds to localhost by default",
+      "status": "pass",
+      "reason": "Listener inspection showed binding to 127.0.0.1 only, with no 0.0.0.0 listener.",
+      "evidence": {
+        "lsof": "lsof -nP -iTCP:3848 -sTCP:LISTEN -> spikes ... TCP 127.0.0.1:3848 (LISTEN)"
+      }
+    },
+    {
+      "id": "VAL-MCP-034",
+      "title": "Stdio remains default",
+      "status": "pass",
+      "reason": "Running `spikes mcp serve` without `--transport` accepted stdin JSON-RPC initialize and returned stdout initialize response from spikes-mcp.",
+      "evidence": {
+        "command": "printf '{...initialize...}' | cargo run --manifest-path /Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml -- mcp serve",
+        "stdout": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"spikes-mcp\",\"version\":\"0.3.1\"}}}",
+        "stderr": "[spikes-mcp] Starting MCP server on stdio (LOCAL mode)..."
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Validated VAL-MCP-030, VAL-MCP-031, VAL-MCP-033, and VAL-MCP-034 in namespace mcp-http-9900d using isolated workspace /tmp/spikes-utv-mcp-http-9900d. All four assertions passed."
+}

@@ -1,0 +1,256 @@
+{
+  "milestone": "mcp-completeness",
+  "groupId": "mcp-local-core",
+  "testedAt": "2026-03-10T12:30:05Z",
+  "credentials": {
+    "account": "none required (local mode)",
+    "namespace": "mcp-local-core-9900a"
+  },
+  "toolsUsed": [
+    "spikes mcp serve (stdio)",
+    "spikes list --json"
+  ],
+  "assertionsTested": [
+    {
+      "id": "VAL-MCP-001",
+      "title": "Submit spike via MCP",
+      "status": "pass",
+      "reason": "submit_spike created a new page spike and it appears in spikes list output.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "submit_spike",
+          "arguments": {
+            "page": "mcp-local-core-9900a-page-1773145800.html",
+            "rating": "like",
+            "comments": "mcp-local-core-9900a submit page 1773145800",
+            "reviewer_name": "mcp-local-core-9900a-reviewer",
+            "project_key": "mcp-local-core-9900a",
+            "url": "https://example.test/mcp-local-core-9900a-page-1773145800.html"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Spike created: [ieqVboTN] page on mcp-local-core-9900a-page-1773145800.html\n  Comments: mcp-local-core-9900a submit page 1773145800\n  ID: ieqVboTNVdQ"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "createdSpike": {
+          "id": "ieqVboTNVdQ",
+          "type": "page",
+          "projectKey": "mcp-local-core-9900a",
+          "page": "mcp-local-core-9900a-page-1773145800.html",
+          "url": "https://example.test/mcp-local-core-9900a-page-1773145800.html",
+          "reviewer": {
+            "id": "WrwdQHKX",
+            "name": "mcp-local-core-9900a-reviewer"
+          },
+          "rating": "like",
+          "comments": "mcp-local-core-9900a submit page 1773145800",
+          "timestamp": "2026-03-10T12:30:01.199556+00:00",
+          "viewport": null
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-002",
+      "title": "Submit spike with selector",
+      "status": "pass",
+      "reason": "submit_spike with selector stored an element spike with matching selector.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "submit_spike",
+          "arguments": {
+            "page": "mcp-local-core-9900a-element-1773145800.html",
+            "rating": "no",
+            "comments": "mcp-local-core-9900a submit element 1773145800",
+            "reviewer_name": "mcp-local-core-9900a-reviewer",
+            "project_key": "mcp-local-core-9900a",
+            "url": "https://example.test/mcp-local-core-9900a-element-1773145800.html",
+            "selector": ".hero-title",
+            "element_text": "Hero heading text"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Spike created: [4YWaLM7m] element on mcp-local-core-9900a-element-1773145800.html\n  Comments: mcp-local-core-9900a submit element 1773145800\n  ID: 4YWaLM7m4xF"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "createdSpike": {
+          "id": "4YWaLM7m4xF",
+          "type": "element",
+          "projectKey": "mcp-local-core-9900a",
+          "page": "mcp-local-core-9900a-element-1773145800.html",
+          "url": "https://example.test/mcp-local-core-9900a-element-1773145800.html",
+          "reviewer": {
+            "id": "2PzdYtVs",
+            "name": "mcp-local-core-9900a-reviewer"
+          },
+          "selector": ".hero-title",
+          "elementText": "Hero heading text",
+          "rating": "no",
+          "comments": "mcp-local-core-9900a submit element 1773145800",
+          "timestamp": "2026-03-10T12:30:01.837296+00:00",
+          "viewport": null
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-003",
+      "title": "Submit spike validation",
+      "status": "pass",
+      "reason": "missing required fields returned JSON-RPC error and no spike was created.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "submit_spike",
+          "arguments": {
+            "reviewer_name": "mcp-local-core-9900a-reviewer"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "error": {
+            "code": -32602,
+            "message": "failed to deserialize parameters: missing field `page`"
+          }
+        },
+        "spikeCountBefore": 2,
+        "spikeCountAfter": 2
+      }
+    },
+    {
+      "id": "VAL-MCP-004",
+      "title": "Resolve spike via MCP",
+      "status": "pass",
+      "reason": "resolve_spike succeeded and spike now has resolved timestamp.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "resolve_spike",
+          "arguments": {
+            "spike_id": "ieqVboTNVdQ"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Spike [ieqVboTN] marked as resolved.\n  Page: mcp-local-core-9900a-page-1773145800.html\n  Resolved at: 2026-03-10T12:30:03.140883+00:00"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "resolvedSpike": {
+          "id": "ieqVboTNVdQ",
+          "type": "page",
+          "projectKey": "mcp-local-core-9900a",
+          "page": "mcp-local-core-9900a-page-1773145800.html",
+          "url": "https://example.test/mcp-local-core-9900a-page-1773145800.html",
+          "reviewer": {
+            "id": "WrwdQHKX",
+            "name": "mcp-local-core-9900a-reviewer"
+          },
+          "rating": "like",
+          "comments": "mcp-local-core-9900a submit page 1773145800",
+          "timestamp": "2026-03-10T12:30:01.199556+00:00",
+          "viewport": null,
+          "resolved": true,
+          "resolvedAt": "2026-03-10T12:30:03.140883+00:00"
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-005",
+      "title": "Resolve spike not found",
+      "status": "pass",
+      "reason": "resolve_spike with nonexistent id returned JSON-RPC not-found error.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "resolve_spike",
+          "arguments": {
+            "spike_id": "mcp-local-core-9900a-missing-resolve-1773145800"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "error": {
+            "code": -32602,
+            "message": "Spike not found: mcp-local-core-9900a-missing-resolve-1773145800"
+          }
+        }
+      }
+    },
+    {
+      "id": "VAL-MCP-006",
+      "title": "Delete spike via MCP",
+      "status": "pass",
+      "reason": "delete_spike removed spike from feedback storage.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "delete_spike",
+          "arguments": {
+            "spike_id": "4YWaLM7m4xF"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Spike [4YWaLM7m] deleted.\n  Page: mcp-local-core-9900a-element-1773145800.html\n  Comments: mcp-local-core-9900a submit element 1773145800"
+              }
+            ],
+            "isError": false
+          }
+        },
+        "stillExistsAfterDelete": false
+      }
+    },
+    {
+      "id": "VAL-MCP-007",
+      "title": "Delete spike not found",
+      "status": "pass",
+      "reason": "delete_spike with nonexistent id returned JSON-RPC error.",
+      "evidence": {
+        "mcpRequest": {
+          "name": "delete_spike",
+          "arguments": {
+            "spike_id": "mcp-local-core-9900a-missing-delete-1773145800"
+          }
+        },
+        "mcpResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "error": {
+            "code": -32602,
+            "message": "Spike not found: mcp-local-core-9900a-missing-delete-1773145800"
+          }
+        }
+      }
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assertions in local MCP mode: 7 passed, 0 failed, 0 blocked."
+}

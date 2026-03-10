@@ -1,0 +1,185 @@
+{
+  "milestone": "mcp-completeness",
+  "groupId": "mcp-remote-mode",
+  "testedAt": "2026-03-10T12:23:37.782190+00:00",
+  "credentials": {
+    "account": "utv-mcp-remote-9900@example.com",
+    "namespace": "mcp-remote-9900c"
+  },
+  "toolsUsed": [
+    "spikes CLI (MCP stdio)",
+    "spikes CLI (MCP HTTP --remote)",
+    "curl",
+    "python3"
+  ],
+  "assertionsTested": [
+    {
+      "id": "VAL-MCP-020",
+      "title": "Remote mode starts",
+      "status": "pass",
+      "reason": "Initialize in --remote mode returned serverInfo.name=\"spikes-mcp\".",
+      "evidence": {
+        "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes mcp serve --remote",
+        "returnCode": 0,
+        "initializeResponse": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+              "tools": {}
+            },
+            "serverInfo": {
+              "name": "spikes-mcp",
+              "version": "0.3.1"
+            }
+          }
+        },
+        "stderrTail": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed"
+      }
+    },
+    {
+      "id": "VAL-MCP-021",
+      "title": "Remote read tools work",
+      "status": "fail",
+      "reason": "Remote get_spikes did not return hosted API spike data as expected (auth/read path mismatch observed).",
+      "evidence": {
+        "mcpGetSpikesRemotePage": "ERROR: Authentication failed. Run `spikes login` to refresh your token.",
+        "mcpGetSpikesLocalOnlyPage": "ERROR: Authentication failed. Run `spikes login` to refresh your token.",
+        "apiGetSpikesStatus": 200,
+        "apiGetSpikesIds": [
+          "37d2cf4d-faec-496f-a43a-ec51d9cc60d6"
+        ],
+        "expectedSpikeId": "37d2cf4d-faec-496f-a43a-ec51d9cc60d6",
+        "stderrTail": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed"
+      }
+    },
+    {
+      "id": "VAL-MCP-022",
+      "title": "Remote write tools work",
+      "status": "pass",
+      "reason": "Remote submit_spike created a spike visible via curl GET /spikes on hosted API.",
+      "evidence": {
+        "mcpSubmitResponse": "Spike created via API: [37d2cf4d-faec-496f-a43a-ec51d9cc60d6]",
+        "apiGetSpikesStatus": 200,
+        "apiGetSpikesIds": [
+          "37d2cf4d-faec-496f-a43a-ec51d9cc60d6"
+        ]
+      }
+    },
+    {
+      "id": "VAL-MCP-023",
+      "title": "Remote mode token resolution",
+      "status": "pass",
+      "reason": "Verified env-token precedence, auth.toml fallback, and clear auth error when neither token source exists.",
+      "evidence": {
+        "authFilePath": "/tmp/spikes-utv-mcp-remote-9900c/mcp-remote-9900c-home-precedence/Library/Application Support/spikes/auth.toml",
+        "envPrecedenceResponse": "Spike created via API: [f1495376-3d67-4800-893c-fef8635ac991]",
+        "envPrecedenceApiIds": [
+          "f1495376-3d67-4800-893c-fef8635ac991"
+        ],
+        "authTomlFallbackResponse": "Spike created via API: [38ca4118-9d8e-48fd-a685-2f30bc078fa8]",
+        "authTomlFallbackApiIds": [
+          "38ca4118-9d8e-48fd-a685-2f30bc078fa8"
+        ],
+        "missingTokenReturnCode": 1,
+        "missingTokenStderrTail": "[spikes-mcp] ERROR: Authentication failed. Run `spikes login` to refresh your token.\nError: Authentication failed. Run `spikes login` to refresh your token."
+      }
+    },
+    {
+      "id": "VAL-MCP-024",
+      "title": "Remote mode API unreachable",
+      "status": "fail",
+      "reason": "Unreachable API returned descriptive text but not as JSON-RPC error (result payload contained ERROR text).",
+      "evidence": {
+        "returnCode": 0,
+        "toolResponseObject": {
+          "jsonrpc": "2.0",
+          "id": 8,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "ERROR: Connection failed. Check your internet connection."
+              }
+            ],
+            "isError": false
+          }
+        },
+        "toolResponseText": "ERROR: Connection failed. Check your internet connection.",
+        "stderrTail": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed"
+      }
+    },
+    {
+      "id": "VAL-MCP-025",
+      "title": "Default mode unchanged",
+      "status": "pass",
+      "reason": "Default mode used local .spikes data and returned the local-only marker while SPIKES_API_URL was unreachable.",
+      "evidence": {
+        "localSubmitResponse": "Spike created: [H7MiibjN] page on mcp-remote-9900c-local-only-1773145401.html\n  Comments: mcp-remote-9900c LOCAL_ONLY_MARKER 1773145401\n  ID: H7MiibjNV_z",
+        "localGetResponse": "Found 1 spike(s):\n\n[H7MiibjN] page on mcp-remote-9900c-local-only-1773145401.html\n  Rating: -\n  Comments: mcp-remote-9900c LOCAL_ONLY_MARKER 1773145401\n  Reviewer: mcp-remote-9900c-reviewer-local\n  Timestamp: 2026-03-10T12:23:22.878304+00:00\n  Status: Unresolved\n\n",
+        "localGetReturnCode": 0,
+        "localGetStderrTail": "[spikes-mcp] Starting MCP server on stdio (LOCAL mode)...\n[spikes-mcp] Server stopped: Closed"
+      }
+    },
+    {
+      "id": "VAL-MCP-032",
+      "title": "HTTP transport composes with remote",
+      "status": "fail",
+      "reason": "HTTP + --remote did not return hosted API get_spikes data (same remote read failure reproduced over HTTP).",
+      "evidence": {
+        "httpPort": 59377,
+        "initializeStatus": 200,
+        "sessionHeaderPresent": true,
+        "initializeResponse": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+              "tools": {}
+            },
+            "serverInfo": {
+              "name": "spikes-mcp",
+              "version": "0.3.1"
+            }
+          }
+        },
+        "toolsCallStatus": 200,
+        "toolsCallResponse": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "ERROR: Authentication failed. Run `spikes login` to refresh your token."
+              }
+            ],
+            "isError": false
+          }
+        },
+        "toolsCallText": "ERROR: Authentication failed. Run `spikes login` to refresh your token.",
+        "httpError": null,
+        "serverStderrTail": "[spikes-mcp] Starting MCP server on HTTP (REMOTE mode)...\n[spikes-mcp] HTTP server listening on http://127.0.0.1:59377"
+      }
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Stdio MCP piping required paced writes and keeping stdin open briefly; immediate pipe close only returned initialize response.",
+      "resolved": true,
+      "resolution": "Used one persistent stdio session per assertion with ~250ms inter-line delays and ~900ms drain time before closing stdin.",
+      "affectedAssertions": [
+        "VAL-MCP-020",
+        "VAL-MCP-021",
+        "VAL-MCP-022",
+        "VAL-MCP-023",
+        "VAL-MCP-024",
+        "VAL-MCP-025"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 assertions: 4 passed, 3 failed, 0 blocked, 0 skipped."
+}
