@@ -1,0 +1,39 @@
+{
+  "featureId": "api-key-cli",
+  "reviewedAt": "2026-03-10T16:41:00Z",
+  "commitId": "1b2de252aade14067befeab6d0d248c1437c5e40",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature adds the requested auth subcommands, API calls, and JSON/table output, but it does not preserve an existing bearer token when create-key stores the new API key, which conflicts with the feature description requirement to store the key alongside the existing bearer token.",
+    "issues": [
+      {
+        "file": "cli/src/commands/auth_keys.rs",
+        "line": 87,
+        "severity": "blocking",
+        "description": "`create_key` always calls `AuthConfig::save_token(&key_response.api_key)`, which overwrites the single stored `auth.token` value instead of storing the API key alongside an existing bearer token. The feature description explicitly requires storing the created key alongside the existing bearer token. Supporting evidence: `cli/src/auth.rs` defines only one token field (`AuthSection.token`, line 46) and `save_token` rewrites config with that single field (line 148)."
+      },
+      {
+        "file": "cli/tests/auth_commands.rs",
+        "line": 206,
+        "severity": "non_blocking",
+        "description": "Two 'not logged in' tests are non-deterministic and depend on machine state; comments acknowledge behavior can change if a real auth.toml exists. This weakens regression confidence for auth-key CLI behavior because tests may pass/fail for environmental reasons rather than command correctness."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The worker-cli skill requires full test runs with all tests passing, but this feature handoff used `cargo test ... --skip ...` and still reported `followedProcedure: true`. The skill should clarify acceptable handling/reporting for known pre-existing test failures (deviation required, with explicit rationale), otherwise adherence signals become unreliable.",
+      "evidence": "Skill requirement: `.factory/skills/worker-cli/SKILL.md:52` ('Run all tests... ALL tests must pass'). Handoff command: `...api-key-cli...json:16` includes `cargo test --jobs 5 -- --skip ...`. Handoff metadata: `...api-key-cli...json:190` has `\"followedProcedure\": true`."
+    },
+    {
+      "area": "conventions",
+      "observation": "Auth-command integration tests need an explicit, shared convention for auth config isolation (HOME/XDG_CONFIG_HOME) in worker-facing guidance, not only ad-hoc comments in tests, to prevent environment-coupled behavior.",
+      "evidence": "`cli/tests/auth_commands.rs:206-208,221` comments acknowledge real `auth.toml` can affect outcomes; tests do not set HOME/XDG_CONFIG_HOME in those cases."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed transcript skeleton, handoff, skill, and commit diff for api-key-cli. Implementation is mostly complete, but a blocking requirement mismatch remains: create-key overwrites the existing stored bearer token instead of storing API key credentials alongside it."
+}

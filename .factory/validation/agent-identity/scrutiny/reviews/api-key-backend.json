@@ -1,0 +1,45 @@
+{
+  "featureId": "api-key-backend",
+  "reviewedAt": "2026-03-10T16:42:02Z",
+  "commitId": "667524cc009861041610883c263e1798221f303e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Core API key endpoints and tests were added, but the implementation does not fully meet the feature contract for hashing and scope enforcement.",
+    "issues": [
+      {
+        "file": "worker/src/handlers/api-keys.ts",
+        "line": 102,
+        "severity": "blocking",
+        "description": "API keys are stored using hashToken (SHA-256) instead of PBKDF2. The feature requires PBKDF2 hashing for API keys, so VAL-ID-005 is not implemented as specified."
+      },
+      {
+        "file": "worker/src/index.ts",
+        "line": 65,
+        "severity": "blocking",
+        "description": "Scope checks are only applied on /shares GET/POST. Read endpoints like /spikes and /spikes/:id authenticate via validateAdminOrUserToken without hasScope checks, so write-scoped API keys can still perform read operations, violating scoped key behavior."
+      },
+      {
+        "file": "worker/src/handlers/api-keys.ts",
+        "line": 225,
+        "severity": "blocking",
+        "description": "DELETE/PATCH /auth/api-key/:key_id authorization checks ownership but never enforces auth.scopes. A read-scoped API key can perform write actions (revoke/update), which breaks read/write/full scope guarantees."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "worker-backend skill says to write tests first, but this session edited production schema/constants before creating the new api-keys test file. skillFeedback still marked followedProcedure=true.",
+      "evidence": "Transcript skeleton sequence for workerSessionId 0f10df91-2205-4bfb-89ff-482975bc837f shows schema edits (schema.sql/schema.ts/constants) before creating worker/test/api-keys.test.ts."
+    },
+    {
+      "area": "conventions",
+      "observation": "Shared state has an API-key hashing convention drift: docs/instructions state PBKDF2 for API-key hashing, while implementation explicitly uses SHA-256.",
+      "evidence": "Mission AGENTS.md and .factory/library/architecture.md describe PBKDF2-based API key hashing; worker/src/handlers/api-keys.ts:98-102 stores keyHash via hashToken (SHA-256)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed handoff, commit 667524c diff, and transcript skeleton for session 0f10df91-2205-4bfb-89ff-482975bc837f. Result is FAIL due to blocking gaps in required PBKDF2 key hashing and comprehensive scope enforcement for scoped API keys."
+}

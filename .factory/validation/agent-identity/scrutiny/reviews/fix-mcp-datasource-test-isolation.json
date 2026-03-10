@@ -1,0 +1,34 @@
+{
+  "featureId": "fix-mcp-datasource-test-isolation",
+  "reviewedAt": "2026-03-10T16:39:42Z",
+  "commitId": "f2b358282a9ff4acae3b9f261eec966b94d8cffd",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The change improves test isolation by setting HOME and serializing env-mutating tests, but it does not fully isolate token resolution across environments and still leaves an env-restore edge case.",
+    "issues": [
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 2195,
+        "severity": "blocking",
+        "description": "The tests only override HOME, but auth path resolution uses dirs::config_dir() and Linux explicitly respects XDG_CONFIG_HOME. If XDG_CONFIG_HOME points to a real config dir containing spikes/auth.toml, DataSource::new(true) can still resolve a token, so test_data_source_remote_without_token remains machine-dependent."
+      },
+      {
+        "file": "cli/src/commands/mcp.rs",
+        "line": 2218,
+        "severity": "non_blocking",
+        "description": "HOME is restored only when original_home is Some(...). If HOME was initially unset, the test leaves HOME set to a temporary directory that gets deleted, leaking process env state to later tests."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Shared guidance documents isolated HOME usage for manual validation but does not document cross-platform unit-test isolation when config lookup honors XDG_CONFIG_HOME; this gap likely contributed to HOME-only isolation in the fix.",
+      "evidence": ".factory/library/user-testing.md:86 recommends isolated HOME; cli/src/auth.rs:164 states Linux auth path respects XDG_CONFIG_HOME; cli/src/commands/mcp.rs:2195, 2229, 2256 only override HOME."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed: the feature partially addresses auth.toml interference, but test isolation is still incomplete for XDG_CONFIG_HOME environments and has an env-restore edge case."
+}
