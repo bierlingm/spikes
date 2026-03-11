@@ -1,0 +1,29 @@
+{
+  "milestone": "agent-discovery",
+  "round": 3,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CROSS-006"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-DISC-011",
+      "reason": "Canonical `npx spikes-mcp` clean run returned npm E404 (package not found), and local tarball fallback still failed downloading aarch64-apple-darwin binary with HTTP 404; MCP initialize did not succeed."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance: NPM MCP Wrapper section with isolated-workspace, clean-cache, fallback, and evidence requirements.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": ".factory/validation/agent-discovery/user-testing/synthesis.round2.json"
+}

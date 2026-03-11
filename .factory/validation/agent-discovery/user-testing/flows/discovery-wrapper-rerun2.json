@@ -1,0 +1,67 @@
+{
+  "milestone": "agent-discovery",
+  "groupId": "discovery-wrapper-rerun2",
+  "testedAt": "2026-03-10T21:09:40Z",
+  "credentials": {
+    "account": null,
+    "namespace": "utv-ad3-disc011"
+  },
+  "assertionResults": [
+    {
+      "id": "VAL-DISC-011",
+      "title": "npx spikes-mcp starts MCP server",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run canonical clean first-run invocation: `npx -y spikes-mcp` with initialize payload in isolated workspace",
+          "expected": "Wrapper installs, downloads platform binary, and returns MCP initialize response",
+          "observed": "npm returned E404 (`spikes-mcp` package not found on registry), so wrapper could not start"
+        },
+        {
+          "action": "Run local fallback (`npm pack` + `npx --package <tarball> spikes-mcp`) to isolate release-asset behavior",
+          "expected": "Fallback wrapper downloads binary and returns initialize response",
+          "observed": "Wrapper executed but binary download for `aarch64-apple-darwin` returned HTTP 404; MCP server did not start"
+        }
+      ],
+      "issues": [
+        {
+          "type": "distribution",
+          "message": "`spikes-mcp` package is not available from npm registry in this environment (E404)."
+        },
+        {
+          "type": "release-assets",
+          "message": "Wrapper fallback cannot fetch required binary for current platform because release asset returns HTTP 404."
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "name": "canonical_npx_spikes_mcp",
+      "command": "cd /tmp/spikes-utv-ad3-disc011 && printf '<initialize-json>\\n' | npx -y spikes-mcp",
+      "exitCode": 1,
+      "output": "npm ERR! 404 Not Found - GET https://registry.npmjs.org/spikes-mcp - Not found"
+    },
+    {
+      "name": "local_pack",
+      "command": "cd /Users/moritzbierling/werk/repos/spikes/packages/spikes-mcp && npm pack .",
+      "exitCode": 0,
+      "output": "Created tarball spikes-mcp-0.3.1.tgz"
+    },
+    {
+      "name": "fallback_npx_package_tarball",
+      "command": "cd /tmp/spikes-utv-ad3-disc011 && printf '<initialize-json>\\n' | npx --yes --package /Users/moritzbierling/werk/repos/spikes/packages/spikes-mcp/spikes-mcp-0.3.1.tgz spikes-mcp",
+      "exitCode": 1,
+      "output": "spikes-mcp: downloading binary for aarch64-apple-darwin... Binary not found (HTTP 404)."
+    }
+  ],
+  "toolsUsed": [
+    "Execute"
+  ],
+  "frictions": [
+    "Registry package and release asset availability both prevented initialize-level wrapper success in clean conditions."
+  ],
+  "blockers": [
+    "Publish `spikes-mcp` package and attach platform binary release artifacts before VAL-DISC-011 can pass end-to-end."
+  ]
+}

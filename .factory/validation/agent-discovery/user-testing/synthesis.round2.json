@@ -1,0 +1,38 @@
+{
+  "milestone": "agent-discovery",
+  "round": 2,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CROSS-002"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "reason": "Read-scoped API key in MCP remote mode could still call submit_spike successfully; expected scope-denied MCP error."
+    },
+    {
+      "id": "VAL-DISC-011",
+      "reason": "npx spikes-mcp clean first-run still returns HTTP 404 for aarch64-apple-darwin download, preventing MCP server initialize."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added rerun guidance that namespace login users default to free tier and must be set to agent for budget-cap MCP assertions.",
+      "source": "flow-report"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Documented local wrapper-validation fallback: use npm pack + npx --package <tarball> spikes-mcp when registry package is unavailable.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/agent-discovery/user-testing/synthesis.round1.json"
+}

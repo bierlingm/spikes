@@ -1,0 +1,61 @@
+{
+  "milestone": "agent-discovery",
+  "group": "discovery-cross-manual",
+  "surface": "Flow Validator Guidance: MCP HTTP + Remote",
+  "assertionsTested": [
+    {
+      "id": "VAL-CROSS-001",
+      "status": "pass",
+      "reason": "API key creation/link plus MCP remote usage succeeded end-to-end: submit_spike created a spike, get_spikes returned it, and get_usage succeeded.",
+      "evidence": [
+        "Credential bootstrap statuses: login=202, verify=200, create_full_key=201, link_full_key=200.",
+        "MCP HTTP remote (full key) with page `adisc-r4-1773174362-cross001-final.html` returned `Spike created via API` for submit_spike.",
+        "Follow-up get_spikes response contained marker `adisc-r4-1773174362-cross001-final-marker` and showed the created spike.",
+        "get_usage via MCP returned usage text (AGENT tier) without `ERROR:` text."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "status": "fail",
+      "reason": "At budget cap, MCP submit_spike did not indicate budget exceeded; it returned a generic rate-limit error string instead.",
+      "evidence": [
+        "Local setup for budget condition succeeded: user tier set to agent in local D1, key cap patched to monthly_cap_cents=0, and namespaced share created.",
+        "Direct API probe to POST /spikes with the same share projectKey returned `429 {\"code\":\"BUDGET_EXCEEDED\"}`.",
+        "MCP submit_spike on the same scenario returned `ERROR: Request failed: Rate limit exceeded. Please wait a moment and try again.`",
+        "Because MCP output did not indicate budget exceeded, assertion fails."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "status": "pass",
+      "reason": "Discovery quickstart was executable: install/create-key/config/first-query steps are present, and following the flow led to successful spike submission and retrieval.",
+      "evidence": [
+        "site/llms.txt contains numbered `Agent Quickstart` with install, create API key, configure MCP JSON blocks, and first-query instruction.",
+        "Validation executed the documented flow using namespaced API key and MCP remote server (`spikes mcp serve`).",
+        "First query (`get_spikes`) returned the namespaced spike created during the same flow (`adisc-r4-1773174362-cross001-final-marker`)."
+      ]
+    },
+    {
+      "id": "VAL-CROSS-006",
+      "status": "fail",
+      "reason": "Read-only API key did not block write operation in MCP remote mode; submit_spike succeeded instead of returning scope-denied error.",
+      "evidence": [
+        "Read-key setup succeeded: create_read_key=201 and link_read_key=200.",
+        "With read key, get_spikes succeeded for page `adisc-r4-1773174362-cross001b.html` (expected).",
+        "With the same read key, submit_spike for `adisc-r4-1773174362-cross006.html` returned `Spike created via API` (unexpected).",
+        "No `SCOPE_DENIED` or equivalent scope error was returned."
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "curl",
+    "python3",
+    "cargo mcp serve --transport http --remote",
+    "wrangler d1 execute"
+  ],
+  "frictions": [
+    "Local rate-limit rows on `/auth/api-key` and `/spikes` needed reset during repeated validation attempts to keep assertions testable in one session."
+  ],
+  "blockers": [],
+  "summary": "Cross-flow validation results: 2 passed (VAL-CROSS-001, VAL-CROSS-003), 2 failed (VAL-CROSS-002, VAL-CROSS-006)."
+}

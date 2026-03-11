@@ -1,0 +1,80 @@
+{
+  "assertionsTested": [
+    "VAL-DISC-011"
+  ],
+  "results": [
+    {
+      "id": "VAL-DISC-011",
+      "title": "npx spikes-mcp starts MCP server",
+      "status": "fail",
+      "reason": "In a clean first-run wrapper path, the wrapper attempted to download the darwin-arm64 binary and failed with HTTP 404, so the MCP server never started and no initialize response was returned."
+    }
+  ],
+  "evidence": [
+    {
+      "step": "Force clean first-run wrapper cache in isolated namespace temp directory and package local wrapper artifact",
+      "command": "python3 (namespace setup + shutil.rmtree('/tmp/spikes-utv-utv-ad-r2-wrapper-mcp') + npm pack /Users/moritzbierling/werk/repos/spikes/packages/spikes-mcp --pack-destination /tmp/spikes-utv-utv-ad-r2-wrapper-mcp/workspace)",
+      "output": {
+        "baseDir": "/tmp/spikes-utv-utv-ad-r2-wrapper-mcp",
+        "tarball": "/private/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/workspace/spikes-mcp-0.3.1.tgz",
+        "packReturnCode": 0,
+        "packStdout": "spikes-mcp-0.3.1.tgz"
+      }
+    },
+    {
+      "step": "Run wrapper from clean path and send initialize JSON-RPC over stdio",
+      "command": "HOME=/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/home XDG_CACHE_HOME=/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/xdg-cache XDG_CONFIG_HOME=/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/xdg-config XDG_STATE_HOME=/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/xdg-state npm_config_cache=/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/npm-cache npx --yes --package /private/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/workspace/spikes-mcp-0.3.1.tgz spikes-mcp  (stdin: initialize request)",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2024-11-05",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "utv-ad-r2-wrapper",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "output": {
+        "exitCode": 1,
+        "stdout": "",
+        "stderr": "spikes-mcp: downloading binary for aarch64-apple-darwin...\\nspikes-mcp: Binary not found (HTTP 404). The release may not exist yet for this version.\\nFallback: install the Spikes CLI manually:\\n  curl -fsSL https://spikes.sh/install.sh | sh\\nThen run: spikes mcp serve\\n"
+      },
+      "artifacts": {
+        "requestPath": "/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/request.json",
+        "stdoutPath": "/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/stdout.txt",
+        "stderrPath": "/tmp/spikes-utv-utv-ad-r2-wrapper-mcp/stderr.txt"
+      }
+    },
+    {
+      "step": "Confirm no initialize response was emitted",
+      "command": "wc -c /tmp/spikes-utv-utv-ad-r2-wrapper-mcp/stdout.txt && wc -c /tmp/spikes-utv-utv-ad-r2-wrapper-mcp/stderr.txt",
+      "output": "0 /tmp/spikes-utv-utv-ad-r2-wrapper-mcp/stdout.txt; 265 /tmp/spikes-utv-utv-ad-r2-wrapper-mcp/stderr.txt"
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Direct registry command 'npx --yes spikes-mcp' returned npm E404 (package not found) in this environment, so validation used a local packed wrapper tarball to test the wrapper runtime path itself.",
+      "resolved": true,
+      "resolution": "Used npm pack on local packages/spikes-mcp and executed via npx --package <tarball> with isolated namespace cache/workspace.",
+      "affectedAssertions": [
+        "VAL-DISC-011"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "Execute",
+    "Read",
+    "LS",
+    "Grep",
+    "python3",
+    "npm",
+    "npx"
+  ],
+  "namespace": "utv-ad-r2-wrapper",
+  "testedAt": "2026-03-10T20:45:21Z",
+  "summary": "VAL-DISC-011 remains failing: first-run wrapper download for aarch64-apple-darwin still returns HTTP 404, preventing spikes mcp serve startup and initialize response from the normal wrapper path."
+}

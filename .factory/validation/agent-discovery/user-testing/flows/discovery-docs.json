@@ -1,0 +1,88 @@
+{
+  "milestone": "agent-discovery",
+  "group": "discovery-docs",
+  "surface": "Docs & Dependency Verification",
+  "assertionsTested": [
+    {
+      "id": "VAL-DISC-001",
+      "status": "pass",
+      "reason": "site/llms.txt documents 9 MCP tools and includes typed parameters (or explicit no-parameter note for no-arg tools).",
+      "evidence": [
+        "python3 parser output: source_count=9, llms_count=9, llms_tools=[get_spikes,get_element_feedback,get_hotspots,submit_spike,resolve_spike,delete_spike,create_share,list_shares,get_usage]",
+        "python3 parser output: llms_param_summary shows typed_param_lines for 7 tools; list_shares/get_usage have 'No parameters'"
+      ]
+    },
+    {
+      "id": "VAL-DISC-003",
+      "status": "pass",
+      "reason": "site/llms.txt Agent Quickstart contains numbered install -> configure -> first query flow with runnable commands.",
+      "evidence": [
+        "python3 parser output: quick_checks.step1_install=true, step3_configure=true, step4_first_query=true",
+        "site/llms.txt includes commands: 'curl -fsSL https://spikes.sh/install.sh | sh' and get_spikes first-query instruction"
+      ]
+    },
+    {
+      "id": "VAL-DISC-004",
+      "status": "pass",
+      "reason": "Claude Desktop config block in site/llms.txt is valid JSON and includes mcpServers.spikes command/args.",
+      "evidence": [
+        "python3 parser output: claude_parse.found=true, json_valid=true, command='spikes', args=['mcp','serve']",
+        "rg snippet confirms block under 'Claude Desktop' with mcpServers.spikes"
+      ]
+    },
+    {
+      "id": "VAL-DISC-020",
+      "status": "pass",
+      "reason": "smithery.yaml exists, parses as YAML, and contains required manifest fields.",
+      "evidence": [
+        "Read /smithery.yaml shows name, description, startCommand with commandFunction and tools list",
+        "python3 (PyYAML) output: smithery_yaml_valid=true; smithery_required_keys={name:true,description:true,startCommand:true,command:true}"
+      ]
+    },
+    {
+      "id": "VAL-DISC-040",
+      "status": "pass",
+      "reason": "Agent page exists in site directory.",
+      "evidence": [
+        "LS /site output includes agents.md",
+        "Read /site/agents.md succeeded"
+      ]
+    },
+    {
+      "id": "VAL-DISC-041",
+      "status": "pass",
+      "reason": "Agent page content includes required discovery terms: feedback, selectors, JSON, MCP.",
+      "evidence": [
+        "python3 parser output: agents_term_checks={feedback:true,selectors:true,JSON:true,MCP:true}",
+        "Read /site/agents.md top sections explicitly mention these terms"
+      ]
+    },
+    {
+      "id": "VAL-DISC-043",
+      "status": "pass",
+      "reason": "Agent page MCP tool list count matches source code #[tool] annotations.",
+      "evidence": [
+        "python3 parser output: agents_tools=[get_spikes,get_element_feedback,get_hotspots,submit_spike,resolve_spike,delete_spike,create_share,list_shares,get_usage], agent_count=9",
+        "python3 parser output: source_tools from cli/src/commands/mcp.rs count=9"
+      ]
+    },
+    {
+      "id": "VAL-DISC-050",
+      "status": "pass",
+      "reason": "Tool counts are consistent across source code, llms.txt, agents.md, and smithery.yaml.",
+      "evidence": [
+        "python3 parser output counts: source=9, llms=9, agents=9, smithery=9",
+        "python3 parser output: counts_all_equal=true"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Read",
+    "LS",
+    "Grep",
+    "Execute"
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Validated 8/8 assigned discovery-doc assertions as pass. MCP tool inventory and quickstart/config docs are consistent across source and discovery surfaces."
+}

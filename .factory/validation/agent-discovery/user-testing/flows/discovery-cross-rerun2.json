@@ -1,0 +1,1167 @@
+{
+  "milestone": "agent-discovery",
+  "groupId": "discovery-cross-rerun2",
+  "testedAt": "2026-03-10T21:07:49.975706+00:00",
+  "credentials": {
+    "account": "utv-ad3-cross006@example.com",
+    "namespace": "utv-ad3-cross006"
+  },
+  "assertionResults": [
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Read-only scope through MCP",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create namespace identity via /auth/login + /auth/verify",
+          "expected": "Namespace bearer token available",
+          "observed": "Bearer <redacted> created and used"
+        },
+        {
+          "action": "Create read-scoped API key and link it to namespace user",
+          "expected": "API key has scopes=read",
+          "observed": "Created key and /me confirmed scopes=read"
+        },
+        {
+          "action": "Run MCP in remote mode and call get_spikes",
+          "expected": "Read tool succeeds",
+          "observed": "{\"jsonrpc\": \"2.0\", \"id\": 3, \"result\": {\"content\": [{\"type\": \"text\", \"text\": \"Found 100 spike(s):\\n\\n[75a69f97] page on utv-ad-r2-cross-cross006-write-r2-1773175638.html\\n  Rating: no\\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:47:18.447Z\\n  Status: Unresolved\\n\\n[db27947f] page on utv-ad-r2-cross-cross006-write-1773175601.html\\n  Rating: no\\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:46:42.120Z\\n  Status: Unresolved\\n\\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\\n  Rating: meh\\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1773175601\\n  Reviewer: utv-ad-r2-cross-reviewer\\n  Timestamp: 2026-03-10T20:46:41Z\\n  Status: Unresolved\\\n...<truncated>..."
+        },
+        {
+          "action": "Call submit_spike using same read-scoped key",
+          "expected": "Write tool denied with JSON-RPC scope/permission error",
+          "observed": "{\"jsonrpc\": \"2.0\", \"id\": 4, \"error\": {\"code\": -32600, \"message\": \"Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions.\"}}"
+        }
+      ],
+      "evidence": {
+        "jsonRpcRequestResponse": [
+          {
+            "request": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {
+                  "name": "utv-ad3-cross006-validator",
+                  "version": "1.0.0"
+                }
+              }
+            },
+            "response": {
+              "jsonrpc": "2.0",
+              "id": 1,
+              "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                  "tools": {}
+                },
+                "serverInfo": {
+                  "name": "spikes-mcp",
+                  "version": "0.3.1"
+                }
+              }
+            }
+          },
+          {
+            "request": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "method": "tools/list",
+              "params": {}
+            },
+            "response": {
+              "jsonrpc": "2.0",
+              "id": 2,
+              "result": {
+                "tools": [
+                  {
+                    "name": "create_share",
+                    "description": "Go live: upload a directory and get a shareable URL. Requires login (spikes login). Returns URL for collecting feedback.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the create_share tool",
+                      "properties": {
+                        "directory": {
+                          "description": "Directory path to upload",
+                          "type": "string"
+                        },
+                        "name": {
+                          "description": "Optional name/slug for the share",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "password": {
+                          "description": "Optional password protection",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "directory"
+                      ],
+                      "title": "CreateShareArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "delete_spike",
+                    "description": "Remove from history: delete a spike by ID. Permanently removes the feedback. Use sparingly - resolving is usually better.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the delete_spike tool",
+                      "properties": {
+                        "spike_id": {
+                          "description": "Spike ID or prefix (minimum 4 characters)",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "spike_id"
+                      ],
+                      "title": "DeleteSpikeArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "get_element_feedback",
+                    "description": "Target lock: get feedback for a specific CSS selector. Zoom in on what reviewers said about a particular element. Requires selector parameter.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the get_element_feedback tool",
+                      "properties": {
+                        "page": {
+                          "description": "Optional page filter (e.g., 'index.html')",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "selector": {
+                          "description": "CSS selector to look up (required)",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "selector"
+                      ],
+                      "title": "GetElementFeedbackArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "get_hotspots",
+                    "description": "Heat map mode: find elements with the most feedback. Identifies hotspots where reviewers clustered. Use this to prioritize what to fix first.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the get_hotspots tool",
+                      "properties": {
+                        "limit": {
+                          "description": "Maximum number of hotspots to return (default: 10)",
+                          "format": "uint64",
+                          "minimum": 0,
+                          "type": [
+                            "integer",
+                            "null"
+                          ]
+                        }
+                      },
+                      "title": "GetHotspotsArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "get_spikes",
+                    "description": "Dig into the feedback pile. Get all spikes (feedback items) with optional filters for page, rating, or unresolved status. Returns formatted text with spike details.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the get_spikes tool",
+                      "properties": {
+                        "page": {
+                          "description": "Filter by page name (e.g., 'index.html')",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "rating": {
+                          "description": "Filter by rating: love, like, meh, or no",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "unresolved_only": {
+                          "description": "Only return unresolved spikes",
+                          "type": [
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      },
+                      "title": "GetSpikesArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "get_usage",
+                    "description": "Check limits: view your usage stats. Shows spike/share counts and limits. Requires login.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the get_usage tool (no parameters required)",
+                      "title": "GetUsageArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "list_shares",
+                    "description": "Check inventory: list all your shares. Shows URLs, spike counts, and creation dates. Requires login.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the list_shares tool (no parameters required)",
+                      "title": "ListSharesArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "resolve_spike",
+                    "description": "Mark done: resolve a spike by ID. Sets resolved=true with timestamp. Use after addressing the feedback.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the resolve_spike tool",
+                      "properties": {
+                        "spike_id": {
+                          "description": "Spike ID or prefix (minimum 4 characters)",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "spike_id"
+                      ],
+                      "title": "ResolveSpikeArgs",
+                      "type": "object"
+                    }
+                  },
+                  {
+                    "name": "submit_spike",
+                    "description": "Plant a flag: create new feedback. Submit a spike with page, comments, and optional selector/rating. Agent-created spikes get logged to .spikes/feedback.jsonl.",
+                    "inputSchema": {
+                      "$schema": "https://json-schema.org/draft/2020-12/schema",
+                      "description": "Arguments for the submit_spike tool",
+                      "properties": {
+                        "comments": {
+                          "description": "Feedback comments (required)",
+                          "type": "string"
+                        },
+                        "element_text": {
+                          "description": "Text content of the element (optional, for element feedback)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "page": {
+                          "description": "Page name (e.g., 'index.html') - required",
+                          "type": "string"
+                        },
+                        "project_key": {
+                          "description": "Project key for the feedback",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "rating": {
+                          "description": "Rating: love, like, meh, or no",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "reviewer_name": {
+                          "description": "Reviewer name",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "selector": {
+                          "description": "CSS selector for element feedback (if provided, creates element spike)",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "url": {
+                          "description": "URL of the page (e.g., 'http://localhost:3000/index.html')",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "page",
+                        "comments"
+                      ],
+                      "title": "SubmitSpikeArgs",
+                      "type": "object"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "request": {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "method": "tools/call",
+              "params": {
+                "name": "get_spikes",
+                "arguments": {}
+              }
+            },
+            "response": {
+              "jsonrpc": "2.0",
+              "id": 3,
+              "result": {
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Found 100 spike(s):\n\n[75a69f97] page on utv-ad-r2-cross-cross006-write-r2-1773175638.html\n  Rating: no\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:47:18.447Z\n  Status: Unresolved\n\n[db27947f] page on utv-ad-r2-cross-cross006-write-1773175601.html\n  Rating: no\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:46:42.120Z\n  Status: Unresolved\n\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\n  Rating: meh\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1\n...<truncated>..."
+                  }
+                ],
+                "isError": false
+              }
+            }
+          },
+          {
+            "request": {
+              "jsonrpc": "2.0",
+              "id": 4,
+              "method": "tools/call",
+              "params": {
+                "name": "submit_spike",
+                "arguments": {
+                  "page": "utv-ad3-cross006-cross006-write-attempt.html",
+                  "comments": "utv-ad3-cross006 submit_spike should be denied for read scope",
+                  "rating": "meh",
+                  "reviewer_name": "utv-ad3-cross006-reviewer",
+                  "project_key": "utv-ad3-cross006",
+                  "url": "http://localhost/utv-ad3-cross006-cross006-write-attempt.html"
+                }
+              }
+            },
+            "response": {
+              "jsonrpc": "2.0",
+              "id": 4,
+              "error": {
+                "code": -32600,
+                "message": "Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions."
+              }
+            }
+          }
+        ],
+        "commandOutputSummary": {
+          "login": {
+            "name": "auth_login",
+            "command": "curl -sS -X POST http://localhost:8787/auth/login -H 'Content-Type: application/json' --data '{\"email\":\"utv-ad3-cross006@example.com\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+            "returncode": 0,
+            "httpStatus": 202,
+            "stdout": "{\"ok\":true,\"message\":\"Check your email\",\"_test_token\":\"<redacted>\"}\nHTTP_STATUS:202\n",
+            "stderr": ""
+          },
+          "verify": {
+            "name": "auth_verify",
+            "command": "curl -sS -X POST http://localhost:8787/auth/verify -H 'Content-Type: application/json' --data '{\"login_token\":\"<login_token>\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+            "returncode": 0,
+            "httpStatus": 200,
+            "stdout": "{\"ok\":true,\"token\":\"<redacted>\",\"user\":{\"id\":\"02cfb835-7848-45d6-a6ef-a5b19e4e0cd8\",\"email\":\"utv-ad3-cross006@example.com\",\"tier\":\"free\"}}\nHTTP_STATUS:200\n",
+            "stderr": ""
+          },
+          "createKey": {
+            "name": "create_read_key",
+            "command": "curl -sS -X POST http://localhost:8787/auth/api-key -H 'Content-Type: application/json' --data '{\"name\":\"<namespace-read-key>\",\"scopes\":\"read\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+            "returncode": 0,
+            "httpStatus": 201,
+            "stdout": "{\"ok\":true,\"api_key\":\"sk_spikes_<redacted>\",\"key_id\":\"key_f74fbc48cb4c4319\",\"name\":\"utv-ad3-cross006-cross006-read-1773176870\",\"scopes\":\"read\",\"created_at\":\"2026-03-10T21:07:50.076Z\"}\nHTTP_STATUS:201\n",
+            "stderr": ""
+          },
+          "linkKey": {
+            "name": "link_read_key",
+            "command": "curl -sS -X POST http://localhost:8787/auth/link-key -H 'Authorization: Bearer <namespace-bearer-token>' -H 'Content-Type: application/json' --data '{\"key_id\":\"<read_key_id>\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+            "returncode": 0,
+            "httpStatus": 200,
+            "stdout": "{\"ok\":true}\nHTTP_STATUS:200\n",
+            "stderr": ""
+          },
+          "readProbe": {
+            "name": "read_key_get_spikes",
+            "command": "curl -sS -X GET http://localhost:8787/spikes -H 'Authorization: Bearer <read_api_key>' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+            "returncode": 0,
+            "httpStatus": 200,
+            "stdout": "{\"data\":[{\"id\":\"75a69f97-9308-4348-a4e0-0de27212893f\",\"type\":\"page\",\"projectKey\":\"utv-ad-r2-cross\",\"page\":\"utv-ad-r2-cross-cross006-write-r2-1773175638.html\",\"url\":\"\",\"reviewer\":{\"id\":\"anon\",\"name\":\"Anonymous\",\"email\":null},\"selector\":null,\"xpath\":null,\"elementText\":null,\"boundingBox\":null,\"rating\":\"no\",\"comments\":\"utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\",\"timestamp\":\"2026-03-10T20:47:18.447Z\",\"viewport\":null,\"userAgent\":\"ureq/2.12.1\"},{\"id\":\"db27947f-7744-4ed4-b09a-45c18b8f8326\",\"type\":\"page\",\"projectKey\":\"utv-ad-r2-cross\",\"page\":\"utv-ad-r2-cross-cross006-write-1773175601.html\",\"url\":\"\",\"reviewer\":{\"id\":\"anon\",\"name\":\"Anonymous\",\"email\":null},\"selector\":null,\"xpath\":null,\"elementText\":null,\"boundingBox\":null,\"rating\":\"no\",\"comments\":\"utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\",\"timestamp\":\"2026-03-10T20:46:42.120Z\",\"viewport\":null,\"userAgent\":\"ureq/2.12.1\"},{\"id\":\"55e2de27-2529-47f8-ab05-00d8ef23fccd\",\"type\":\"page\",\"projectKey\":\"utv-ad-r2-cross\",\"page\":\"utv-ad-r2-cross-cross006-read-1773175601.html\",\"url\":\"https://example.test/utv-ad-r2-cross-cross006-read-1773175601.html\",\"reviewer\":{\"id\":\"utv-ad-r2-cross-reviewer\",\"name\":\"utv-ad-r2-cross-reviewer\",\"email\":null}\n...<truncated>...",
+            "stderr": ""
+          },
+          "mcp": {
+            "name": "mcp_remote_session",
+            "command": "SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<read_api_key> cargo run --quiet -- mcp serve --remote",
+            "cwd": "/Users/moritzbierling/werk/repos/spikes/cli",
+            "requests": [
+              {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                  "protocolVersion": "2024-11-05",
+                  "capabilities": {},
+                  "clientInfo": {
+                    "name": "utv-ad3-cross006-validator",
+                    "version": "1.0.0"
+                  }
+                }
+              },
+              {
+                "jsonrpc": "2.0",
+                "method": "notifications/initialized",
+                "params": {}
+              },
+              {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list",
+                "params": {}
+              },
+              {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                  "name": "get_spikes",
+                  "arguments": {}
+                }
+              },
+              {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "method": "tools/call",
+                "params": {
+                  "name": "submit_spike",
+                  "arguments": {
+                    "page": "utv-ad3-cross006-cross006-write-attempt.html",
+                    "comments": "utv-ad3-cross006 submit_spike should be denied for read scope",
+                    "rating": "meh",
+                    "reviewer_name": "utv-ad3-cross006-reviewer",
+                    "project_key": "utv-ad3-cross006",
+                    "url": "http://localhost/utv-ad3-cross006-cross006-write-attempt.html"
+                  }
+                }
+              }
+            ],
+            "responses": {
+              "1": {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {
+                  "protocolVersion": "2024-11-05",
+                  "capabilities": {
+                    "tools": {}
+                  },
+                  "serverInfo": {
+                    "name": "spikes-mcp",
+                    "version": "0.3.1"
+                  }
+                }
+              },
+              "2": {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "result": {
+                  "tools": [
+                    {
+                      "name": "create_share",
+                      "description": "Go live: upload a directory and get a shareable URL. Requires login (spikes login). Returns URL for collecting feedback.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the create_share tool",
+                        "properties": {
+                          "directory": {
+                            "description": "Directory path to upload",
+                            "type": "string"
+                          },
+                          "name": {
+                            "description": "Optional name/slug for the share",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "password": {
+                            "description": "Optional password protection",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "directory"
+                        ],
+                        "title": "CreateShareArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "delete_spike",
+                      "description": "Remove from history: delete a spike by ID. Permanently removes the feedback. Use sparingly - resolving is usually better.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the delete_spike tool",
+                        "properties": {
+                          "spike_id": {
+                            "description": "Spike ID or prefix (minimum 4 characters)",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "spike_id"
+                        ],
+                        "title": "DeleteSpikeArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "get_element_feedback",
+                      "description": "Target lock: get feedback for a specific CSS selector. Zoom in on what reviewers said about a particular element. Requires selector parameter.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the get_element_feedback tool",
+                        "properties": {
+                          "page": {
+                            "description": "Optional page filter (e.g., 'index.html')",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "selector": {
+                            "description": "CSS selector to look up (required)",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "selector"
+                        ],
+                        "title": "GetElementFeedbackArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "get_hotspots",
+                      "description": "Heat map mode: find elements with the most feedback. Identifies hotspots where reviewers clustered. Use this to prioritize what to fix first.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the get_hotspots tool",
+                        "properties": {
+                          "limit": {
+                            "description": "Maximum number of hotspots to return (default: 10)",
+                            "format": "uint64",
+                            "minimum": 0,
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        },
+                        "title": "GetHotspotsArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "get_spikes",
+                      "description": "Dig into the feedback pile. Get all spikes (feedback items) with optional filters for page, rating, or unresolved status. Returns formatted text with spike details.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the get_spikes tool",
+                        "properties": {
+                          "page": {
+                            "description": "Filter by page name (e.g., 'index.html')",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "rating": {
+                            "description": "Filter by rating: love, like, meh, or no",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "unresolved_only": {
+                            "description": "Only return unresolved spikes",
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        },
+                        "title": "GetSpikesArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "get_usage",
+                      "description": "Check limits: view your usage stats. Shows spike/share counts and limits. Requires login.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the get_usage tool (no parameters required)",
+                        "title": "GetUsageArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "list_shares",
+                      "description": "Check inventory: list all your shares. Shows URLs, spike counts, and creation dates. Requires login.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the list_shares tool (no parameters required)",
+                        "title": "ListSharesArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "resolve_spike",
+                      "description": "Mark done: resolve a spike by ID. Sets resolved=true with timestamp. Use after addressing the feedback.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the resolve_spike tool",
+                        "properties": {
+                          "spike_id": {
+                            "description": "Spike ID or prefix (minimum 4 characters)",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "spike_id"
+                        ],
+                        "title": "ResolveSpikeArgs",
+                        "type": "object"
+                      }
+                    },
+                    {
+                      "name": "submit_spike",
+                      "description": "Plant a flag: create new feedback. Submit a spike with page, comments, and optional selector/rating. Agent-created spikes get logged to .spikes/feedback.jsonl.",
+                      "inputSchema": {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "description": "Arguments for the submit_spike tool",
+                        "properties": {
+                          "comments": {
+                            "description": "Feedback comments (required)",
+                            "type": "string"
+                          },
+                          "element_text": {
+                            "description": "Text content of the element (optional, for element feedback)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "page": {
+                            "description": "Page name (e.g., 'index.html') - required",
+                            "type": "string"
+                          },
+                          "project_key": {
+                            "description": "Project key for the feedback",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "rating": {
+                            "description": "Rating: love, like, meh, or no",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "reviewer_name": {
+                            "description": "Reviewer name",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "selector": {
+                            "description": "CSS selector for element feedback (if provided, creates element spike)",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "url": {
+                            "description": "URL of the page (e.g., 'http://localhost:3000/index.html')",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "page",
+                          "comments"
+                        ],
+                        "title": "SubmitSpikeArgs",
+                        "type": "object"
+                      }
+                    }
+                  ]
+                }
+              },
+              "3": {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "result": {
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Found 100 spike(s):\n\n[75a69f97] page on utv-ad-r2-cross-cross006-write-r2-1773175638.html\n  Rating: no\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:47:18.447Z\n  Status: Unresolved\n\n[db27947f] page on utv-ad-r2-cross-cross006-write-1773175601.html\n  Rating: no\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:46:42.120Z\n  Status: Unresolved\n\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\n  Rating: meh\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1773175601\n  Reviewer: utv-ad-r2-cross-reviewer\n  Timestamp: 2026-03-10T20:46:41Z\n  Status: Unresolved\n\n[c0eace01] page on adisc-r4-1773174362-cross001-final.html\n  Rating: no\n  Comments: adisc-r4-1773174362-cross001-final-marker\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:29:00.897Z\n  Status: Unresolved\n\n[940050a3] page on adisc-r4-1773174362-cross006.html\n  Rating: no\n  Comments: adisc-r4-1773174362-cross006-marker\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:26:49.778Z\n  Status: Unresolved\n\n[2968c261] page on adisc-r4-1773174362-cross001b.html\n  Rating: no\n  Comments: adisc-r4-1773174362-cross001-marker-b\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:26:34.773Z\n  Status: Unresolved\n\n[615c3386] page on adisc-main-1773173929-cross002.html\n  Rating: no\n  Comments: adisc-main-1773173929-marker-cross002\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:18:54.135Z\n  Status: Unresolved\n\n[4d3f5a1b] page on adisc-main-1773173929-cross006.html\n  Rating: no\n  Comments: adisc-main-1773173929-marker-cross006\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:18:52.875Z\n  Status: Unresolved\n\n[4496e67b] page on adisc-cross-r2-httpcheck.html\n  Rating: -\n  Comments: adisc-cross-r2-httpcheck-comment\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:13:43.485Z\n  Status: Unresolved\n\n[a62e87bd] page on adisc-cross-r2-cross6-page-1773173561.html\n  Rating: -\n  Comments: adisc-cross-r2-cross6-comment-1773173561\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:12:41.114Z\n  Status: Unresolved\n\n[10c5e428] page on adisc-cross-r2-cross6-page-1773173561.html\n  Rating: -\n  Comments: adisc-cross-r2-cross6-comment-1773173561\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:12:41.103Z\n  Status: Unresolved\n\n[933846dd] page on adisc-cross-r2-cross3-page-1773173560.html\n  Rating: -\n  Comments: adisc-cross-r2-cross3-comment-1773173560\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:12:40.936Z\n \n...<truncated>..."
+                    }
+                  ],
+                  "isError": false
+                }
+              },
+              "4": {
+                "jsonrpc": "2.0",
+                "id": 4,
+                "error": {
+                  "code": -32600,
+                  "message": "Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions."
+                }
+              }
+            },
+            "stdoutLines": [
+              "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"spikes-mcp\",\"version\":\"0.3.1\"}}}",
+              "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"create_share\",\"description\":\"Go live: upload a directory and get a shareable URL. Requires login (spikes login). Returns URL for collecting feedback.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the create_share tool\",\"properties\":{\"directory\":{\"description\":\"Directory path to upload\",\"type\":\"string\"},\"name\":{\"description\":\"Optional name/slug for the share\",\"type\":[\"string\",\"null\"]},\"password\":{\"description\":\"Optional password protection\",\"type\":[\"string\",\"null\"]}},\"required\":[\"directory\"],\"title\":\"CreateShareArgs\",\"type\":\"object\"}},{\"name\":\"delete_spike\",\"description\":\"Remove from history: delete a spike by ID. Permanently removes the feedback. Use sparingly - resolving is usually better.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the delete_spike tool\",\"properties\":{\"spike_id\":{\"description\":\"Spike ID or prefix (minimum 4 characters)\",\"type\":\"string\"}},\"required\":[\"spike_id\"],\"title\":\"DeleteSpikeArgs\",\"type\":\"object\"}},{\"name\":\"get_element_feedback\",\"description\":\"Target lock: get feedback for a specific CSS selector. Zoom in on what reviewers said about a particular element. Requires selector parameter.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the get_element_feedback tool\",\"properties\":{\"page\":{\"description\":\"Optional page filter (e.g., 'index.html')\",\"type\":[\"string\",\"null\"]},\"selector\":{\"description\":\"CSS selector to look up (required)\",\"type\":\"string\"}},\"required\":[\"selector\"],\"title\":\"GetElementFeedbackArgs\",\"type\":\"object\"}},{\"name\":\"get_hotspots\",\"description\":\"Heat map mode: find elements with the most feedback. Identifies hotspots where reviewers clustered. Use this to prioritize what to fix first.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the get_hotspots tool\",\"properties\":{\"limit\":{\"description\":\"Maximum number of hotspots to return (default: 10)\",\"format\":\"uint64\",\"minimum\":0,\"type\":[\"integer\",\"null\"]}},\"title\":\"GetHotspotsArgs\",\"type\":\"object\"}},{\"name\":\"get_spikes\",\"description\":\"Dig into the feedback pile. Get all spikes (feedback items) with optional filters for page, rating, or unresolved status. Returns formatted text with spike details.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the get_spike\n...<truncated>...",
+              "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Found 100 spike(s):\\n\\n[75a69f97] page on utv-ad-r2-cross-cross006-write-r2-1773175638.html\\n  Rating: no\\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:47:18.447Z\\n  Status: Unresolved\\n\\n[db27947f] page on utv-ad-r2-cross-cross006-write-1773175601.html\\n  Rating: no\\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:46:42.120Z\\n  Status: Unresolved\\n\\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\\n  Rating: meh\\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1773175601\\n  Reviewer: utv-ad-r2-cross-reviewer\\n  Timestamp: 2026-03-10T20:46:41Z\\n  Status: Unresolved\\n\\n[c0eace01] page on adisc-r4-1773174362-cross001-final.html\\n  Rating: no\\n  Comments: adisc-r4-1773174362-cross001-final-marker\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:29:00.897Z\\n  Status: Unresolved\\n\\n[940050a3] page on adisc-r4-1773174362-cross006.html\\n  Rating: no\\n  Comments: adisc-r4-1773174362-cross006-marker\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:26:49.778Z\\n  Status: Unresolved\\n\\n[2968c261] page on adisc-r4-1773174362-cross001b.html\\n  Rating: no\\n  Comments: adisc-r4-1773174362-cross001-marker-b\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:26:34.773Z\\n  Status: Unresolved\\n\\n[615c3386] page on adisc-main-1773173929-cross002.html\\n  Rating: no\\n  Comments: adisc-main-1773173929-marker-cross002\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:18:54.135Z\\n  Status: Unresolved\\n\\n[4d3f5a1b] page on adisc-main-1773173929-cross006.html\\n  Rating: no\\n  Comments: adisc-main-1773173929-marker-cross006\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:18:52.875Z\\n  Status: Unresolved\\n\\n[4496e67b] page on adisc-cross-r2-httpcheck.html\\n  Rating: -\\n  Comments: adisc-cross-r2-httpcheck-comment\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:13:43.485Z\\n  Status: Unresolved\\n\\n[a62e87bd] page on adisc-cross-r2-cross6-page-1773173561.html\\n  Rating: -\\n  Comments: adisc-cross-r2-cross6-comment-1773173561\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:12:41.114Z\\n  Status: Unresolved\\n\\n[10c5e428] page on adisc-cross-r2-cross6-page-1773173561.html\\n  Rating: -\\n  Comments: adisc-cross-r2-cross6-comment-1773173561\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:12:41.103Z\\n  Status: Unresolved\\n\\n[933846dd] page on adisc-cross-r2-cross3-\n...<truncated>...",
+              "{\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":-32600,\"message\":\"Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions.\"}}"
+            ],
+            "stderr": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed\n",
+            "returncode": 0
+          }
+        }
+      },
+      "issues": null
+    }
+  ],
+  "evidence": [
+    {
+      "name": "auth_login",
+      "command": "curl -sS -X POST http://localhost:8787/auth/login -H 'Content-Type: application/json' --data '{\"email\":\"utv-ad3-cross006@example.com\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+      "returncode": 0,
+      "httpStatus": 202,
+      "stdout": "{\"ok\":true,\"message\":\"Check your email\",\"_test_token\":\"<redacted>\"}\nHTTP_STATUS:202\n",
+      "stderr": ""
+    },
+    {
+      "name": "auth_verify",
+      "command": "curl -sS -X POST http://localhost:8787/auth/verify -H 'Content-Type: application/json' --data '{\"login_token\":\"<login_token>\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+      "returncode": 0,
+      "httpStatus": 200,
+      "stdout": "{\"ok\":true,\"token\":\"<redacted>\",\"user\":{\"id\":\"02cfb835-7848-45d6-a6ef-a5b19e4e0cd8\",\"email\":\"utv-ad3-cross006@example.com\",\"tier\":\"free\"}}\nHTTP_STATUS:200\n",
+      "stderr": ""
+    },
+    {
+      "name": "create_read_key",
+      "command": "curl -sS -X POST http://localhost:8787/auth/api-key -H 'Content-Type: application/json' --data '{\"name\":\"<namespace-read-key>\",\"scopes\":\"read\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+      "returncode": 0,
+      "httpStatus": 201,
+      "stdout": "{\"ok\":true,\"api_key\":\"sk_spikes_<redacted>\",\"key_id\":\"key_f74fbc48cb4c4319\",\"name\":\"utv-ad3-cross006-cross006-read-1773176870\",\"scopes\":\"read\",\"created_at\":\"2026-03-10T21:07:50.076Z\"}\nHTTP_STATUS:201\n",
+      "stderr": ""
+    },
+    {
+      "name": "link_read_key",
+      "command": "curl -sS -X POST http://localhost:8787/auth/link-key -H 'Authorization: Bearer <namespace-bearer-token>' -H 'Content-Type: application/json' --data '{\"key_id\":\"<read_key_id>\"}' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+      "returncode": 0,
+      "httpStatus": 200,
+      "stdout": "{\"ok\":true}\nHTTP_STATUS:200\n",
+      "stderr": ""
+    },
+    {
+      "name": "read_key_get_me",
+      "command": "curl -sS -X GET http://localhost:8787/me -H 'Authorization: Bearer <read_api_key>' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+      "returncode": 0,
+      "httpStatus": 200,
+      "stdout": "{\"key_id\":\"key_f74fbc48cb4c4319\",\"name\":\"utv-ad3-cross006-cross006-read-1773176870\",\"scopes\":\"read\",\"key_prefix\":\"abc563d1\",\"email\":\"utv-ad3-cross006@example.com\",\"tier\":\"free\",\"created_at\":\"2026-03-10T21:07:50.076Z\",\"monthly_cap_cents\":null,\"expires_at\":null}\nHTTP_STATUS:200\n",
+      "stderr": ""
+    },
+    {
+      "name": "read_key_get_spikes",
+      "command": "curl -sS -X GET http://localhost:8787/spikes -H 'Authorization: Bearer <read_api_key>' -w '\\nHTTP_STATUS:%{http_code}\\n'",
+      "returncode": 0,
+      "httpStatus": 200,
+      "stdout": "{\"data\":[{\"id\":\"75a69f97-9308-4348-a4e0-0de27212893f\",\"type\":\"page\",\"projectKey\":\"utv-ad-r2-cross\",\"page\":\"utv-ad-r2-cross-cross006-write-r2-1773175638.html\",\"url\":\"\",\"reviewer\":{\"id\":\"anon\",\"name\":\"Anonymous\",\"email\":null},\"selector\":null,\"xpath\":null,\"elementText\":null,\"boundingBox\":null,\"rating\":\"no\",\"comments\":\"utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\",\"timestamp\":\"2026-03-10T20:47:18.447Z\",\"viewport\":null,\"userAgent\":\"ureq/2.12.1\"},{\"id\":\"db27947f-7744-4ed4-b09a-45c18b8f8326\",\"type\":\"page\",\"projectKey\":\"utv-ad-r2-cross\",\"page\":\"utv-ad-r2-cross-cross006-write-1773175601.html\",\"url\":\"\",\"reviewer\":{\"id\":\"anon\",\"name\":\"Anonymous\",\"email\":null},\"selector\":null,\"xpath\":null,\"elementText\":null,\"boundingBox\":null,\"rating\":\"no\",\"comments\":\"utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\",\"timestamp\":\"2026-03-10T20:46:42.120Z\",\"viewport\":null,\"userAgent\":\"ureq/2.12.1\"},{\"id\":\"55e2de27-2529-47f8-ab05-00d8ef23fccd\",\"type\":\"page\",\"projectKey\":\"utv-ad-r2-cross\",\"page\":\"utv-ad-r2-cross-cross006-read-1773175601.html\",\"url\":\"https://example.test/utv-ad-r2-cross-cross006-read-1773175601.html\",\"reviewer\":{\"id\":\"utv-ad-r2-cross-reviewer\",\"name\":\"utv-ad-r2-cross-reviewer\",\"email\":null}\n...<truncated>...",
+      "stderr": ""
+    },
+    {
+      "name": "mcp_remote_session",
+      "command": "SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<read_api_key> cargo run --quiet -- mcp serve --remote",
+      "cwd": "/Users/moritzbierling/werk/repos/spikes/cli",
+      "requests": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "initialize",
+          "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {
+              "name": "utv-ad3-cross006-validator",
+              "version": "1.0.0"
+            }
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "method": "notifications/initialized",
+          "params": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "tools/list",
+          "params": {}
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "tools/call",
+          "params": {
+            "name": "get_spikes",
+            "arguments": {}
+          }
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tools/call",
+          "params": {
+            "name": "submit_spike",
+            "arguments": {
+              "page": "utv-ad3-cross006-cross006-write-attempt.html",
+              "comments": "utv-ad3-cross006 submit_spike should be denied for read scope",
+              "rating": "meh",
+              "reviewer_name": "utv-ad3-cross006-reviewer",
+              "project_key": "utv-ad3-cross006",
+              "url": "http://localhost/utv-ad3-cross006-cross006-write-attempt.html"
+            }
+          }
+        }
+      ],
+      "responses": {
+        "1": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "result": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {
+              "tools": {}
+            },
+            "serverInfo": {
+              "name": "spikes-mcp",
+              "version": "0.3.1"
+            }
+          }
+        },
+        "2": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "result": {
+            "tools": [
+              {
+                "name": "create_share",
+                "description": "Go live: upload a directory and get a shareable URL. Requires login (spikes login). Returns URL for collecting feedback.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the create_share tool",
+                  "properties": {
+                    "directory": {
+                      "description": "Directory path to upload",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Optional name/slug for the share",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "password": {
+                      "description": "Optional password protection",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "directory"
+                  ],
+                  "title": "CreateShareArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "delete_spike",
+                "description": "Remove from history: delete a spike by ID. Permanently removes the feedback. Use sparingly - resolving is usually better.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the delete_spike tool",
+                  "properties": {
+                    "spike_id": {
+                      "description": "Spike ID or prefix (minimum 4 characters)",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "spike_id"
+                  ],
+                  "title": "DeleteSpikeArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "get_element_feedback",
+                "description": "Target lock: get feedback for a specific CSS selector. Zoom in on what reviewers said about a particular element. Requires selector parameter.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the get_element_feedback tool",
+                  "properties": {
+                    "page": {
+                      "description": "Optional page filter (e.g., 'index.html')",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "selector": {
+                      "description": "CSS selector to look up (required)",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "selector"
+                  ],
+                  "title": "GetElementFeedbackArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "get_hotspots",
+                "description": "Heat map mode: find elements with the most feedback. Identifies hotspots where reviewers clustered. Use this to prioritize what to fix first.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the get_hotspots tool",
+                  "properties": {
+                    "limit": {
+                      "description": "Maximum number of hotspots to return (default: 10)",
+                      "format": "uint64",
+                      "minimum": 0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "title": "GetHotspotsArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "get_spikes",
+                "description": "Dig into the feedback pile. Get all spikes (feedback items) with optional filters for page, rating, or unresolved status. Returns formatted text with spike details.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the get_spikes tool",
+                  "properties": {
+                    "page": {
+                      "description": "Filter by page name (e.g., 'index.html')",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rating": {
+                      "description": "Filter by rating: love, like, meh, or no",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "unresolved_only": {
+                      "description": "Only return unresolved spikes",
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "title": "GetSpikesArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "get_usage",
+                "description": "Check limits: view your usage stats. Shows spike/share counts and limits. Requires login.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the get_usage tool (no parameters required)",
+                  "title": "GetUsageArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "list_shares",
+                "description": "Check inventory: list all your shares. Shows URLs, spike counts, and creation dates. Requires login.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the list_shares tool (no parameters required)",
+                  "title": "ListSharesArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "resolve_spike",
+                "description": "Mark done: resolve a spike by ID. Sets resolved=true with timestamp. Use after addressing the feedback.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the resolve_spike tool",
+                  "properties": {
+                    "spike_id": {
+                      "description": "Spike ID or prefix (minimum 4 characters)",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "spike_id"
+                  ],
+                  "title": "ResolveSpikeArgs",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "submit_spike",
+                "description": "Plant a flag: create new feedback. Submit a spike with page, comments, and optional selector/rating. Agent-created spikes get logged to .spikes/feedback.jsonl.",
+                "inputSchema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "description": "Arguments for the submit_spike tool",
+                  "properties": {
+                    "comments": {
+                      "description": "Feedback comments (required)",
+                      "type": "string"
+                    },
+                    "element_text": {
+                      "description": "Text content of the element (optional, for element feedback)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "page": {
+                      "description": "Page name (e.g., 'index.html') - required",
+                      "type": "string"
+                    },
+                    "project_key": {
+                      "description": "Project key for the feedback",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "rating": {
+                      "description": "Rating: love, like, meh, or no",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "reviewer_name": {
+                      "description": "Reviewer name",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "selector": {
+                      "description": "CSS selector for element feedback (if provided, creates element spike)",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "url": {
+                      "description": "URL of the page (e.g., 'http://localhost:3000/index.html')",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "page",
+                    "comments"
+                  ],
+                  "title": "SubmitSpikeArgs",
+                  "type": "object"
+                }
+              }
+            ]
+          }
+        },
+        "3": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Found 100 spike(s):\n\n[75a69f97] page on utv-ad-r2-cross-cross006-write-r2-1773175638.html\n  Rating: no\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:47:18.447Z\n  Status: Unresolved\n\n[db27947f] page on utv-ad-r2-cross-cross006-write-1773175601.html\n  Rating: no\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:46:42.120Z\n  Status: Unresolved\n\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\n  Rating: meh\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1773175601\n  Reviewer: utv-ad-r2-cross-reviewer\n  Timestamp: 2026-03-10T20:46:41Z\n  Status: Unresolved\n\n[c0eace01] page on adisc-r4-1773174362-cross001-final.html\n  Rating: no\n  Comments: adisc-r4-1773174362-cross001-final-marker\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:29:00.897Z\n  Status: Unresolved\n\n[940050a3] page on adisc-r4-1773174362-cross006.html\n  Rating: no\n  Comments: adisc-r4-1773174362-cross006-marker\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:26:49.778Z\n  Status: Unresolved\n\n[2968c261] page on adisc-r4-1773174362-cross001b.html\n  Rating: no\n  Comments: adisc-r4-1773174362-cross001-marker-b\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:26:34.773Z\n  Status: Unresolved\n\n[615c3386] page on adisc-main-1773173929-cross002.html\n  Rating: no\n  Comments: adisc-main-1773173929-marker-cross002\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:18:54.135Z\n  Status: Unresolved\n\n[4d3f5a1b] page on adisc-main-1773173929-cross006.html\n  Rating: no\n  Comments: adisc-main-1773173929-marker-cross006\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:18:52.875Z\n  Status: Unresolved\n\n[4496e67b] page on adisc-cross-r2-httpcheck.html\n  Rating: -\n  Comments: adisc-cross-r2-httpcheck-comment\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:13:43.485Z\n  Status: Unresolved\n\n[a62e87bd] page on adisc-cross-r2-cross6-page-1773173561.html\n  Rating: -\n  Comments: adisc-cross-r2-cross6-comment-1773173561\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:12:41.114Z\n  Status: Unresolved\n\n[10c5e428] page on adisc-cross-r2-cross6-page-1773173561.html\n  Rating: -\n  Comments: adisc-cross-r2-cross6-comment-1773173561\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:12:41.103Z\n  Status: Unresolved\n\n[933846dd] page on adisc-cross-r2-cross3-page-1773173560.html\n  Rating: -\n  Comments: adisc-cross-r2-cross3-comment-1773173560\n  Reviewer: Anonymous\n  Timestamp: 2026-03-10T20:12:40.936Z\n \n...<truncated>..."
+              }
+            ],
+            "isError": false
+          }
+        },
+        "4": {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "error": {
+            "code": -32600,
+            "message": "Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions."
+          }
+        }
+      },
+      "stdoutLines": [
+        "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{\"tools\":{}},\"serverInfo\":{\"name\":\"spikes-mcp\",\"version\":\"0.3.1\"}}}",
+        "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"create_share\",\"description\":\"Go live: upload a directory and get a shareable URL. Requires login (spikes login). Returns URL for collecting feedback.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the create_share tool\",\"properties\":{\"directory\":{\"description\":\"Directory path to upload\",\"type\":\"string\"},\"name\":{\"description\":\"Optional name/slug for the share\",\"type\":[\"string\",\"null\"]},\"password\":{\"description\":\"Optional password protection\",\"type\":[\"string\",\"null\"]}},\"required\":[\"directory\"],\"title\":\"CreateShareArgs\",\"type\":\"object\"}},{\"name\":\"delete_spike\",\"description\":\"Remove from history: delete a spike by ID. Permanently removes the feedback. Use sparingly - resolving is usually better.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the delete_spike tool\",\"properties\":{\"spike_id\":{\"description\":\"Spike ID or prefix (minimum 4 characters)\",\"type\":\"string\"}},\"required\":[\"spike_id\"],\"title\":\"DeleteSpikeArgs\",\"type\":\"object\"}},{\"name\":\"get_element_feedback\",\"description\":\"Target lock: get feedback for a specific CSS selector. Zoom in on what reviewers said about a particular element. Requires selector parameter.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the get_element_feedback tool\",\"properties\":{\"page\":{\"description\":\"Optional page filter (e.g., 'index.html')\",\"type\":[\"string\",\"null\"]},\"selector\":{\"description\":\"CSS selector to look up (required)\",\"type\":\"string\"}},\"required\":[\"selector\"],\"title\":\"GetElementFeedbackArgs\",\"type\":\"object\"}},{\"name\":\"get_hotspots\",\"description\":\"Heat map mode: find elements with the most feedback. Identifies hotspots where reviewers clustered. Use this to prioritize what to fix first.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the get_hotspots tool\",\"properties\":{\"limit\":{\"description\":\"Maximum number of hotspots to return (default: 10)\",\"format\":\"uint64\",\"minimum\":0,\"type\":[\"integer\",\"null\"]}},\"title\":\"GetHotspotsArgs\",\"type\":\"object\"}},{\"name\":\"get_spikes\",\"description\":\"Dig into the feedback pile. Get all spikes (feedback items) with optional filters for page, rating, or unresolved status. Returns formatted text with spike details.\",\"inputSchema\":{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\",\"description\":\"Arguments for the get_spike\n...<truncated>...",
+        "{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Found 100 spike(s):\\n\\n[75a69f97] page on utv-ad-r2-cross-cross006-write-r2-1773175638.html\\n  Rating: no\\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER R2 1773175638\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:47:18.447Z\\n  Status: Unresolved\\n\\n[db27947f] page on utv-ad-r2-cross-cross006-write-1773175601.html\\n  Rating: no\\n  Comments: utv-ad-r2-cross CROSS006 WRITE MARKER 1773175601\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:46:42.120Z\\n  Status: Unresolved\\n\\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\\n  Rating: meh\\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1773175601\\n  Reviewer: utv-ad-r2-cross-reviewer\\n  Timestamp: 2026-03-10T20:46:41Z\\n  Status: Unresolved\\n\\n[c0eace01] page on adisc-r4-1773174362-cross001-final.html\\n  Rating: no\\n  Comments: adisc-r4-1773174362-cross001-final-marker\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:29:00.897Z\\n  Status: Unresolved\\n\\n[940050a3] page on adisc-r4-1773174362-cross006.html\\n  Rating: no\\n  Comments: adisc-r4-1773174362-cross006-marker\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:26:49.778Z\\n  Status: Unresolved\\n\\n[2968c261] page on adisc-r4-1773174362-cross001b.html\\n  Rating: no\\n  Comments: adisc-r4-1773174362-cross001-marker-b\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:26:34.773Z\\n  Status: Unresolved\\n\\n[615c3386] page on adisc-main-1773173929-cross002.html\\n  Rating: no\\n  Comments: adisc-main-1773173929-marker-cross002\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:18:54.135Z\\n  Status: Unresolved\\n\\n[4d3f5a1b] page on adisc-main-1773173929-cross006.html\\n  Rating: no\\n  Comments: adisc-main-1773173929-marker-cross006\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:18:52.875Z\\n  Status: Unresolved\\n\\n[4496e67b] page on adisc-cross-r2-httpcheck.html\\n  Rating: -\\n  Comments: adisc-cross-r2-httpcheck-comment\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:13:43.485Z\\n  Status: Unresolved\\n\\n[a62e87bd] page on adisc-cross-r2-cross6-page-1773173561.html\\n  Rating: -\\n  Comments: adisc-cross-r2-cross6-comment-1773173561\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:12:41.114Z\\n  Status: Unresolved\\n\\n[10c5e428] page on adisc-cross-r2-cross6-page-1773173561.html\\n  Rating: -\\n  Comments: adisc-cross-r2-cross6-comment-1773173561\\n  Reviewer: Anonymous\\n  Timestamp: 2026-03-10T20:12:41.103Z\\n  Status: Unresolved\\n\\n[933846dd] page on adisc-cross-r2-cross3-\n...<truncated>...",
+        "{\"jsonrpc\":\"2.0\",\"id\":4,\"error\":{\"code\":-32600,\"message\":\"Permission denied: read-only API key cannot write. Use a full-scope key or remove scope restrictions.\"}}"
+      ],
+      "stderr": "[spikes-mcp] Starting MCP server on stdio (REMOTE mode)...\n[spikes-mcp] Server stopped: Closed\n",
+      "returncode": 0
+    }
+  ],
+  "toolsUsed": [
+    "curl",
+    "cargo run -- mcp serve --remote",
+    "python3"
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested VAL-CROSS-006: pass."
+}

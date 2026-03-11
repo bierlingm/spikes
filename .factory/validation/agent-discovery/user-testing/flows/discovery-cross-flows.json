@@ -1,0 +1,55 @@
+{
+  "milestone": "agent-discovery",
+  "group": "discovery-cross-flows",
+  "surface": "Flow Validator Guidance: MCP HTTP + Remote",
+  "assertionsTested": [
+    {
+      "id": "VAL-CROSS-001",
+      "status": "pass",
+      "reason": "Namespace-scoped auth bootstrap and authenticated remote read precondition succeeded on local worker using utv-adisc-cross@example.com and namespace adisc-cross.",
+      "evidence": [
+        "python3 script (login+verify+seed+GET) against http://localhost:8787 -> {\"login_status\":202,\"verify_status\":200,\"seed_status\":201,\"get_status\":200,\"seed_id\":\"ee0a5630-8ceb-408d-8da5-9fd5e0292597\",\"matched_comment\":true}",
+        "GET /spikes with Bearer token returned namespaced fixture: page=adisc-cross-remote-1773172918.html, comments=adisc-cross-marker-1773172918"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "status": "pass",
+      "reason": "MCP HTTP session flow worked end-to-end in remote mode: initialize returned session id, notifications/initialized returned 202, and tools/list returned tool catalog.",
+      "evidence": [
+        "curl -X POST http://127.0.0.1:3867/ (initialize) -> HTTP/1.1 200 OK, header mcp-session-id: 1c475695-f7db-4e7b-bd81-ee018dee58bf, SSE body contains serverInfo.name=spikes-mcp",
+        "curl -X POST http://127.0.0.1:3867/ -H 'Mcp-Session-Id: 1c475695-f7db-4e7b-bd81-ee018dee58bf' --data notifications/initialized -> HTTP/1.1 202 Accepted",
+        "curl -X POST http://127.0.0.1:3867/ -H 'Mcp-Session-Id: 1c475695-f7db-4e7b-bd81-ee018dee58bf' --data tools/list -> HTTP/1.1 200 OK"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "status": "pass",
+      "reason": "Remote tools output matched namespaced seeded data and discovery tool surface was present in tools/list.",
+      "evidence": [
+        "tools/list SSE response included 9 tools; computed summary: {\"tool_count\":9,\"required_discovery_tools_present\":true} for create_share/list_shares/get_usage",
+        "curl tools/call get_spikes with page=adisc-cross-remote-1773172918.html -> SSE text: 'Found 1 spike(s)' with '[ee0a5630]' and 'Comments: adisc-cross-marker-1773172918'"
+      ]
+    },
+    {
+      "id": "VAL-CROSS-006",
+      "status": "pass",
+      "reason": "Remote-mode network failure path returns protocol error object (not false success) when API endpoint is unreachable.",
+      "evidence": [
+        "{ printf initialize; printf notifications/initialized; printf tools/call; } | SPIKES_API_URL=http://127.0.0.1:9 SPIKES_TOKEN=<scoped> spikes mcp serve --remote",
+        "stdout JSON-RPC snippet: {\"jsonrpc\":\"2.0\",\"id\":2,\"error\":{\"code\":-32603,\"message\":\"Connection failed. Check your internet connection.\"}}"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "curl",
+    "python3",
+    "spikes CLI (mcp serve --transport http --remote)",
+    "spikes CLI (mcp serve --remote)"
+  ],
+  "frictions": [
+    "CLI output masking hid raw login token in direct curl output; resolved by using command-scoped python bootstrap to exchange login token and persist bearer to isolated /tmp namespace workspace without printing secrets."
+  ],
+  "blockers": [],
+  "summary": "Validated 4/4 assigned assertions (VAL-CROSS-001,002,003,006) as pass using namespace adisc-cross on local worker and MCP remote surfaces; initialize/initialized/tools/list/tools/call and unreachable-network error behavior all matched expected contract outcomes."
+}

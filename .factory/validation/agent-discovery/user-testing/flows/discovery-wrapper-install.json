@@ -1,0 +1,73 @@
+{
+  "milestone": "agent-discovery",
+  "group": "discovery-wrapper-install",
+  "surface": "Flow Validator Guidance: MCP Server (CLI stdio)",
+  "assertionsTested": [
+    {
+      "id": "VAL-DISC-010",
+      "status": "pass",
+      "reason": "Platform mapping logic is covered by deterministic unit tests for macOS ARM64/x64 and Linux x64/ARM64, and tests pass.",
+      "evidence": [
+        "node --test /Users/moritzbierling/werk/repos/spikes/packages/spikes-mcp/test.js -> pass 11, fail 0; includes: detectPlatform returns correct target for macOS ARM64/macOS x64/Linux x64/Linux ARM64",
+        "python3 scan of packages/spikes-mcp/test.js confirmed required cases present: {\"macOS ARM64\":true,\"macOS x64\":true,\"Linux x64\":true,\"Linux ARM64\":true}"
+      ]
+    },
+    {
+      "id": "VAL-DISC-011",
+      "status": "fail",
+      "reason": "From a clean wrapper cache, npx spikes-mcp failed to download the darwin-arm64 binary (HTTP 404), so startup did not succeed through the normal first-run path.",
+      "evidence": [
+        "npx --yes /Users/moritzbierling/werk/repos/spikes/packages/spikes-mcp --help -> exit 1; stderr: 'downloading binary for aarch64-apple-darwin... Binary not found (HTTP 404)'",
+        "After manually seeding cache with local cli/target/debug/spikes, initialize succeeds: response serverInfo.name=spikes-mcp (shows spawn path works when binary exists)"
+      ]
+    },
+    {
+      "id": "VAL-DISC-015",
+      "status": "pass",
+      "reason": "npm package bin mapping exists and points spikes-mcp to the wrapper entrypoint.",
+      "evidence": [
+        "node -e require(package.json) check -> {\"bin\":{\"spikes-mcp\":\"./index.js\"},\"ok\":true}"
+      ]
+    },
+    {
+      "id": "VAL-DISC-030",
+      "status": "pass",
+      "reason": "mcp install subcommand is present and help exits successfully with usage text.",
+      "evidence": [
+        "python subprocess check for cargo run -- mcp install --help -> {\"returncode\":0,\"contains_usage\":true,\"contains_options\":true,\"ok\":true}",
+        "Help output includes: 'Usage: spikes mcp install [OPTIONS]'"
+      ]
+    },
+    {
+      "id": "VAL-DISC-031",
+      "status": "pass",
+      "reason": "mcp install produces valid JSON config including mcpServers.spikes for Claude/Desktop-style configuration.",
+      "evidence": [
+        "cargo run -- mcp install --json returns JSON with detected_clients[0].config.mcpServers.spikes",
+        "python JSON parse check -> {\"has_mcpServers\":true,\"has_spikes\":true,\"command\":\"spikes\",\"args\":[\"mcp\",\"serve\"]}"
+      ]
+    }
+  ],
+  "toolsUsed": [
+    "Execute",
+    "Read",
+    "LS",
+    "Glob",
+    "python3",
+    "node",
+    "cargo",
+    "npx"
+  ],
+  "frictions": [
+    {
+      "description": "First-run wrapper download path returned HTTP 404 for aarch64-apple-darwin release asset, preventing normal npx startup validation.",
+      "resolved": true,
+      "resolution": "Seeded wrapper cache with local built spikes binary to isolate and validate spawn/stdio initialize behavior separately.",
+      "affectedAssertions": [
+        "VAL-DISC-011"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 4 passed, 1 failed (VAL-DISC-011 failed on clean-cache first-run due missing GitHub release asset download; wrapper spawn behavior itself works with cached binary)."
+}

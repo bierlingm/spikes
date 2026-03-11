@@ -46,7 +46,10 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Local Miniflare D1 state can contain multiple SQLite files; when validating API-key linkage, select the DB file that actually contains the `api_keys` table before concluding schema issues.
 - In isolated CLI auth tests, revoking the stored `auth.api_key` can break subsequent key-management commands in the same HOME; pass `SPIKES_TOKEN=<bearer>` explicitly for follow-up commands.
 - `/auth/api-key` enforces 10/hour/IP rate limiting in local worker runs; repeated setup attempts can hit 429 and constrain extra key-status fixture generation, so prefer reusing namespace-scoped keys where possible.
+- If repeated local reruns exhaust rate-limit buckets, clear only the relevant local D1 `rate_limits` rows (for example `POST /auth/api-key` or `POST /spikes` for `::1`) before retrying assertions; otherwise MCP error text can reflect throttling instead of the behavior under test.
 - If local billing checkout endpoints return `500 Billing not configured`, you can seed `users.tier='pro'` in local D1 for a namespace-scoped user to validate Pro unlimited-limit behavior.
+- Namespace-scoped users created via local auth login start at `tier='free'`; for agent-tier budget assertions (e.g. VAL-CROSS-002), update only that namespace user row to `tier='agent'` in local D1 before testing cap behavior.
+- In local mission development (before npm publish/release), `npx spikes-mcp` may return npm `E404`; validate wrapper runtime path with `npm pack packages/spikes-mcp` + `npx --package <tarball> spikes-mcp` in an isolated temp workspace.
 - MCP (rmcp SDK) requires `notifications/initialized` after `initialize` before `tools/list` / `tools/call`; skipping it can yield protocol-state errors.
 - When piping multiple JSON-RPC lines into `spikes mcp serve`, keep stdin open long enough for all responses (small inter-line delays help avoid premature pipe close).
 - MCP `create_share` may normalize/truncate a requested share name and append a generated suffix; validate downstream list checks against the returned slug/URL rather than the raw requested name.
@@ -162,3 +165,10 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - For remote-mode checks, set `SPIKES_API_URL=http://localhost:8787` explicitly per command so no validator depends on global CLI auth config.
 - Capture evidence for initialize, notifications/initialized, tools/list, tools/call, and network-failure cases (command, status/JSON-RPC response, and relevant stderr lines).
 - **Critical for VAL-MCP-021 (remote read tools):** GET /spikes requires authentication (unlike POST /spikes which is public). Ensure the bearer token is properly stored in the local D1 `user_tokens` table BEFORE testing. Use the exact token returned by `/auth/verify`, not the login token. Verify token works via `curl -H "Authorization: Bearer $TOKEN" http://localhost:8787/spikes` before MCP testing.
+
+## Flow Validator Guidance: NPM MCP Wrapper
+
+- Use an isolated temp workspace per validator namespace (for example `/tmp/spikes-utv-<namespace>-npm-wrapper`) and avoid shared npm cache directories.
+- Validate clean-install behavior by removing wrapper cache (`node_modules/.cache/spikes-mcp`) in the isolated workspace before running `npx spikes-mcp`.
+- If package publish/release assets are unavailable, use the local fallback path (`npm pack packages/spikes-mcp` + `npx --package <tarball> spikes-mcp`) and record this explicitly in evidence.
+- Capture exact command output for platform detection, download URL/HTTP status, and MCP `initialize` response (or precise failure text).

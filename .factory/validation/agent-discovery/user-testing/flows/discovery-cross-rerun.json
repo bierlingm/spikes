@@ -1,0 +1,148 @@
+{
+  "groupId": "discovery-cross-rerun",
+  "milestone": "agent-discovery",
+  "testedAt": "2026-03-10T20:48:48.572612+00:00",
+  "credentials": {
+    "account": "utv-ad-r2-cross@example.com",
+    "namespace": "utv-ad-r2-cross"
+  },
+  "assertionsTested": [
+    "VAL-CROSS-002",
+    "VAL-CROSS-006"
+  ],
+  "resultsSummary": {
+    "pass": 1,
+    "fail": 1,
+    "blocked": 0
+  },
+  "results": [
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Read-only API key in MCP remote mode: read tools succeed, write tool scope-denied",
+      "status": "fail",
+      "reason": "get_spikes succeeded with read-scoped API key, but submit_spike returned success (created spike) instead of scope-denied MCP error.",
+      "evidence": {
+        "commands": [
+          "curl -sS -X POST http://localhost:8787/auth/api-key -H \"Content-Type: application/json\" --data \"{\"name\":\"utv-ad-r2-cross-read-<ts>\",\"scopes\":\"read\"}\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "curl -sS -X POST http://localhost:8787/auth/link-key -H \"Authorization: Bearer <namespace-bearer-token>\" -H \"Content-Type: application/json\" --data \"{\"key_id\":\"<read_key_id>\"}\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "{ printf initialize; printf notifications/initialized; printf tools/call(get_spikes,page=<namespaced-page>); } | SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<read_api_key> spikes mcp serve --remote",
+          "{ printf initialize; printf notifications/initialized; printf tools/call(submit_spike,...); } | SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<read_api_key> spikes mcp serve --remote"
+        ],
+        "outputs": {
+          "createReadKeyStatus": 201,
+          "createReadKeySnippet": "{\"ok\":true,\"api_key\":\"sk_spikes_ffdf28…(redacted)\",\"key_id\":\"key_ef455797b3f245c6\",\"name\":\"utv-ad-r2-cross-read-1773175601\",\"scopes\":\"read\",\"created_at\":\"2026-03-10T20:46:41",
+          "linkReadKeyStatus": 200,
+          "seedSpikeStatus": 201,
+          "readKeyGetSpikesStatus": 200,
+          "mcpGetSpikesResponse": {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Found 1 spike(s):\n\n[55e2de27] page on utv-ad-r2-cross-cross006-read-1773175601.html\n  Rating: meh\n  Comments: utv-ad-r2-cross CROSS006 READ MARKER 1773175601\n  Reviewer: utv-ad-r2-cross-reviewer\n  Timestamp: 2026-03-10T20:46:41Z\n  Status: Unresolved\n\n"
+                }
+              ],
+              "isError": false
+            }
+          },
+          "mcpSubmitSpikeResponse": {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Spike created via API: [75a69f97-9308-4348-a4e0-0de27212893f]"
+                }
+              ],
+              "isError": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Budget enforcement through MCP should surface budget-exceeded error",
+      "status": "pass",
+      "reason": "Direct API and MCP submit_spike both reflected budget-exceeded semantics (MCP error message explicitly mentions budget).",
+      "evidence": {
+        "commands": [
+          "curl -sS -X POST http://localhost:8787/auth/api-key -H \"Content-Type: application/json\" --data \"{\"name\":\"utv-ad-r2-cross-full-<ts>\",\"scopes\":\"full\"}\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "curl -sS -X POST http://localhost:8787/auth/link-key -H \"Authorization: Bearer <namespace-bearer-token>\" -H \"Content-Type: application/json\" --data \"{\"key_id\":\"<full_key_id>\"}\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "curl -sS -X POST http://localhost:8787/shares -H \"Authorization: Bearer <full_api_key>\" -F \"metadata={\"name\":\"utv-ad-r2-cross-budget-<ts>\"}\" -F \"file=@<index.html>;type=text/html\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "curl -sS -X PATCH http://localhost:8787/auth/api-key/<full_key_id> -H \"Authorization: Bearer <full_api_key>\" -H \"Content-Type: application/json\" --data \"{\"monthly_cap_cents\":0}\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "curl -sS -X POST http://localhost:8787/spikes -H \"Authorization: Bearer <full_api_key>\" -H \"Content-Type: application/json\" --data \"{\"projectKey\":\"<share_id>\",...}\" -w \"\\nHTTP_STATUS:%{http_code}\\n\"",
+          "{ printf initialize; printf notifications/initialized; printf tools/call(submit_spike,project_key=<share_id>); } | SPIKES_API_URL=http://localhost:8787 SPIKES_TOKEN=<full_api_key> spikes mcp serve --remote"
+        ],
+        "outputs": {
+          "createFullKeyStatus": 201,
+          "linkFullKeyStatus": 200,
+          "createShareStatus": 201,
+          "createShareSnippet": "{\"ok\":true,\"url\":\"https://spikes.sh/s/utv-ad-r2-cross-budget-1773175-qxt1x\",\"share_id\":\"a0e5bafb-903f-4b0b-b085-e0f0c3d22482\",\"slug\":\"utv-ad-r2-cross-budget-1773175-qxt1x\"}",
+          "patchCapStatus": 200,
+          "patchCapSnippet": "{\"ok\":true,\"key_id\":\"key_09231d6c4e144ee0\",\"monthly_cap_cents\":0}",
+          "directBudgetProbeStatus": 429,
+          "directBudgetProbeBody": {
+            "error": "Monthly budget exceeded",
+            "code": "BUDGET_EXCEEDED"
+          },
+          "mcpSubmitSpikeResponse": {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "error": {
+              "code": -32600,
+              "message": "Budget exceeded: monthly spending cap reached. Raise your cap or wait for the next billing period."
+            }
+          }
+        }
+      }
+    }
+  ],
+  "evidence": {
+    "setup": {
+      "workerHealthStatus": 200,
+      "loginStatus": 202,
+      "verifyStatus": 200,
+      "whoamiStatus": 200,
+      "whoamiBody": {
+        "email": "utv-ad-r2-cross@example.com",
+        "tier": "free"
+      },
+      "d1TierVerificationSnippet": "        \"email\": \"utv-ad-r2-cross@example.com\",\n        \"tier\": \"agent\""
+    },
+    "remoteModeConfig": {
+      "apiUrl": "http://localhost:8787",
+      "tokenSource": "SPIKES_TOKEN env var per command",
+      "initializeServerName": "spikes-mcp"
+    }
+  },
+  "frictions": [
+    {
+      "description": "Namespace login identity is created as tier=free by default; budget assertion required upgrading this namespace user to agent in local D1 before cap testing.",
+      "resolved": true,
+      "resolution": "Updated only namespace user row via local command: npx wrangler d1 execute spikes-sh-db --local --command \"UPDATE users SET tier='agent' WHERE id='<namespace-user-id>'\"",
+      "affectedAssertions": [
+        "VAL-CROSS-002"
+      ]
+    },
+    {
+      "description": "When piping JSON-RPC lines to spikes mcp serve too quickly, only initialize response was emitted.",
+      "resolved": true,
+      "resolution": "Added short inter-line delays (sleep 0.2/0.7) so notifications/initialized and tools/call responses were captured consistently.",
+      "affectedAssertions": [
+        "VAL-CROSS-002",
+        "VAL-CROSS-006"
+      ]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": [
+    "curl",
+    "spikes CLI (mcp serve --remote, stdio JSON-RPC piping)",
+    "wrangler d1 execute",
+    "python3"
+  ]
+}

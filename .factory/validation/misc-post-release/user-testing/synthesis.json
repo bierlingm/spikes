@@ -1,0 +1,21 @@
+{
+  "milestone": "misc-post-release",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [],
+  "failedAssertions": [
+    {
+      "id": "VAL-DISC-011",
+      "reason": "Canonical npm distribution path unavailable: registry returned E404 for `spikes-mcp`, preventing `npx spikes-mcp` startup."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": null
+}
