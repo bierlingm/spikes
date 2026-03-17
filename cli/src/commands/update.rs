@@ -1,51 +1,45 @@
-use crate::error::Result;
-use std::path::Path;
+use crate::error::{Error, Result};
+use std::process::Command;
 
 pub fn run() -> Result<()> {
     let current_version = env!("CARGO_PKG_VERSION");
 
-    println!("Spikes Update Tool");
-    println!();
-    println!("Current version: {}", current_version);
-    println!();
-    println!("To update spikes CLI to the latest version:");
-    println!();
-    println!("  Option 1: Using cargo");
-    println!("    cargo install spikes --force");
-    println!();
-    println!("  Option 2: Using the install script");
-    println!("    curl -fsSL https://spikes.sh/install.sh | sh");
-    println!();
-    println!("  Option 3: Clone and build from source");
-    println!("    git clone https://github.com/moritzbierling/spikes.git");
-    println!("    cd spikes && cargo build --release --manifest-path cli/Cargo.toml");
-    println!();
+    // Fetch latest version from crates.io
+    let latest_version = fetch_latest_version()?;
 
-    // If we're in a git repository, offer to update the widget too
-    if Path::new(".git").exists() && Path::new("widget/spikes.js").exists() {
-        println!("Local git repository detected with widget/spikes.js");
-        println!();
-        println!("To update the widget to the latest version:");
-        println!("  git pull origin main");
-        println!("  cp widget/spikes.js site/spikes.js  (if hosting on spikes.sh)");
-        println!();
+    if latest_version == current_version {
+        println!("Already up to date (v{})", current_version);
+        return Ok(());
     }
 
-    // If .spikes directory exists, might be self-hosting
-    if Path::new(".spikes").exists() {
-        println!("Local spikes project detected.");
-        println!();
-        println!("To sync all changes:");
-        println!("  spikes pull   # Fetch latest from remote");
-        println!("  spikes push   # Upload local changes");
-        println!();
+    println!("Updating spikes v{} → v{}...", current_version, latest_version);
+
+    let status = Command::new("cargo")
+        .args(["install", "spikes", "--force"])
+        .status()
+        .map_err(|e| Error::RequestFailed(format!("Failed to run cargo install: {}", e)))?;
+
+    if !status.success() {
+        return Err(Error::RequestFailed(format!(
+            "cargo install failed with exit code {}",
+            status.code().unwrap_or(-1)
+        )));
     }
 
-    println!("For more information:");
-    println!("  spikes --version");
-    println!("  spikes --help");
-    println!("  https://spikes.sh");
-    println!();
-
+    println!("Updated to v{}", latest_version);
     Ok(())
+}
+
+fn fetch_latest_version() -> Result<String> {
+    let response: serde_json::Value = ureq::get("https://crates.io/api/v1/crates/spikes")
+        .set("User-Agent", &format!("spikes/{} (self-update)", env!("CARGO_PKG_VERSION")))
+        .call()
+        .map_err(|e| Error::RequestFailed(format!("Failed to check crates.io: {}", e)))?
+        .into_json()
+        .map_err(|e| Error::RequestFailed(format!("Failed to parse crates.io response: {}", e)))?;
+
+    response["crate"]["max_version"]
+        .as_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| Error::RequestFailed("Could not find version in crates.io response".to_string()))
 }
