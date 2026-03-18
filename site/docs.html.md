@@ -108,8 +108,10 @@ spikes serve
 spikes deploy cloudflare
 cd spikes-worker && npx wrangler deploy
 
-# Add the endpoint to your widget
-spikes inject ./mockups/ --endpoint https://your-worker.workers.dev/spikes
+# Inject widget into your HTML files
+spikes inject ./mockups/
+# Then add data-endpoint to the script tag in your HTML:
+# <script src="/spikes.js" data-endpoint="https://your-worker.workers.dev/spikes"></script>
 ```
 
 Share the URL. Reviewers see your mockup with a floating `/` button. First-time reviewers are prompted for their name. They click elements, leave ratings and comments. Everything syncs to your backend.
@@ -155,7 +157,7 @@ spikes list --page pricing.html --json
 spikes hotspots --json
 
 # Export everything as CSV for a spreadsheet
-spikes export --format csv --output feedback.csv
+spikes export --format csv > feedback.csv
 ```
 
 ### Automate with scripts
@@ -196,7 +198,7 @@ spikes list [OPTIONS]
 | `--page <PAGE>` | Filter by page URL or filename |
 | `--reviewer <NAME>` | Filter by reviewer name |
 | `--rating <RATING>` | Filter by rating (love, like, meh, no) |
-| `--type <TYPE>` | Filter by type (page, element) |
+| `--unresolved` | Show only unresolved spikes |
 
 ```bash
 # List all negative feedback
@@ -219,14 +221,14 @@ spikes show <ID> [--json]
 Export all feedback in various formats.
 
 ```bash
-spikes export [--format <FORMAT>] [--output <FILE>]
+spikes export [--format <FORMAT>]
 ```
 
-Formats: `json`, `csv`, `jsonl` (default: json)
+Formats: `json`, `csv`, `jsonl` (default: json). Output goes to stdout — redirect to save to a file.
 
 ```bash
 # Export as CSV for spreadsheets
-spikes export --format csv --output feedback.csv
+spikes export --format csv > feedback.csv
 
 # Export as JSONL for streaming processing
 spikes export --format jsonl
@@ -258,17 +260,16 @@ spikes inject <DIR> [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
-| `--project <NAME>` | Set project key for grouping feedback |
-| `--endpoint <URL>` | Set sync endpoint for multi-reviewer mode |
-| `--recursive` | Process subdirectories |
-| `--dry-run` | Show what would be changed |
+| `--remove` | Remove widget script tags instead of adding |
+| `--widget-url <URL>` | URL for widget script (default: /spikes.js for local serve) |
+| `--json` | Output as JSON |
 
 ```bash
-# Add widget to all HTML files
-spikes inject ./mockups/ --recursive
+# Add widget to all HTML files in a directory
+spikes inject ./mockups/
 
-# Preview changes first
-spikes inject ./mockups/ --dry-run
+# Remove widget from all HTML files
+spikes inject ./mockups/ --remove
 ```
 
 ### serve
@@ -300,14 +301,6 @@ spikes pull [--endpoint <URL>]
 spikes push [--endpoint <URL>]
 ```
 
-### dashboard
-
-Launch interactive TUI dashboard.
-
-```bash
-spikes dashboard
-```
-
 ## Widget Configuration
 
 Configure with data attributes:
@@ -330,6 +323,7 @@ Configure with data attributes:
 | `data-color` | `#e74c3c` | Button background color (any CSS color) |
 | `data-endpoint` | — | POST endpoint for multi-reviewer sync |
 | `data-reviewer` | — | Pre-set reviewer name (skip the name prompt) |
+| `data-collect-email` | `false` | Prompt reviewers for email address |
 
 ## Data Format
 
@@ -389,4 +383,4 @@ spikes pull
 spikes push
 ```
 
-**Tip:** Set the `SPIKES_ENDPOINT` environment variable to avoid passing `--endpoint` every time.
+**Tip:** Set the `SPIKES_API_URL` environment variable to avoid passing `--endpoint` every time.

@@ -223,7 +223,7 @@ spikes list [OPTIONS]
 - `--page <PAGE>` — Filter by page URL or filename
 - `--reviewer <NAME>` — Filter by reviewer name
 - `--rating <RATING>` — Filter by rating (love, like, meh, no)
-- `--type <TYPE>` — Filter by type (page, element)
+- `--unresolved` — Show only unresolved spikes
 
 **Examples:**
 ```bash
@@ -240,7 +240,7 @@ spikes show <ID> [--json]
 ### spikes export
 Export all feedback in various formats.
 ```bash
-spikes export [--format <FORMAT>] [--output <FILE>]
+spikes export [--format <FORMAT>]
 ```
 **Formats:** json, csv, jsonl (default: json)
 
@@ -262,10 +262,9 @@ Add the Spikes widget to HTML files.
 spikes inject <DIR> [OPTIONS]
 ```
 **Options:**
-- `--project <NAME>` — Set project key
-- `--endpoint <URL>` — Set sync endpoint
-- `--recursive` — Process subdirectories
-- `--dry-run` — Preview changes
+- `--remove` — Remove widget script tags instead of adding
+- `--widget-url <URL>` — URL for widget script (default: /spikes.js for local serve)
+- `--json` — Output as JSON
 
 ### spikes serve
 Start a local development server.
@@ -402,7 +401,7 @@ spikes pull  # Fetch remote feedback
 spikes push  # Upload local feedback
 ```
 
-Set `SPIKES_ENDPOINT` environment variable to avoid passing `--endpoint` every time.
+Set `SPIKES_API_URL` environment variable to avoid passing `--endpoint` every time.
 
 ---
 

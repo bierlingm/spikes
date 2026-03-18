@@ -841,8 +841,10 @@ spikes serve
 spikes deploy cloudflare
 cd spikes-worker && npx wrangler deploy
 
-<span class="comment"># Add the endpoint to your widget</span>
-spikes inject ./mockups/ --endpoint https://your-worker.workers.dev/spikes</code></pre>
+<span class="comment"># Inject widget into your HTML files</span>
+spikes inject ./mockups/
+<span class="comment"># Then add data-endpoint to the script tag in your HTML:</span>
+<span class="comment"># &lt;script src="/spikes.js" data-endpoint="https://your-worker.workers.dev/spikes"&gt;&lt;/script&gt;</span></code></pre>
             </div>
 
             <p>Share the URL. Reviewers see your mockup with a floating <code>/</code> button. First-time reviewers are prompted for their name. They click elements, leave ratings and comments. Everything syncs to your backend.</p>
@@ -898,7 +900,7 @@ spikes list --page pricing.html --json
 spikes hotspots --json
 
 <span class="comment"># Export everything as CSV for a spreadsheet</span>
-spikes export --format csv --output feedback.csv</code></pre>
+spikes export --format csv &gt; feedback.csv</code></pre>
             </div>
 
             <h3>Automate with scripts</h3>
@@ -943,8 +945,8 @@ spikes list --json | jq '.[] | select(.rating == "no")' | \
                     <dd>Filter by reviewer name</dd>
                     <dt>--rating &lt;RATING&gt;</dt>
                     <dd>Filter by rating (love, like, meh, no)</dd>
-                    <dt>--type &lt;TYPE&gt;</dt>
-                    <dd>Filter by type (page, element)</dd>
+                    <dt>--unresolved</dt>
+                    <dd>Show only unresolved spikes</dd>
                 </dl>
             </div>
             <div class="code-block">
@@ -985,8 +987,6 @@ spikes list --page index.html --json</code></pre>
                 <dl class="command-flags">
                     <dt>--format &lt;FORMAT&gt;</dt>
                     <dd>Output format: json, csv, jsonl (default: json)</dd>
-                    <dt>--output &lt;FILE&gt;</dt>
-                    <dd>Write to file instead of stdout</dd>
                 </dl>
             </div>
             <div class="code-block">
@@ -995,7 +995,7 @@ spikes list --page index.html --json</code></pre>
                     <button class="code-copy" onclick="copyCode(this)">Copy</button>
                 </div>
                 <pre><code><span class="comment"># Export as CSV for spreadsheets</span>
-spikes export --format csv --output feedback.csv
+spikes export --format csv &gt; feedback.csv
 
 <span class="comment"># Export as JSONL for streaming processing</span>
 spikes export --format jsonl</code></pre>
@@ -1038,14 +1038,12 @@ spikes export --format jsonl</code></pre>
                 <p class="command-desc">Add the Spikes widget script to HTML files in a directory.</p>
                 <div class="command-usage">spikes inject &lt;DIR&gt; [OPTIONS]</div>
                 <dl class="command-flags">
-                    <dt>--project &lt;NAME&gt;</dt>
-                    <dd>Set project key for grouping feedback</dd>
-                    <dt>--endpoint &lt;URL&gt;</dt>
-                    <dd>Set sync endpoint for multi-reviewer mode</dd>
-                    <dt>--recursive</dt>
-                    <dd>Process subdirectories</dd>
-                    <dt>--dry-run</dt>
-                    <dd>Show what would be changed without modifying files</dd>
+                    <dt>--remove</dt>
+                    <dd>Remove widget script tags instead of adding</dd>
+                    <dt>--widget-url &lt;URL&gt;</dt>
+                    <dd>URL for widget script (default: /spikes.js for local serve)</dd>
+                    <dt>--json</dt>
+                    <dd>Output as JSON</dd>
                 </dl>
             </div>
             <div class="code-block">
@@ -1053,11 +1051,11 @@ spikes export --format jsonl</code></pre>
                     <span class="code-label">Example</span>
                     <button class="code-copy" onclick="copyCode(this)">Copy</button>
                 </div>
-                <pre><code><span class="comment"># Add widget to all HTML files</span>
-spikes inject ./mockups/ --recursive
+                <pre><code><span class="comment"># Add widget to all HTML files in a directory</span>
+spikes inject ./mockups/
 
-<span class="comment"># Preview changes first</span>
-spikes inject ./mockups/ --dry-run</code></pre>
+<span class="comment"># Remove widget from all HTML files</span>
+spikes inject ./mockups/ --remove</code></pre>
             </div>
             
             <h3 id="cli-serve">serve</h3>
@@ -1109,7 +1107,7 @@ npx wrangler deploy</code></pre>
 spikes push [OPTIONS]</div>
                 <dl class="command-flags">
                     <dt>--endpoint &lt;URL&gt;</dt>
-                    <dd>Remote endpoint URL (or use SPIKES_ENDPOINT env var)</dd>
+                    <dd>Remote endpoint URL (or use SPIKES_API_URL env var)</dd>
                 </dl>
             </div>
             <div class="code-block">
@@ -1344,6 +1342,11 @@ spikes unshare my-project</code></pre>
                             <td>Pre-set reviewer name (skip the name prompt)</td>
                         </tr>
                         <tr>
+                            <td><code>data-collect-email</code></td>
+                            <td><code>false</code></td>
+                            <td>Prompt reviewers for email address</td>
+                        </tr>
+                        <tr>
                             <td><code>data-admin</code></td>
                             <td><code>false</code></td>
                             <td>Enable review mode with spike markers on the page</td>
@@ -1436,7 +1439,7 @@ spikes push</code></pre>
             </div>
             
             <div class="note tip">
-                <p><strong>Tip:</strong> Set the <code>SPIKES_ENDPOINT</code> environment variable to avoid passing <code>--endpoint</code> every time.</p>
+                <p><strong>Tip:</strong> Set the <code>SPIKES_API_URL</code> environment variable to avoid passing <code>--endpoint</code> every time.</p>
             </div>
 
             <h2 id="environment-variables">Environment Variables</h2>

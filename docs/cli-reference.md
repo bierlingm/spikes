@@ -3,7 +3,7 @@
 Complete reference for all Spikes CLI commands. Install with:
 
 ```bash
-cargo install spikes-cli
+cargo install spikes
 ```
 
 ## Global Options
@@ -560,15 +560,24 @@ spikes unshare my-project --force
 Start the MCP (Model Context Protocol) server for AI agent integration.
 
 ```bash
-spikes mcp serve
+spikes mcp serve [OPTIONS]
 ```
 
-**Description:** Exposes three tools for agents: `get_spikes`, `get_element_feedback`, and `get_hotspots`. Uses stdio transport. All logging goes to stderr; stdout is reserved for JSON-RPC.
+**Options:**
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--remote` | Use hosted API instead of local JSONL | |
+| `--transport <MODE>` | Transport mode: stdio or http | stdio |
+| `--port <PORT>` | Port for HTTP transport | 3848 |
+| `--bind <ADDR>` | Bind address for HTTP transport | 127.0.0.1 |
+
+**Description:** Exposes 9 MCP tools for agents: `get_spikes`, `get_element_feedback`, `get_hotspots`, `submit_spike`, `resolve_spike`, `delete_spike`, `create_share`, `list_shares`, and `get_usage`. Supports stdio (default) and HTTP transport. All logging goes to stderr; stdout is reserved for JSON-RPC.
 
 **Examples:**
 ```bash
-spikes mcp serve
-spikes mcp serve 2> mcp.log
+spikes mcp serve                              # Local mode, stdio
+spikes mcp serve --remote                     # Remote mode, stdio
+spikes mcp serve --transport http --port 3848 # Local mode, HTTP
 ```
 
 See [MCP Server Guide](./mcp.md) for configuration details.
@@ -669,7 +678,7 @@ Update Spikes CLI and widget to the latest version.
 spikes update
 ```
 
-**Description:** Fetches the latest release from GitHub and updates the binary.
+**Description:** Checks crates.io for the latest version and runs `cargo install spikes --force` to update.
 
 **Examples:**
 ```bash
