@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS spikes (
     timestamp TEXT NOT NULL,
     viewport TEXT,
     user_agent TEXT,
-    share_id TEXT
+    share_id TEXT,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    resolved_at TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_spikes_project ON spikes(project);

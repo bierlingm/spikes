@@ -25,6 +25,8 @@ interface Spike {
   viewport: string | null;
   user_agent: string | null;
   share_id: string | null;
+  resolved: number;
+  resolved_at: string | null;
 }
 
 interface ShareRow {
@@ -37,7 +39,7 @@ interface ShareRow {
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
@@ -121,6 +123,21 @@ export default {
       const ownerToken = getBearerToken(request);
       if (!ownerToken) return errorResponse('Unauthorized', 401);
       return handleDeleteShare(shareIdMatch[1], ownerToken, env);
+    }
+
+    // PATCH /spikes/:id — resolve/unresolve a spike (bearer auth)
+    const spikeIdMatch = path.match(/^\/spikes\/([^\/]+)$/);
+    if (spikeIdMatch && request.method === 'PATCH') {
+      const ownerToken = getBearerToken(request);
+      if (!ownerToken) return errorResponse('Unauthorized', 401);
+      return handleResolveSpike(spikeIdMatch[1], request, env);
+    }
+
+    // DELETE /spikes/:id — delete a spike (bearer auth)
+    if (spikeIdMatch && request.method === 'DELETE') {
+      const ownerToken = getBearerToken(request);
+      if (!ownerToken) return errorResponse('Unauthorized', 401);
+      return handleDeleteSpike(spikeIdMatch[1], env);
     }
 
     // GET /s/* — serve shared projects
@@ -306,4 +323,50 @@ async function handleShareRoute(path: string, env: Env): Promise<Response> {
   return new Response(body, {
     headers: { 'Content-Type': contentType, ...corsHeaders },
   });
+}
+
+async function handleResolveSpike(id: string, request: Request, env: Env): Promise<Response> {
+  let body: { resolved?: boolean };
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse('Invalid JSON');
+  }
+
+  if (typeof body.resolved !== 'boolean') {
+    return errorResponse('resolved must be a boolean');
+  }
+
+  try {
+    if (body.resolved) {
+      const resolvedAt = new Date().toISOString();
+      const result = await env.DB.prepare(
+        'UPDATE spikes SET resolved = 1, resolved_at = ? WHERE id = ?'
+      ).bind(resolvedAt, id).run();
+      if ((result.meta?.changes ?? 0) === 0) return errorResponse('Spike not found', 404);
+      return jsonResponse({ ok: true, id, resolved: true, resolved_at: resolvedAt });
+    } else {
+      const result = await env.DB.prepare(
+        'UPDATE spikes SET resolved = 0, resolved_at = NULL WHERE id = ?'
+      ).bind(id).run();
+      if ((result.meta?.changes ?? 0) === 0) return errorResponse('Spike not found', 404);
+      return jsonResponse({ ok: true, id, resolved: false, resolved_at: null });
+    }
+  } catch (e) {
+    console.error('Resolve spike error:', e);
+    return errorResponse('Failed to update spike', 500);
+  }
+}
+
+async function handleDeleteSpike(id: string, env: Env): Promise<Response> {
+  try {
+    const result = await env.DB.prepare(
+      'DELETE FROM spikes WHERE id = ?'
+    ).bind(id).run();
+    if ((result.meta?.changes ?? 0) === 0) return errorResponse('Spike not found', 404);
+    return jsonResponse({ ok: true, id });
+  } catch (e) {
+    console.error('Delete spike error:', e);
+    return errorResponse('Failed to delete spike', 500);
+  }
 }

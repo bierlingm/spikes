@@ -1475,16 +1475,44 @@ async fn resolve_spike_local(args: ResolveSpikeArgs) -> std::result::Result<Call
 
 /// Remote implementation of resolve_spike
 async fn resolve_spike_remote(
-    _args: ResolveSpikeArgs,
-    _token: &str,
-    _api_base: &str,
+    args: ResolveSpikeArgs,
+    token: &str,
+    api_base: &str,
 ) -> std::result::Result<CallToolResult, McpError> {
-    // The hosted API does not have a PATCH /spikes/:id endpoint
-    // This is a placeholder until the backend adds this route
-    Err(McpError::invalid_request(
-        "resolve_spike is not yet supported in remote mode — hosted API does not have a PATCH /spikes/:id endpoint",
-        None,
-    ))
+    let url = format!("{}/spikes/{}", api_base.trim_end_matches('/'), urlencoding::encode(&args.spike_id));
+
+    let body = serde_json::json!({ "resolved": true });
+
+    let response = match ureq::request("PATCH", &url)
+        .set("Authorization", &format!("Bearer {}", token))
+        .set("Content-Type", "application/json")
+        .send_json(&body)
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body_text = response.into_string().ok();
+            let err = map_http_error(status, body_text.as_deref());
+            return Err(map_error_to_mcp(&err));
+        }
+        Err(e) => {
+            let err = map_network_error(&e.to_string());
+            return Err(McpError::internal_error(err.to_string(), None));
+        }
+    };
+
+    let body_text = response.into_string().ok();
+    let parsed: Option<serde_json::Value> = body_text.and_then(|b| serde_json::from_str(&b).ok());
+
+    let resolved_at = parsed
+        .as_ref()
+        .and_then(|p| p.get("resolved_at"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("now");
+
+    Ok(CallToolResult::success(vec![Content::text(format!(
+        "Spike [{}] resolved via API.\n  Resolved at: {}",
+        &args.spike_id, resolved_at
+    ))]))
 }
 
 /// Local implementation of delete_spike
@@ -1511,16 +1539,41 @@ async fn delete_spike_local(args: DeleteSpikeArgs) -> std::result::Result<CallTo
 
 /// Remote implementation of delete_spike
 async fn delete_spike_remote(
-    _args: DeleteSpikeArgs,
-    _token: &str,
-    _api_base: &str,
+    args: DeleteSpikeArgs,
+    token: &str,
+    api_base: &str,
 ) -> std::result::Result<CallToolResult, McpError> {
-    // The hosted API does not have a DELETE /spikes/:id endpoint
-    // This is a placeholder until the backend adds this route
-    Err(McpError::invalid_request(
-        "delete_spike is not yet supported in remote mode — hosted API does not have a DELETE /spikes/:id endpoint",
-        None,
-    ))
+    let url = format!("{}/spikes/{}", api_base.trim_end_matches('/'), urlencoding::encode(&args.spike_id));
+
+    let response = match ureq::request("DELETE", &url)
+        .set("Authorization", &format!("Bearer {}", token))
+        .call()
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body_text = response.into_string().ok();
+            let err = map_http_error(status, body_text.as_deref());
+            return Err(map_error_to_mcp(&err));
+        }
+        Err(e) => {
+            let err = map_network_error(&e.to_string());
+            return Err(McpError::internal_error(err.to_string(), None));
+        }
+    };
+
+    let body_text = response.into_string().ok();
+    let parsed: Option<serde_json::Value> = body_text.and_then(|b| serde_json::from_str(&b).ok());
+
+    let spike_id = parsed
+        .as_ref()
+        .and_then(|p| p.get("id"))
+        .and_then(|v| v.as_str())
+        .unwrap_or(&args.spike_id);
+
+    Ok(CallToolResult::success(vec![Content::text(format!(
+        "Spike [{}] deleted via API.",
+        spike_id
+    ))]))
 }
 
 /// URL encoding helper (simple implementation)
@@ -2881,39 +2934,29 @@ mod tests {
     }
 
     // ========================================
-    // Unit Tests for Remote Mode Unsupported Operations
+    // Unit Tests for Remote Mode Write Operations
     // ========================================
 
     #[tokio::test]
-    async fn test_resolve_spike_remote_returns_unsupported_error() {
+    async fn test_resolve_spike_remote_returns_connection_error_without_server() {
         let args = ResolveSpikeArgs {
             spike_id: "any-id".to_string(),
         };
 
-        let result = resolve_spike_remote(args, "test-token", "http://localhost").await;
-
-        assert!(result.is_err(), "resolve_spike_remote should return Err (unsupported)");
-        let err = result.unwrap_err();
-        let err_str = format!("{:?}", err);
-
-        assert!(err_str.contains("invalid_request") || err_str.contains("not yet supported"),
-            "Error should indicate operation not supported");
+        // Without a real server, this should return a connection error (not "unsupported")
+        let result = resolve_spike_remote(args, "test-token", "http://127.0.0.1:1").await;
+        assert!(result.is_err(), "resolve_spike_remote should error without a server");
     }
 
     #[tokio::test]
-    async fn test_delete_spike_remote_returns_unsupported_error() {
+    async fn test_delete_spike_remote_returns_connection_error_without_server() {
         let args = DeleteSpikeArgs {
             spike_id: "any-id".to_string(),
         };
 
-        let result = delete_spike_remote(args, "test-token", "http://localhost").await;
-
-        assert!(result.is_err(), "delete_spike_remote should return Err (unsupported)");
-        let err = result.unwrap_err();
-        let err_str = format!("{:?}", err);
-
-        assert!(err_str.contains("invalid_request") || err_str.contains("not yet supported"),
-            "Error should indicate operation not supported");
+        // Without a real server, this should return a connection error (not "unsupported")
+        let result = delete_spike_remote(args, "test-token", "http://127.0.0.1:1").await;
+        assert!(result.is_err(), "delete_spike_remote should error without a server");
     }
 
     // ========================================
