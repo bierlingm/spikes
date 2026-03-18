@@ -15,7 +15,7 @@ There are two main use cases:
 - **Reviewing your own agent's work** — You build with Claude Code or Cursor, then spike elements that need changes instead of describing them in chat
 - **Collecting feedback from others** — Share a link with your team, client, or friends. They click and comment. You get structured JSON instead of scattered WhatsApp messages
 
-The widget is 8KB gzipped, has zero dependencies, works on `file://`, `localhost`, and any domain. No accounts needed. Feedback is stored in localStorage by default, or synced to your own backend for multi-reviewer workflows.
+The widget is 14KB gzipped, has zero dependencies, works on `file://`, `localhost`, and any domain. No accounts needed. Feedback is stored in localStorage by default, or synced to your own backend for multi-reviewer workflows.
 
 ## Installation
 

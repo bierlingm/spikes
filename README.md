@@ -5,7 +5,7 @@
 **The feedback loop for AI-assisted building**
 
 [![MIT License](https://img.shields.io/badge/license-MIT-e74c3c?style=flat-square)](LICENSE)
-[![Widget Size](https://img.shields.io/badge/widget-8KB_gzipped-22c55e?style=flat-square)](#)
+[![Widget Size](https://img.shields.io/badge/widget-14KB_gzipped-22c55e?style=flat-square)](#)
 [![Free + Pro](https://img.shields.io/badge/free_+_pro-3b82f6?style=flat-square)](#pricing)
 
 AI can build a prototype in an hour.<br>
@@ -225,7 +225,7 @@ Spikes has three components that work together or standalone:
 
 **CLI** — Rust binary for local development, spike management, and deployment. Stores spikes in `~/.local/share/spikes/`.
 
-**Widget** — 8KB gzipped vanilla JS. Captures element selectors, bounding boxes, ratings, and comments. Works offline via localStorage.
+**Widget** — 14KB gzipped vanilla JS. Captures element selectors, bounding boxes, ratings, and comments. Works offline via localStorage.
 
 **Worker** — Optional Cloudflare Worker + D1 backend for multi-reviewer sync, sharing, and hosted deployments. Lives in `spikes-hosted/`.
 
@@ -304,7 +304,7 @@ See [Self-Hosting Guide](docs/self-hosting.md) for full setup with D1 database, 
 | **Precise** | Element-level feedback with exact CSS selectors |
 | **Agent-native** | JSON everywhere, pipes, queryable CLI |
 | **Your infrastructure** | Self-host or use hosted — your choice |
-| **Tiny** | Widget is 8KB gzipped |
+| **Tiny** | Widget is 14KB gzipped |
 | **Private** | No tracking, your data stays yours |
 
 ---

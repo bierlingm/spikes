@@ -15,7 +15,7 @@ Spikes speaks like a well-made tool: direct, precise, and quietly confident. The
 - "Pinpoint any element" not "intuitive interface"
 - "Zero friction" not "seamless experience"
 - "Your data, your control" not "enterprise-grade security"
-- "8KB gzipped" not "lightning fast"
+- "14KB gzipped" not "lightning fast"
 - "Spike us back" not "Support our work"
 
 ## What We Don't Say

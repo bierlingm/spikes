@@ -259,7 +259,7 @@ curl -X POST https://spikes.sh/spikes \
 |--------|----------------------------------------------------|------------------------------|
 | stdio  | `spikes mcp serve`                                 | Claude Desktop, Cursor       |
 | HTTP   | `spikes mcp serve --transport http --port 3848`    | Sandboxed agents (Devin, Codex) |
-| Remote | `spikes mcp serve --remote`                        | Read/write against hosted API|
+| Remote | `spikes mcp serve --remote`                        | Read + submit against hosted API (resolve/delete local only)|
 
 Modes compose: `spikes mcp serve --transport http --remote` serves MCP over HTTP using the hosted API.
 

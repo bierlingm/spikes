@@ -11,7 +11,7 @@ Spikes solves the feedback loop problem in AI-assisted development. Building pro
 2. **Collecting feedback from others** — Share a link, they spike it, you get JSON for your agent
 
 **Components:**
-- **Widget**: Vanilla JS that injects a floating feedback button (<10KB gzipped)
+- **Widget**: Vanilla JS that injects a floating feedback button (~14KB gzipped)
 - **CLI**: Rust binary with robot-friendly JSON output
 - **Data**: Stored in `.spikes/feedback.jsonl` (one spike per line)
 
@@ -322,12 +322,6 @@ Sync feedback with a remote endpoint.
 ```bash
 spikes pull [--endpoint <URL>]
 spikes push [--endpoint <URL>]
-```
-
-### spikes dashboard
-Launch interactive TUI dashboard.
-```bash
-spikes dashboard
 ```
 
 ---
