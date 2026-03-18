@@ -74,7 +74,7 @@ impl AuthConfig {
         let config: AuthConfig = toml::from_str(&content).map_err(|e| {
             Error::Io(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Invalid auth.toml: {}", e),
+                format!("Invalid auth.toml at {}: {}\nHint: Delete the file and run `spikes login` again.", auth_path.display(), e),
             ))
         })?;
 
@@ -193,7 +193,7 @@ impl AuthConfig {
         let config: AuthConfig = toml::from_str(&content).map_err(|e| {
             Error::Io(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("Invalid auth.toml: {}", e),
+                format!("Invalid auth.toml at {}: {}\nHint: Delete the file and run `spikes login` again.", auth_path.display(), e),
             ))
         })?;
 
@@ -310,7 +310,7 @@ mod tests {
             .map_err(|e| {
                 Error::Io(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Invalid auth.toml: {}", e),
+                    format!("Invalid auth.toml at {}: {}\nHint: Delete the file and run `spikes login` again.", auth_path.display(), e),
                 ))
             });
 

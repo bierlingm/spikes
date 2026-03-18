@@ -33,7 +33,7 @@ Click any element. Rate it. Comment. Spikes captures the exact CSS selector, bou
 
 ```bash
 curl -fsSL https://spikes.sh/install.sh | sh
-# Or: cargo install spikes-cli
+# Or: cargo install spikes
 ```
 
 ### 2. Add the widget to your HTML

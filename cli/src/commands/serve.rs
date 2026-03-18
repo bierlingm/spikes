@@ -89,6 +89,17 @@ pub fn run(opts: ServeOptions) -> Result<()> {
 
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
+        let listener = match tokio::net::TcpListener::bind(addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error: Could not start server on port {}: {}", port, e);
+                if e.kind() == std::io::ErrorKind::AddrInUse {
+                    eprintln!("Hint: Another process is using port {}. Try a different port with --port <PORT>", port);
+                }
+                std::process::exit(1);
+            }
+        };
+
         println!();
         println!("  🗡️  Spikes server running");
         println!();
@@ -105,7 +116,6 @@ pub fn run(opts: ServeOptions) -> Result<()> {
         println!("  Press Ctrl+C to stop");
         println!();
 
-        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
         axum::serve(listener, app).await.unwrap();
     });
 
