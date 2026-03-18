@@ -28,3 +28,7 @@ Cargo.lock
 
 # bv (beads viewer) local config and caches
 .bv/
+
+# Local workspace state
+.werk/
+.factory/
