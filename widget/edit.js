@@ -114,11 +114,6 @@
             if (editMode) return;
             editMode = true;
 
-            // Exit spike mode if active
-            if (window.Spikes._exitSpikeMode) {
-                window.Spikes._exitSpikeMode();
-            }
-
             // Walk DOM and make text elements editable
             var all = document.querySelectorAll('*');
             for (var i = 0; i < all.length; i++) {
@@ -549,6 +544,8 @@
         }
 
         // Keyboard shortcuts
+        var optionArmed = false;
+
         document.addEventListener('keydown', function(e) {
             if (e.metaKey && e.key === 's' && editMode) {
                 e.preventDefault();
@@ -556,6 +553,24 @@
             }
             if (e.key === 'Escape') {
                 closeDiff();
+            }
+            // Option key activates spikes armed mode
+            if (e.key === 'Alt' && !optionArmed && editMode) {
+                var active = document.activeElement;
+                var isEditing = active && active.getAttribute('contenteditable') === 'true';
+                if (!isEditing) {
+                    optionArmed = true;
+                    var btn = document.getElementById('spikes-btn');
+                    if (btn) btn.click();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', function(e) {
+            if (e.key === 'Alt' && optionArmed) {
+                optionArmed = false;
+                var btn = document.getElementById('spikes-btn');
+                if (btn) btn.click();
             }
         });
 

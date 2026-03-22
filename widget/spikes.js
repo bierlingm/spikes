@@ -873,10 +873,6 @@
     }
     
     function enterArmedMode() {
-        // Exit edit mode if active (modes are mutually exclusive)
-        if (window.Spikes._exitEditMode) {
-            window.Spikes._exitEditMode();
-        }
         spikeMode = 'armed';
         document.body.style.cursor = 'crosshair';
         
