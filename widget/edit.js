@@ -192,6 +192,7 @@
             var edited = document.querySelectorAll('[data-spikes-edited]');
             editCount = edited.length;
             updateEditPill();
+            updateToolbarStatus();
         }
 
         function getChanges() {
@@ -289,27 +290,128 @@
             if (styleEl) return;
             styleEl = document.createElement('style');
             styleEl.id = 'spikes-edit-styles';
-            var editColor = config.color;
             styleEl.textContent = [
                 '[contenteditable="true"] {',
                 '  outline: none;',
-                '  transition: background-color 0.15s;',
-                '  border-radius: 3px;',
+                '  transition: box-shadow 0.15s;',
                 '}',
                 '[contenteditable="true"]:hover {',
-                '  background-color: rgba(255,255,255,0.04);',
+                '  box-shadow: inset 0 0 0 1px rgba(212, 160, 74, 0.3);',
                 '  cursor: text;',
                 '}',
                 '[contenteditable="true"]:focus {',
-                '  background-color: rgba(255,255,255,0.06);',
-                '  outline: 1px dashed ' + editColor + '44;',
-                '  outline-offset: 2px;',
+                '  box-shadow: inset 0 0 0 2px rgba(212, 160, 74, 0.6);',
                 '}',
                 '[data-spikes-edited] {',
-                '  background-color: rgba(34,197,94,0.08) !important;',
+                '  box-shadow: inset 0 0 0 2px rgba(100, 200, 100, 0.5) !important;',
+                '  position: relative;',
+                '}',
+                '[data-spikes-edited]::after {',
+                '  content: "edited";',
+                '  position: absolute;',
+                '  top: -8px;',
+                '  right: -4px;',
+                '  font-size: 9px;',
+                '  color: #0a0a0a;',
+                '  background: #64c864;',
+                '  padding: 1px 5px;',
+                '  border-radius: 3px;',
+                '  font-family: ui-monospace, "SF Mono", Monaco, monospace;',
+                '  pointer-events: none;',
+                '}',
+                '#spikes-edit-toolbar {',
+                '  position: fixed;',
+                '  bottom: 24px;',
+                '  left: 50%;',
+                '  transform: translateX(-50%);',
+                '  z-index: 2147483645;',
+                '  display: flex;',
+                '  gap: 8px;',
+                '  padding: 10px 16px;',
+                '  background: rgba(20, 20, 20, 0.95);',
+                '  backdrop-filter: blur(12px);',
+                '  -webkit-backdrop-filter: blur(12px);',
+                '  border: 1px solid #333;',
+                '  border-radius: 12px;',
+                '  box-shadow: 0 8px 32px rgba(0,0,0,0.5);',
+                '  font-family: ui-monospace, "SF Mono", Monaco, monospace;',
+                '  font-size: 13px;',
+                '}',
+                '#spikes-edit-toolbar button {',
+                '  padding: 8px 16px;',
+                '  border: 1px solid #444;',
+                '  border-radius: 6px;',
+                '  background: #1a1a1a;',
+                '  color: #ccc;',
+                '  font-family: inherit;',
+                '  font-size: 12px;',
+                '  cursor: pointer;',
+                '  transition: all 0.15s;',
+                '  white-space: nowrap;',
+                '}',
+                '#spikes-edit-toolbar button:hover {',
+                '  background: #2a2a2a;',
+                '  border-color: #d4a04a;',
+                '  color: #d4a04a;',
+                '}',
+                '#spikes-edit-toolbar .spikes-edit-status {',
+                '  color: #666;',
+                '  font-size: 11px;',
+                '  display: flex;',
+                '  align-items: center;',
+                '  padding: 0 8px;',
+                '}',
+                '#spikes-edit-toolbar .spikes-edit-divider {',
+                '  width: 1px;',
+                '  background: #333;',
+                '  margin: 0 4px;',
+                '}',
+                '#spikes-diff-modal {',
+                '  display: none;',
+                '  position: fixed;',
+                '  inset: 0;',
+                '  z-index: 2147483647;',
+                '  background: rgba(0,0,0,0.8);',
+                '  backdrop-filter: blur(4px);',
+                '}',
+                '#spikes-diff-modal.visible {',
+                '  display: flex;',
+                '  align-items: center;',
+                '  justify-content: center;',
+                '}',
+                '#spikes-diff-content {',
+                '  background: #111;',
+                '  border: 1px solid #333;',
+                '  border-radius: 12px;',
+                '  width: 90vw;',
+                '  max-width: 900px;',
+                '  max-height: 80vh;',
+                '  overflow: auto;',
+                '  padding: 24px;',
+                '  font-family: ui-monospace, "SF Mono", Monaco, monospace;',
+                '  font-size: 13px;',
+                '  color: #ccc;',
+                '}',
+                '#spikes-diff-content h3 { color: #d4a04a; margin-bottom: 16px; }',
+                '#spikes-diff-content .diff-entry { margin-bottom: 16px; padding: 12px; background: #1a1a1a; border-radius: 8px; }',
+                '#spikes-diff-content .diff-selector { color: #666; font-size: 11px; margin-bottom: 6px; }',
+                '#spikes-diff-content .diff-old { color: #e06060; }',
+                '#spikes-diff-content .diff-new { color: #60c060; }',
+                '#spikes-diff-content .diff-old::before { content: "- "; }',
+                '#spikes-diff-content .diff-new::before { content: "+ "; }',
+                '#spikes-diff-modal .close-modal {',
+                '  position: absolute;',
+                '  top: 20px;',
+                '  right: 20px;',
+                '  background: none;',
+                '  border: none;',
+                '  color: #666;',
+                '  font-size: 24px;',
+                '  cursor: pointer;',
                 '}'
             ].join('\n');
             document.head.appendChild(styleEl);
+            createToolbar();
         }
 
         function removeEditStyles() {
@@ -317,7 +419,145 @@
                 styleEl.remove();
                 styleEl = null;
             }
+            removeToolbar();
         }
+
+        // --- Toolbar + Diff Modal ---
+
+        var toolbar = null;
+        var diffModal = null;
+        var statusEl = null;
+
+        function createToolbar() {
+            if (toolbar) return;
+
+            toolbar = document.createElement('div');
+            toolbar.id = 'spikes-edit-toolbar';
+
+            statusEl = document.createElement('span');
+            statusEl.className = 'spikes-edit-status';
+            statusEl.textContent = '0 changes';
+
+            var div1 = document.createElement('div');
+            div1.className = 'spikes-edit-divider';
+
+            var diffBtn = document.createElement('button');
+            diffBtn.textContent = 'Diff';
+            diffBtn.title = 'Show what changed';
+            diffBtn.onclick = showDiff;
+
+            var exportBtn = document.createElement('button');
+            exportBtn.textContent = 'Export JSON';
+            exportBtn.title = 'Export edits as JSON for AI agents';
+            exportBtn.onclick = exportJSON;
+
+            var resetBtn = document.createElement('button');
+            resetBtn.textContent = 'Reset';
+            resetBtn.title = 'Revert all edits';
+            resetBtn.onclick = function() {
+                if (confirm('Revert all edits?')) clearEdits();
+            };
+
+            toolbar.appendChild(statusEl);
+            toolbar.appendChild(div1);
+            toolbar.appendChild(diffBtn);
+            toolbar.appendChild(exportBtn);
+            toolbar.appendChild(resetBtn);
+
+            // Diff modal
+            diffModal = document.createElement('div');
+            diffModal.id = 'spikes-diff-modal';
+            var closeBtn = document.createElement('button');
+            closeBtn.className = 'close-modal';
+            closeBtn.innerHTML = '&times;';
+            closeBtn.onclick = closeDiff;
+            var diffContent = document.createElement('div');
+            diffContent.id = 'spikes-diff-content';
+            diffModal.appendChild(closeBtn);
+            diffModal.appendChild(diffContent);
+
+            document.body.appendChild(toolbar);
+            document.body.appendChild(diffModal);
+        }
+
+        function removeToolbar() {
+            if (toolbar) { toolbar.remove(); toolbar = null; }
+            if (diffModal) { diffModal.remove(); diffModal = null; }
+            statusEl = null;
+        }
+
+        function updateToolbarStatus() {
+            if (statusEl) {
+                statusEl.textContent = editCount + ' change' + (editCount !== 1 ? 's' : '');
+            }
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function showDiff() {
+            var changes = getChanges();
+            var content = document.getElementById('spikes-diff-content');
+            if (!content) return;
+
+            if (changes.length === 0) {
+                content.innerHTML = '<h3>No Changes</h3><p style="color:#666">Click any text on the page to edit it inline.</p>';
+            } else {
+                var html = '<h3>' + changes.length + ' Change' + (changes.length !== 1 ? 's' : '') + '</h3>';
+                for (var i = 0; i < changes.length; i++) {
+                    var c = changes[i];
+                    html += '<div class="diff-entry">';
+                    html += '<div class="diff-selector">' + escHtml(c.selector) + ' &lt;' + c.tag + '&gt;</div>';
+                    html += '<div class="diff-old">' + escHtml(c.original) + '</div>';
+                    html += '<div class="diff-new">' + escHtml(c.updated) + '</div>';
+                    html += '</div>';
+                }
+                content.innerHTML = html;
+            }
+            diffModal.classList.add('visible');
+        }
+
+        function closeDiff() {
+            if (diffModal) diffModal.classList.remove('visible');
+        }
+
+        function exportJSON() {
+            var changes = getChanges();
+            var spikesFeedback = [];
+            try {
+                if (window.Spikes && window.Spikes.getSpikes) {
+                    spikesFeedback = window.Spikes.getSpikes();
+                }
+            } catch(e) {}
+
+            var data = {
+                timestamp: new Date().toISOString(),
+                copy_changes: changes,
+                spikes_feedback: spikesFeedback
+            };
+
+            if (changes.length === 0 && spikesFeedback.length === 0) {
+                alert('No changes or feedback to export.');
+                return;
+            }
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+                alert('Copied ' + (changes.length + spikesFeedback.length) + ' items to clipboard.\nPaste into your AI agent.');
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.metaKey && e.key === 's' && editMode) {
+                e.preventDefault();
+                exportJSON();
+            }
+            if (e.key === 'Escape') {
+                closeDiff();
+            }
+        });
 
         function createEditButton() {
             var container = document.getElementById('spikes-container');
