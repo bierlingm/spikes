@@ -289,20 +289,24 @@
             if (styleEl) return;
             styleEl = document.createElement('style');
             styleEl.id = 'spikes-edit-styles';
+            var editColor = config.color;
             styleEl.textContent = [
                 '[contenteditable="true"] {',
                 '  outline: none;',
-                '  transition: box-shadow 0.15s;',
+                '  transition: background-color 0.15s;',
+                '  border-radius: 3px;',
                 '}',
                 '[contenteditable="true"]:hover {',
-                '  box-shadow: inset 3px 0 0 ' + config.color + ';',
+                '  background-color: rgba(255,255,255,0.04);',
                 '  cursor: text;',
                 '}',
                 '[contenteditable="true"]:focus {',
-                '  box-shadow: inset 3px 0 0 ' + config.color + ';',
+                '  background-color: rgba(255,255,255,0.06);',
+                '  outline: 1px dashed ' + editColor + '44;',
+                '  outline-offset: 2px;',
                 '}',
                 '[data-spikes-edited] {',
-                '  box-shadow: inset 3px 0 0 #22c55e !important;',
+                '  background-color: rgba(34,197,94,0.08) !important;',
                 '}'
             ].join('\n');
             document.head.appendChild(styleEl);
