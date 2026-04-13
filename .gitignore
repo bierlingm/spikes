@@ -32,6 +32,8 @@ Cargo.lock
 # Local workspace state
 .werk/
 .factory/
+.claude/
+codedb.snapshot
 
 # Remotion demo video
 /video/node_modules/

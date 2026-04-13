@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@redwoodjs/agent-ci": "^0.6.0"
+  }
+}
