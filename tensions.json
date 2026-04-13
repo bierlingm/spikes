@@ -1,0 +1,297 @@
+{
+  "flushed_at": "2026-04-13T15:58:49Z",
+  "summary": {
+    "active": 6,
+    "released": 0,
+    "resolved": 20,
+    "total": 26
+  },
+  "tensions": [
+    {
+      "actual": "Technically complete: 30 CLI commands, 9 MCP tools, Stripe billing, magic link auth, cross-platform binaries, self-hosting. 0 paying users. Email sent to Stripe projects.dev for partner listing. No distribution strategy, no content, no demo video. Auth UX needs upgrade to browser-based device code flow. AGENTS.md stale.",
+      "created_at": "2026-03-17T17:54:15.666021+00:00",
+      "desired": "Have 10 paying users on spikes.sh",
+      "horizon": null,
+      "id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "parent_id": null,
+      "position": null,
+      "short_code": 1,
+      "status": "Active"
+    },
+    {
+      "actual": "Multiple half-finished features, outdated docs, 26 stale GitHub issues",
+      "created_at": "2026-03-17T17:54:23.473322+00:00",
+      "desired": "Product is clean, polished, and finished",
+      "horizon": "2026-04",
+      "id": "01KKYEYFKHEPTPTNVG3NGS4V18",
+      "parent_id": null,
+      "position": null,
+      "short_code": 2,
+      "status": "Resolved"
+    },
+    {
+      "actual": "All 26 issues (10 spikes + 16 spikes-hosted) already closed",
+      "created_at": "2026-03-17T17:54:29.275425+00:00",
+      "desired": "All resolved GitHub issues are closed with commit references",
+      "horizon": "2026-03-25",
+      "id": "01KKYEYN8V3SKE8ST4ETTGX5FZ",
+      "parent_id": null,
+      "position": null,
+      "short_code": 3,
+      "status": "Resolved"
+    },
+    {
+      "actual": "OVERHAUL.md and shaping.md deleted (git history preserves them)",
+      "created_at": "2026-03-17T17:54:29.305481+00:00",
+      "desired": "Outdated planning docs archived or deleted",
+      "horizon": "2026-03-22",
+      "id": "01KKYEYN9SQWXAXXX2553G3G4E",
+      "parent_id": null,
+      "position": null,
+      "short_code": 4,
+      "status": "Resolved"
+    },
+    {
+      "actual": "misc-2 and misc-post-release validation dirs deleted",
+      "created_at": "2026-03-17T17:54:29.333768+00:00",
+      "desired": "Validation reports reflect current state",
+      "horizon": "2026-03-25",
+      "id": "01KKYEYNANQ3JKB1JV6W6NXREF",
+      "parent_id": null,
+      "position": null,
+      "short_code": 5,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Removed phantom 'spikes dashboard' from llms-full.txt, fixed widget size (8KB→14KB) across all docs, corrected remote mode claim in agents.md",
+      "created_at": "2026-03-17T17:54:29.361177+00:00",
+      "desired": "Agent discovery pages accurate against shipped features",
+      "horizon": "2026-03-25",
+      "id": "01KKYEYNBH69WWTJQK68QTXSF2",
+      "parent_id": null,
+      "position": null,
+      "short_code": 6,
+      "status": "Resolved"
+    },
+    {
+      "actual": "MCP server is read-only, no write tools or remote mode",
+      "created_at": "2026-03-17T17:54:33.755808+00:00",
+      "desired": "Agents can act on feedback through MCP",
+      "horizon": "2026-05",
+      "id": "01KKYEYSMVAQW0HHGEG5656QXD",
+      "parent_id": null,
+      "position": null,
+      "short_code": 7,
+      "status": "Resolved"
+    },
+    {
+      "actual": "resolve_spike and delete_spike now work in both local and remote mode. PATCH/DELETE /spikes/:id endpoints added to hosted worker and self-hosting template.",
+      "created_at": "2026-03-17T17:54:38.724542+00:00",
+      "desired": "MCP write tools ship (submit, resolve, delete spikes)",
+      "horizon": "2026-04-15",
+      "id": "01KKYEYYG4C227D65AC5EF5HSP",
+      "parent_id": null,
+      "position": null,
+      "short_code": 8,
+      "status": "Resolved"
+    },
+    {
+      "actual": "PATCH/DELETE endpoints added to hosted API. resolved/resolved_at columns added to schema with migration. MCP client wired up.",
+      "created_at": "2026-03-17T17:54:38.756855+00:00",
+      "desired": "MCP works against remote hosted backend",
+      "horizon": "2026-05",
+      "id": "01KKYEYYH4YT4DV97X474B25QJ",
+      "parent_id": null,
+      "position": null,
+      "short_code": 9,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Full onboarding flow verified and working end-to-end: local (init→inject→serve→feedback→list) and hosted (login via magic link email→share→share-link→shares). All technical blockers resolved. Magic link emails delivered via Resend from login@spikes.sh, verify landing page works, CLI poll detects verification. Only non-technical work remains: getting actual users.",
+      "created_at": "2026-03-17T17:54:43.225198+00:00",
+      "desired": "New user goes from discovery to first feedback to value with no confusion",
+      "horizon": "2026-04",
+      "id": "01KKYEZ2WSVQEMZV5R2VAWVQQF",
+      "parent_id": null,
+      "position": null,
+      "short_code": 10,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Fixed: removed phantom commands (dashboard), corrected CLI flags (list --type, export --output, inject flags), fixed env var names, updated MCP tool count and options, fixed install command",
+      "created_at": "2026-03-17T17:54:47.895489+00:00",
+      "desired": "Landing page and docs reflect only what's actually shipped",
+      "horizon": "2026-04",
+      "id": "01KKYEZ7EQWE9YRNXG6477CAP3",
+      "parent_id": null,
+      "position": null,
+      "short_code": 11,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Full flow verified end-to-end including hosted: init→inject→serve→feedback→list, login→share→share-link-live→shares-list all work. Fixed: port panic, auth.toml hints, README crate name, crates.io published (0.3.2), update command uses GitHub releases, D1 migrations applied (prod+staging), added GET /auth/poll to worker for CLI login, deployed. Remaining gap: magic link email not sent (no email service configured), workaround is --token flag.",
+      "created_at": "2026-03-17T17:54:47.926708+00:00",
+      "desired": "Install → first feedback → value moment is smooth and documented",
+      "horizon": "2026-04",
+      "id": "01KKYEZ7FPDVPXFNHS1HYPPE56",
+      "parent_id": null,
+      "position": null,
+      "short_code": 12,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Device code flow works end-to-end but confirm step only asks for email without verifying it. Need: browser session cookie for instant confirm when already authenticated, email verification fallback for first-time users. Hybrid approach (option 3).",
+      "created_at": "2026-03-27T18:24:14.354214+00:00",
+      "desired": "Browser-based CLI auth flow (device code pattern)",
+      "horizon": null,
+      "id": "01KMR8MAGJDH225HGVHVM2MZHX",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 13,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Listed on Smithery only. Not in any official IDE MCP directories.",
+      "created_at": "2026-03-27T18:24:15.136576+00:00",
+      "desired": "Get listed in MCP directories (Claude, Cursor, Windsurf)",
+      "horizon": null,
+      "id": "01KMR8MB90SRA3C7DWJRTBWVZX",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 14,
+      "status": "Active"
+    },
+    {
+      "actual": "No demo video exists. Plan: build with Remotion (React-based video). Show: AI builds → inject widget → collect feedback → AI fixes. 90 seconds.",
+      "created_at": "2026-03-27T18:24:16.055752+00:00",
+      "desired": "Record 90-second demo video of full feedback loop using Remotion",
+      "horizon": null,
+      "id": "01KMR8MC5QPTGCXPTNV2VWYN8X",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 15,
+      "status": "Active"
+    },
+    {
+      "actual": "Email sent to Stripe projects.dev team. Awaiting response.",
+      "created_at": "2026-03-27T18:24:16.980776+00:00",
+      "desired": "Stripe projects.dev partner listing",
+      "horizon": null,
+      "id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 16,
+      "status": "Active"
+    },
+    {
+      "actual": "Starting work. Need to read current pricing section and Stripe product configuration to understand what's being sold.",
+      "created_at": "2026-03-27T18:24:18.680596+00:00",
+      "desired": "Sharpen pricing page — concrete tiers, clear value",
+      "horizon": null,
+      "id": "01KMR8MEQR1YPPNCFYK4MNVBY1",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 17,
+      "status": "Active"
+    },
+    {
+      "actual": "No content marketing exists. The audience (AI-assisted builders) is active but doesn't know spikes exists.",
+      "created_at": "2026-03-27T18:24:26.430860+00:00",
+      "desired": "Write vibe-coding feedback post for distribution",
+      "horizon": null,
+      "id": "01KMR8MP9Y2GXJRHY3JZFNGS72",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 18,
+      "status": "Active"
+    },
+    {
+      "actual": "AGENTS.md references removed TUI, beads (not active), and lists shipped features as planned.",
+      "created_at": "2026-03-27T18:24:27.430325+00:00",
+      "desired": "Update AGENTS.md — remove stale references, add werk instructions",
+      "horizon": null,
+      "id": "01KMR8MQ96CJTFX9GS8V2YCXEQ",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 19,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Set up agent-ci, fixed 3 test failures and 1 clippy lint, all green",
+      "created_at": "2026-03-30T08:52:45.638555+00:00",
+      "desired": "CI passes locally via agent-ci (Docker runner)",
+      "horizon": null,
+      "id": "01KMYZ42E6YXEWNM316C7N4W1G",
+      "parent_id": null,
+      "position": null,
+      "short_code": 20,
+      "status": "Resolved"
+    },
+    {
+      "actual": "All 5 children resolved: auto-confirm removed, separate session token in both magic-link paths, CLI end-to-end verified against live worker, plaintext user_code dropped, stale site/auth/ cleaned up.",
+      "created_at": "2026-04-13T15:27:02.723641+00:00",
+      "desired": "Device code auth is phishing-resistant and end-to-end verified",
+      "horizon": null,
+      "id": "01KP3Q8323VTJYJXKED4C2F50F",
+      "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
+      "position": null,
+      "short_code": 21,
+      "status": "Resolved"
+    },
+    {
+      "actual": "handleDevicePage has setTimeout(sessionConfirm, 500) — logged-in victims sent to attacker's code URL get auto-confirmed, handing attacker a bearer token",
+      "created_at": "2026-04-13T15:27:12.921321+00:00",
+      "desired": "Device confirm requires explicit user click, no auto-submit",
+      "horizon": null,
+      "id": "01KP3Q8D0SRNZ6AE9EZBF1SPJQ",
+      "parent_id": "01KP3Q8323VTJYJXKED4C2F50F",
+      "position": null,
+      "short_code": 22,
+      "status": "Resolved"
+    },
+    {
+      "actual": "handleVerifyPage reuses CLI bearer token verbatim as spikes_session cookie; handleDeviceEmailVerify already does the right thing (mints separate token) — paths are inconsistent",
+      "created_at": "2026-04-13T15:27:12.945814+00:00",
+      "desired": "Session cookie uses a dedicated token separate from CLI bearer tokens",
+      "horizon": null,
+      "id": "01KP3Q8D1H39GBQPZF8PAQ6V42",
+      "parent_id": "01KP3Q8323VTJYJXKED4C2F50F",
+      "position": null,
+      "short_code": 23,
+      "status": "Resolved"
+    },
+    {
+      "actual": "CLI changes in cli/src/commands/login.rs are uncommitted, server is deployed but full loop never tested",
+      "created_at": "2026-04-13T15:27:12.968954+00:00",
+      "desired": "spikes login end-to-end flow verified against live worker",
+      "horizon": null,
+      "id": "01KP3Q8D280B0QE2VVGKCZJ388",
+      "parent_id": "01KP3Q8323VTJYJXKED4C2F50F",
+      "position": null,
+      "short_code": 24,
+      "status": "Resolved"
+    },
+    {
+      "actual": "user_code column stores plaintext but is never queried — only user_code_hash is used",
+      "created_at": "2026-04-13T15:27:12.991121+00:00",
+      "desired": "device_codes table stores only what it queries",
+      "horizon": null,
+      "id": "01KP3Q8D2ZX4S2BW6RM5XY2XRT",
+      "parent_id": "01KP3Q8323VTJYJXKED4C2F50F",
+      "position": null,
+      "short_code": 25,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Untracked site/auth/device.html would be shadowed by the worker route if ever committed",
+      "created_at": "2026-04-13T15:27:13.014009+00:00",
+      "desired": "No dead /auth/device assets in spikes repo",
+      "horizon": null,
+      "id": "01KP3Q8D3PYDCYWZR6SEV3CYJX",
+      "parent_id": "01KP3Q8323VTJYJXKED4C2F50F",
+      "position": null,
+      "short_code": 26,
+      "status": "Resolved"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-//! Login command - authenticate with spikes.sh via magic link or direct token
+//! Login command - authenticate with spikes.sh via browser device flow or direct token
 
 use std::io::{self, Write};
 use std::thread;
@@ -11,12 +11,39 @@ use crate::error::{map_http_error, map_network_error, Error, Result};
 
 pub struct LoginOptions {
     pub token: Option<String>,
+    pub email: bool,
     pub json: bool,
 }
 
 #[derive(Debug, Serialize)]
 struct LoginRequest {
     email: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeviceCodeResponse {
+    device_code: String,
+    user_code: String,
+    verification_url: String,
+    #[serde(default = "default_expires_in")]
+    expires_in: u64,
+    #[serde(default = "default_interval")]
+    interval: u64,
+}
+
+fn default_expires_in() -> u64 {
+    600
+}
+fn default_interval() -> u64 {
+    5
+}
+
+#[derive(Debug, Deserialize)]
+struct DevicePollResponse {
+    #[serde(default)]
+    status: String,
+    #[serde(default)]
+    token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,19 +55,181 @@ struct PollResponse {
 }
 
 pub fn run(options: LoginOptions) -> Result<()> {
-    // If token is provided directly, use it
+    // Direct token: verify and save
     if let Some(token) = options.token {
         verify_and_save_token(&token, options.json)?;
         return Ok(());
     }
 
-    // Otherwise, initiate magic link flow
+    // Email magic link flow (legacy / fallback)
+    if options.email {
+        return run_email_flow(options.json);
+    }
+
+    // Default: browser device code flow
+    run_device_flow(options.json)
+}
+
+// --- Device code flow (default) ---
+
+fn run_device_flow(json: bool) -> Result<()> {
+    let device = request_device_code()?;
+
+    let url_with_code = if device.verification_url.contains('?') {
+        format!("{}&code={}", device.verification_url, device.user_code)
+    } else {
+        format!("{}?code={}", device.verification_url, device.user_code)
+    };
+
+    if !json {
+        println!();
+        println!("  \x1b[1m\x1b[31m/\x1b[0m \x1b[1mspikes.sh\x1b[0m");
+        println!();
+        print!("  Opening browser");
+        io::stdout().flush().ok();
+    }
+
+    let browser_ok = webbrowser::open(&url_with_code).is_ok();
+
+    if !json {
+        if browser_ok {
+            println!(" \x1b[2m— confirm in your browser to continue\x1b[0m");
+        } else {
+            println!();
+            println!("  \x1b[2mOpen this URL to confirm:\x1b[0m");
+            println!("  {}", url_with_code);
+        }
+        println!();
+        print!("  \x1b[2mWaiting\x1b[0m");
+        io::stdout().flush().ok();
+    }
+
+    let token = poll_device_code(&device.device_code, device.expires_in, device.interval, json)?;
+
+    AuthConfig::save_token(&token)?;
+
+    if json {
+        println!(
+            "{}",
+            serde_json::json!({
+                "success": true,
+                "message": "Logged in successfully"
+            })
+        );
+    } else {
+        // Clear the "Waiting..." line
+        print!("\r\x1b[K");
+        println!("  \x1b[32m✓\x1b[0m Logged in");
+        println!();
+    }
+
+    Ok(())
+}
+
+fn request_device_code() -> Result<DeviceCodeResponse> {
+    let api_base = get_api_base();
+    let url = format!("{}/auth/device", api_base.trim_end_matches('/'));
+
+    let response = match ureq::post(&url)
+        .set("Content-Type", "application/json")
+        .send_string("{}")
+    {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+        Err(e) => return Err(map_network_error(&e.to_string())),
+    };
+
+    let body = response
+        .into_string()
+        .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
+
+    serde_json::from_str(&body).map_err(|e| {
+        Error::RequestFailed(format!("Invalid device code response: {}", e))
+    })
+}
+
+fn poll_device_code(device_code: &str, expires_in: u64, interval: u64, json: bool) -> Result<String> {
+    let api_base = get_api_base();
+    let url = format!(
+        "{}/auth/device/poll?device_code={}",
+        api_base.trim_end_matches('/'),
+        device_code
+    );
+
+    let max_attempts = expires_in / interval;
+    let poll_interval = Duration::from_secs(interval);
+    let spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let mut tick: usize = 0;
+
+    for _attempt in 0..max_attempts {
+        thread::sleep(poll_interval);
+
+        if !json {
+            print!("\r  \x1b[2m{} Waiting\x1b[0m", spinner[tick % spinner.len()]);
+            io::stdout().flush().ok();
+            tick += 1;
+        }
+
+        let response = match ureq::get(&url).call() {
+            Ok(resp) => resp,
+            Err(ureq::Error::Status(status, _response)) => {
+                if status == 428 {
+                    continue;
+                }
+                let body = _response.into_string().ok();
+                return Err(map_http_error(status, body.as_deref()));
+            }
+            Err(_) => {
+                continue;
+            }
+        };
+
+        let status = response.status();
+
+        if status == 202 || status == 204 {
+            continue;
+        }
+
+        if status != 200 {
+            let body = response.into_string().ok();
+            return Err(map_http_error(status, body.as_deref()));
+        }
+
+        let body = response
+            .into_string()
+            .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
+
+        let poll: DevicePollResponse = serde_json::from_str(&body)?;
+
+        if poll.status == "complete" || poll.status == "verified" {
+            if let Some(token) = poll.token {
+                return Ok(token);
+            }
+        }
+
+        if !json {
+            print!(".");
+            io::stdout().flush().ok();
+        }
+    }
+
+    Err(Error::Io(io::Error::new(
+        io::ErrorKind::TimedOut,
+        "Login timed out. Please try again.",
+    )))
+}
+
+// --- Email magic link flow (fallback) ---
+
+fn run_email_flow(json: bool) -> Result<()> {
     let email = prompt_for_email()?;
 
-    // Request magic link
     request_magic_link(&email)?;
 
-    if options.json {
+    if json {
         println!(
             "{}",
             serde_json::json!({
@@ -62,13 +251,10 @@ pub fn run(options: LoginOptions) -> Result<()> {
         println!("  └────────────────────────────────────────────┘");
     }
 
-    // Poll for verification
-    let token = poll_for_token(&email, options.json)?;
-
-    // Save the token
+    let token = poll_for_email_token(&email, json)?;
     AuthConfig::save_token(&token)?;
 
-    if options.json {
+    if json {
         println!(
             "{}",
             serde_json::json!({
@@ -78,7 +264,7 @@ pub fn run(options: LoginOptions) -> Result<()> {
         );
     } else {
         println!();
-        println!("  🗡️  Logged in successfully!");
+        println!("  /  Logged in successfully!");
         println!();
     }
 
@@ -108,7 +294,6 @@ fn prompt_for_email() -> Result<String> {
         )));
     }
 
-    // Basic email validation
     if !email.contains('@') || !email.contains('.') {
         return Err(Error::Io(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -136,7 +321,6 @@ fn request_magic_link(email: &str) -> Result<()> {
         Err(e) => return Err(map_network_error(&e.to_string())),
     };
 
-    // Accept 202 (Accepted) or 200 (OK) as success
     let status = response.status();
     if status != 200 && status != 202 {
         let body = response.into_string().ok();
@@ -146,19 +330,16 @@ fn request_magic_link(email: &str) -> Result<()> {
     Ok(())
 }
 
-fn poll_for_token(email: &str, json: bool) -> Result<String> {
-    // Poll for up to 5 minutes
-    let max_attempts = 60; // 60 attempts * 5 seconds = 5 minutes
+fn poll_for_email_token(email: &str, json: bool) -> Result<String> {
+    let max_attempts = 60;
     let poll_interval = Duration::from_secs(5);
 
     for _attempt in 0..max_attempts {
         thread::sleep(poll_interval);
 
-        // Try to poll the verification endpoint
-        match poll_verification(email) {
+        match poll_email_verification(email) {
             Ok(Some(token)) => return Ok(token),
             Ok(None) => {
-                // Not verified yet, continue polling
                 if !json {
                     print!(".");
                     io::stdout().flush().ok();
@@ -166,7 +347,6 @@ fn poll_for_token(email: &str, json: bool) -> Result<String> {
                 continue;
             }
             Err(e) => {
-                // Log error but continue polling
                 if !json {
                     eprintln!("\n  Polling error: {}", e);
                 }
@@ -181,10 +361,9 @@ fn poll_for_token(email: &str, json: bool) -> Result<String> {
     )))
 }
 
-fn poll_verification(email: &str) -> Result<Option<String>> {
+fn poll_email_verification(email: &str) -> Result<Option<String>> {
     let api_base = get_api_base();
 
-    // URL encode the email manually
     let encoded_email: String = email
         .chars()
         .map(|c| match c {
@@ -216,7 +395,6 @@ fn poll_verification(email: &str) -> Result<Option<String>> {
     let status = response.status();
 
     if status == 204 || status == 202 {
-        // Still pending
         return Ok(None);
     }
 
@@ -239,10 +417,7 @@ fn poll_verification(email: &str) -> Result<Option<String>> {
 }
 
 fn verify_and_save_token(token: &str, json: bool) -> Result<()> {
-    // Verify token with API
     verify_token(token)?;
-
-    // Save token using auth module
     AuthConfig::save_token(token)?;
 
     if json {
@@ -255,7 +430,7 @@ fn verify_and_save_token(token: &str, json: bool) -> Result<()> {
         );
     } else {
         println!();
-        println!("  🗡️  Logged in successfully");
+        println!("  /  Logged in successfully");
         println!();
     }
 

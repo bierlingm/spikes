@@ -207,6 +207,10 @@ enum Commands {
         #[arg(long)]
         token: Option<String>,
 
+        /// Use email magic link instead of browser flow
+        #[arg(long)]
+        email: bool,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
@@ -530,7 +534,7 @@ fn main() {
             Ok(())
         }
         Some(Commands::Update) => commands::update::run(),
-        Some(Commands::Login { token, json }) => commands::login::run(LoginOptions { token, json }),
+        Some(Commands::Login { token, email, json }) => commands::login::run(LoginOptions { token, email, json }),
         Some(Commands::Logout { json }) => commands::logout::run(json),
         Some(Commands::Whoami { json }) => commands::whoami::run(json),
         Some(Commands::Share { directory, name, password, host, json }) => {
