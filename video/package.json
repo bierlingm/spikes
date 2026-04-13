@@ -1,0 +1,21 @@
+{
+  "name": "spikes-demo-video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "90-second Remotion demo for spikes.sh. See STORYBOARD.md.",
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts SpikesDemo out/spikes-demo.mp4",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "typescript": "^5.6.0"
+  }
+}
