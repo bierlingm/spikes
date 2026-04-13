@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.bierlingm/spikes",
+  "description": "Structured UI feedback for AI-assisted building. Reviewers click elements and rate them; agents read, triage, and resolve the feedback via MCP.",
+  "repository": {
+    "url": "https://github.com/bierlingm/spikes",
+    "source": "github"
+  },
+  "version": "0.3.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "spikes-mcp",
+      "version": "0.3.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Bearer token for the hosted Spikes API. Required only when using --remote mode against spikes.sh. Local mode reads .spikes/feedback.jsonl and needs no token.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "SPIKES_TOKEN"
+        },
+        {
+          "description": "Override the Spikes API base URL. Defaults to https://spikes.sh/api. Useful for self-hosted Spikes workers.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false,
+          "name": "SPIKES_API_URL"
+        }
+      ]
+    }
+  ]
+}

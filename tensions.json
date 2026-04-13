@@ -1,9 +1,9 @@
 {
-  "flushed_at": "2026-04-13T16:00:09Z",
+  "flushed_at": "2026-04-13T16:12:24Z",
   "summary": {
-    "active": 5,
+    "active": 4,
     "released": 0,
-    "resolved": 21,
+    "resolved": 22,
     "total": 26
   },
   "tensions": [
@@ -195,7 +195,7 @@
       "status": "Resolved"
     },
     {
-      "actual": "No content marketing exists. The audience (AI-assisted builders) is active but doesn't know spikes exists.",
+      "actual": "Full draft at posts/vibe-coding-feedback.md: 1,400-word primary post + 11-tweet Twitter variant + Show HN submission materials. Covers problem scene, format-not-capability thesis, structured packet example, end-to-end loop with MCP, honest rough edges, CTA. Ready to publish — awaiting venue choice.",
       "created_at": "2026-03-27T18:24:26.430860+00:00",
       "desired": "Write vibe-coding feedback post for distribution",
       "horizon": null,
@@ -203,7 +203,7 @@
       "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
       "position": null,
       "short_code": 18,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "AGENTS.md references removed TUI, beads (not active), and lists shipped features as planned.",
