@@ -10,38 +10,61 @@ Spikes is the feedback loop tool for AI-assisted building. Building prototypes i
 2. **Collecting feedback from others** — Share a link, they spike it, you get JSON for your agent
 
 **Components:**
-- **Widget:** Vanilla JS (`widget/spikes.js`) that injects a floating button
-- **CLI:** Rust binary (`cli/`) with robot-friendly JSON output
-- **Dashboard:** Static HTML (`widget/dashboard.html`) for viewing feedback
-- **Site:** Landing page and docs (`site/`)
+- **Widget:** Vanilla JS (`widget/spikes.js`, ~14KB gzipped, zero dependencies)
+- **CLI:** Rust binary (`cli/`, v0.3.2, 30 subcommands)
+- **MCP Server:** 9 tools via `spikes mcp serve` (stdio or HTTP transport)
+- **Site:** Landing page and docs (`site/`, deployed to Cloudflare Pages)
+- **Worker:** Cloudflare Workers backend (D1 + R2)
+- **NPM:** `spikes-mcp` package for zero-install MCP
 
-## Task Tracking
+## Work Tracking with werk
 
-**Use beads (br) for all task tracking:**
+**This project uses `werk` for all task/tension tracking.** Always check werk before starting work.
+
 ```bash
-br ready --json              # See current work
-br create "Task description" # Create new task
-br close <id>                # Complete task
-br show <id>                 # View task details
+werk tree                    # See full tension tree
+werk survey                  # Field survey — tensions by urgency
+werk show <id>               # Tension details + history
+werk list                    # List all active tensions
+werk reality <id> "new..."   # Update current reality
+werk note add <id> "text"    # Add observational note
+werk resolve <id>            # Mark tension resolved
+werk add "desired" "actual" --parent <id>  # Create child tension
 ```
 
-All work should flow through beads. Check `br ready` before starting. Create beads for discoveries during implementation.
+The root tension is #1: "Have 10 paying users on spikes.sh". All work should relate to this goal or its children.
 
 ## Architecture
 
 ```
 widget/
-  spikes.js       # Drop-in widget (<10KB gzipped)
-  dashboard.html  # Static feedback viewer
+  spikes.js           # Drop-in widget (14KB gzipped, IIFE pattern)
 
 cli/
   Cargo.toml
   src/
-    main.rs
-    commands/     # list, show, export, inject, serve, deploy, etc.
-    tui/          # FrankenTUI dashboard (V8)
+    main.rs           # 30 subcommands via clap
+    commands/         # list, show, export, inject, serve, mcp, login, share, billing, etc.
+    spike.rs          # Spike data structure
+    storage.rs        # JSONL persistence (.spikes/feedback.jsonl)
+    auth.rs           # Token/API key management
+    config.rs         # TOML config (.spikes/config.toml)
+    output.rs         # JSON/table formatting
+    error.rs          # Error types
   templates/
-    cloudflare/   # Worker + D1 scaffolding
+    cloudflare/       # Self-host scaffold (Worker + D1 + R2)
+
+site/
+  index.html          # Landing page
+  docs.html           # Documentation
+  agents.md           # Machine-readable agent discovery
+  llms.txt            # LLM context index
+  spikes.js           # Widget served from spikes.sh
+
+packages/
+  spikes-mcp/         # NPM package for zero-install MCP (npx spikes-mcp)
+
+action/               # GitHub Action for CI gating on feedback
 ```
 
 ## Key Patterns
@@ -50,13 +73,15 @@ cli/
 - IIFE pattern, no global pollution except `window.Spikes` for config
 - All styles inline (no external CSS)
 - localStorage for persistence: `spikes:{project}` for data, `spikes:reviewer` for identity
-- Target: <10KB gzipped, zero dependencies
+- Configurable via data attributes: `data-project`, `data-position`, `data-color`, `data-endpoint`
 
 ### CLI (Rust)
 - Use `clap` for argument parsing
 - All commands support `--json` flag for machine-readable output
-- Follow `beads_rust` patterns for output formatting
 - Data file: `.spikes/feedback.jsonl` (one spike per line)
+- Auth token stored in `~/.local/share/spikes/auth.toml` (0600 permissions)
+- `SPIKES_TOKEN` env var overrides stored token
+- `SPIKES_API_URL` env var overrides API base (default: https://spikes.sh/api)
 
 ### Data Format
 
@@ -78,83 +103,48 @@ interface Spike {
 }
 ```
 
-## Slice Dependencies
+## MCP Server
 
-Two parallel tracks:
+`spikes mcp serve` exposes 9 tools (feedback CRUD, shares, usage).
+Transports: `stdio` (default), `http` (`--transport http --port 3848`).
+Modes: `local` (default, reads JSONL), `remote` (`--remote`, uses API).
 
-**Widget Track:** V1 → V2 → V3 → V4
-**CLI Track:** V5 → V6 → V7
+## Auth Flow
 
-V8 (TUI) depends on V5 but can be built in parallel with V6/V7.
-
-## Testing
-
-- Widget: Manual testing on file://, localhost, https://
-- CLI: `cargo test` + manual verification
-- Integration: `spikes inject` + `spikes serve` + browser + `spikes list`
-
-## Build Commands
-
-```bash
-# CLI
-cd cli && cargo build --release
-
-# Widget (no build step, but check size)
-gzip -c widget/spikes.js | wc -c  # should be <10KB
-```
-
-## Deployment
-
-**Site deploys via GitHub → Cloudflare Pages.** Push to `main` triggers automatic deployment:
-
-```bash
-git push origin main  # This IS the deploy command
-```
-
-No wrangler, no manual deploy scripts. Just push.
+Current: email magic link (`spikes login` → email → click → CLI polls → token saved).
+Target: browser-based device code flow (CLI opens browser → confirm → CLI auto-detects). See werk tension #13.
 
 ## Business Model
 
-**Free forever (MIT):**
-- Full widget + CLI
-- Local workflow (`inject` + `serve`)
-- BYO backend (Cloudflare deploy)
-- Unlimited local usage
+**Free (MIT licensed):**
+- Full widget + CLI + MCP server
+- Local workflow (inject + serve + collect + export)
+- 5 shares, 1,000 spikes/share
+- Self-hosting (one-command Cloudflare scaffold)
 
-**Paid hosting (planned):**
-- Instant shareable links: `yourname.spikes.sh/project`
-- No wrangler setup, no CF account needed
-- Multi-reviewer persistence
-- API access, webhooks
-- Time-limited/password-protected links
+**Pro (Lifetime purchase via Stripe):**
+- Unlimited shares & spikes
+- Password-protected shares
+- Badge removal
+- Agent-tier consumption pricing
 
-**Agent integrations (planned):**
-- MCP server for agent harnesses
-- Cursor/Claude Code context file export
-- GitHub Actions integration (fail deploy on negative feedback)
-- Webhook triggers for autonomous agent workflows
+## Deployment
 
-## AI Agent Friendliness
+**Site:** Push to `main` → GitHub Actions → Cloudflare Pages (automatic)
+**CLI:** Tag `v*` → GitHub Actions → cross-platform binaries (macOS Intel/ARM, Linux x64/ARM64)
+**crates.io:** `cargo publish` from `cli/`
+**npm:** Publish `packages/spikes-mcp/`
 
-The site implements multiple standards for AI agent accessibility:
+## Testing
 
-**llms.txt Standard:**
-- `/llms.txt` — Curated index of docs for LLM context windows
-- `/llms-full.txt` — Expanded version with all content inline
-- `/docs.html.md` — Clean markdown version of docs page
-
-**Structured Data:**
-- JSON-LD schema markup on all pages (SoftwareApplication, TechArticle)
-- Full Open Graph and Twitter Card metadata
-
-**Future: WebMCP**
-- W3C draft standard for exposing JS functions to AI agents
-- Could expose `getSpikes()`, `getSpikesByRating()` etc. directly to browser agents
-- See: https://docs.mcp-b.ai/ and https://webmachinelearning.github.io/webmcp/
+```bash
+cd cli && cargo test          # 160+ CLI tests
+cd site/worker && npm test    # 284+ Worker tests (vitest)
+```
 
 ## References
 
-- Shaping doc: `shaping.md`
-- Original prototype: `/Users/moritzbierling/werk/gate/patricia-arribalzaga/mockups/`
-- FrankenTUI: https://github.com/Dicklesworthstone/frankentui
+- Domain: spikes.sh
+- Repo: github.com/bierlingm/spikes
+- MCP registry: Smithery
 </coding_guidelines>
