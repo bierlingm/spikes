@@ -1,9 +1,9 @@
 {
-  "flushed_at": "2026-04-13T15:58:49Z",
+  "flushed_at": "2026-04-13T16:00:09Z",
   "summary": {
-    "active": 6,
+    "active": 5,
     "released": 0,
-    "resolved": 20,
+    "resolved": 21,
     "total": 26
   },
   "tensions": [
@@ -184,7 +184,7 @@
       "status": "Active"
     },
     {
-      "actual": "Starting work. Need to read current pricing section and Stripe product configuration to understand what's being sold.",
+      "actual": "Landing page now shows firm $49 lifetime Pro with LIFETIME badge, concrete tier features (widget/CLI/MCP on Free; unlimited + password + webhooks + API keys on Pro), and a Stripe buy button on the Pro card. Committed 07670e5.",
       "created_at": "2026-03-27T18:24:18.680596+00:00",
       "desired": "Sharpen pricing page — concrete tiers, clear value",
       "horizon": null,
@@ -192,7 +192,7 @@
       "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
       "position": null,
       "short_code": 17,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "No content marketing exists. The audience (AI-assisted builders) is active but doesn't know spikes exists.",
