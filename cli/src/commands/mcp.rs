@@ -1466,6 +1466,10 @@ async fn resolve_spike_local(args: ResolveSpikeArgs) -> std::result::Result<Call
             format!("Spike not found: {}", msg),
             None,
         )),
+        Err(Error::NoSpikesDir) => Err(McpError::invalid_params(
+            "Spike not found: no local spikes file (run `spikes` first)".to_string(),
+            None,
+        )),
         Err(e) => Err(McpError::internal_error(
             format!("Could not resolve spike: {}", e),
             None,
@@ -1528,6 +1532,10 @@ async fn delete_spike_local(args: DeleteSpikeArgs) -> std::result::Result<CallTo
         ))])),
         Err(Error::SpikeNotFound(msg)) => Err(McpError::invalid_params(
             format!("Spike not found: {}", msg),
+            None,
+        )),
+        Err(Error::NoSpikesDir) => Err(McpError::invalid_params(
+            "Spike not found: no local spikes file (run `spikes` first)".to_string(),
             None,
         )),
         Err(e) => Err(McpError::internal_error(
@@ -2963,22 +2971,18 @@ mod tests {
     // Unit Tests for submit_spike_remote projectKey fallback
     // ========================================
 
+    fn resolve_project_key(key: Option<String>) -> String {
+        key.unwrap_or_else(|| "default".to_string())
+    }
+
     #[test]
     fn test_submit_spike_remote_includes_default_project_key() {
-        // Verify the logic that always includes projectKey
-        let project_key: Option<String> = None;
-        let expected = project_key.unwrap_or_else(|| "default".to_string());
-
-        assert_eq!(expected, "default", "Should use 'default' when project_key is None");
+        assert_eq!(resolve_project_key(None), "default");
     }
 
     #[test]
     fn test_submit_spike_remote_uses_provided_project_key() {
-        // Verify provided project_key is used
-        let project_key: Option<String> = Some("my-project".to_string());
-        let expected = project_key.unwrap_or_else(|| "default".to_string());
-
-        assert_eq!(expected, "my-project", "Should use provided project_key when Some");
+        assert_eq!(resolve_project_key(Some("my-project".to_string())), "my-project");
     }
 
     // ========================================

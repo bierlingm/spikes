@@ -270,11 +270,11 @@ fn test_mcp_http_tools_list() {
         }))
         .send();
 
-    stop_http_server(server);
-
     assert!(tools_response.is_ok(), "tools/list should succeed");
     let response = tools_response.unwrap();
     let body_bytes = response.bytes().expect("Failed to read tools response");
+
+    stop_http_server(server);
     let body = String::from_utf8_lossy(&body_bytes);
 
     // Parse response - must contain valid JSON
