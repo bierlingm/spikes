@@ -1,9 +1,9 @@
 {
-  "flushed_at": "2026-04-13T16:55:05Z",
+  "flushed_at": "2026-04-13T17:11:54Z",
   "summary": {
-    "active": 8,
+    "active": 7,
     "released": 0,
-    "resolved": 22,
+    "resolved": 23,
     "total": 30
   },
   "tensions": [
@@ -173,7 +173,7 @@
       "status": "Active"
     },
     {
-      "actual": "Plan set: (a) submit intake form [#27], (b) stage marketing kit [#28], (c) build Stripe App if admitted to May cohort [#29], (d) coordinated promo on publish [#30]. Form draft + marketing kit at operations/. Old follow-up email archived — Stripe responded. Decided: category=Other, pricing=add $9/mo SPT tier alongside $49 lifetime. Awaiting Moritz pre-submit review.",
+      "actual": "Intake form submitted 2026-04-13. Awaiting Stripe response (SLA: 2 business days). If admitted to May cohort, tensions #28 (marketing kit polish) + #29 (Stripe App build) + #30 (coordinated promo) activate in sequence. Repo URL fixes committed in cf0f7c0 + follow-up draft removed in 5ffd684.",
       "created_at": "2026-03-27T18:24:16.980776+00:00",
       "desired": "Stripe projects.dev partner listing",
       "horizon": null,
@@ -294,7 +294,7 @@
       "status": "Resolved"
     },
     {
-      "actual": "All pre-submit fixes landed: Cargo.toml + 4 other files corrected (moritzbierling/spikes → bierlingm/spikes), emails decided (business for partnership, personal for technical), Q8=Other, Q14 reflects device-code auth shipped. Ready for Moritz voice-pass + submit at https://forms.gle/3GRwm5xpn1RqNG4PA. Repo URL fixes uncommitted — dedicated commit pending.",
+      "actual": "Form submitted at 2026-04-13T16:58:11Z. Google Forms confirmation received ('La tua risposta è stata registrata'). All 14 fields posted. Stripe commits to 2-business-day response per evaluation doc.",
       "created_at": "2026-04-13T16:46:30.509205+00:00",
       "desired": "Submit Stripe Projects intake form",
       "horizon": null,
@@ -302,7 +302,7 @@
       "parent_id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
       "position": null,
       "short_code": 27,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "Draft complete at operations/stripe-projects-marketing-kit.md; needs logo export variants, /terms /privacy /support URL audit, co-marketing post approval workflow",
