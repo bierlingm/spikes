@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts SpikesDemo out/spikes-demo.mp4",
+    "render:youtube": "remotion render src/index.ts SpikesDemo out/spikes-demo-youtube.mp4 --crf=18",
+    "render:twitter": "remotion render src/index.ts SpikesDemo out/spikes-demo-twitter.mp4 --crf=20",
+    "render:gif": "remotion render src/index.ts SpikesDemoLoop out/spikes-demo-loop.gif --codec=gif",
+    "render:all": "npm run render && npm run render:youtube && npm run render:twitter && npm run render:gif",
+    "typecheck": "tsc --noEmit",
     "upgrade": "remotion upgrade"
   },
   "dependencies": {

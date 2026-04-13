@@ -19,4 +19,7 @@ All work tracking lives in werk. Update tensions as you go — `werk reality <id
 - **CLI version:** 0.3.2
 - **Root goal:** 10 paying users (werk tension #1)
 - **Tests:** `cd cli && cargo test` / `cd site/worker && npm test`
+- **Agent-CI:** `npx agent-ci run --workflow workflows-local/test.yml` (local only)
 - **Deploy:** push to main (site) or tag v* (binaries)
+
+Note: `workflows-local/test.yml` replaces deleted `.github/workflows/test.yml`. GitHub Actions still runs deploy.yml and release.yml.

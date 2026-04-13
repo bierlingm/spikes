@@ -40,3 +40,7 @@ operations/
 /video/node_modules/
 /video/out/
 /video/.remotion-cache/
+/video/public/audio/*.mp3
+
+# Output videos are hosted via R2 / external CDN, not git
+/site/spikes-demo.mp4
