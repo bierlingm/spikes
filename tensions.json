@@ -1,10 +1,10 @@
 {
-  "flushed_at": "2026-04-13T16:23:27Z",
+  "flushed_at": "2026-04-13T16:55:05Z",
   "summary": {
-    "active": 4,
+    "active": 8,
     "released": 0,
     "resolved": 22,
-    "total": 26
+    "total": 30
   },
   "tensions": [
     {
@@ -173,7 +173,7 @@
       "status": "Active"
     },
     {
-      "actual": "Follow-up email draft shipped at docs/stripe-projects-followup.md (commit-pending). Three new concrete updates since original send: lifetime pricing live, device-code auth shipping, spikes-mcp on NPM + MCP Registry. User sends when ready.",
+      "actual": "Plan set: (a) submit intake form [#27], (b) stage marketing kit [#28], (c) build Stripe App if admitted to May cohort [#29], (d) coordinated promo on publish [#30]. Form draft + marketing kit at operations/. Old follow-up email archived — Stripe responded. Decided: category=Other, pricing=add $9/mo SPT tier alongside $49 lifetime. Awaiting Moritz pre-submit review.",
       "created_at": "2026-03-27T18:24:16.980776+00:00",
       "desired": "Stripe projects.dev partner listing",
       "horizon": null,
@@ -292,6 +292,50 @@
       "position": null,
       "short_code": 26,
       "status": "Resolved"
+    },
+    {
+      "actual": "All pre-submit fixes landed: Cargo.toml + 4 other files corrected (moritzbierling/spikes → bierlingm/spikes), emails decided (business for partnership, personal for technical), Q8=Other, Q14 reflects device-code auth shipped. Ready for Moritz voice-pass + submit at https://forms.gle/3GRwm5xpn1RqNG4PA. Repo URL fixes uncommitted — dedicated commit pending.",
+      "created_at": "2026-04-13T16:46:30.509205+00:00",
+      "desired": "Submit Stripe Projects intake form",
+      "horizon": null,
+      "id": "01KP3VSK3DABGWVKTB55EH1SSR",
+      "parent_id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
+      "position": null,
+      "short_code": 27,
+      "status": "Active"
+    },
+    {
+      "actual": "Draft complete at operations/stripe-projects-marketing-kit.md; needs logo export variants, /terms /privacy /support URL audit, co-marketing post approval workflow",
+      "created_at": "2026-04-13T16:46:30.538800+00:00",
+      "desired": "Marketing kit ready for Week 2/3 handoff",
+      "horizon": null,
+      "id": "01KP3VSK4AT9T86PJYE2SCZKW9",
+      "parent_id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
+      "position": null,
+      "short_code": 28,
+      "status": "Active"
+    },
+    {
+      "actual": "Manifest + reverse APIs (provision, list-offerings, get-credentials, status, SPT) + new $9/mo Pro-Monthly SKU via SPT. Triggered only on May-cohort admission.",
+      "created_at": "2026-04-13T16:46:30.562768+00:00",
+      "desired": "Stripe App built + submitted (Week 2-4 if admitted)",
+      "horizon": null,
+      "id": "01KP3VSK52G8HNYAJPZQNP475J",
+      "parent_id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
+      "position": null,
+      "short_code": 29,
+      "status": "Active"
+    },
+    {
+      "actual": "X posts coordinated with Stripe cohort announcement, demo video (#15) live, MCP Registry listing (#14) live, compound distribution hit in same window. Triggered only after Stripe publishes listing.",
+      "created_at": "2026-04-13T16:46:30.586406+00:00",
+      "desired": "May-cohort promotion executed (Week 5)",
+      "horizon": null,
+      "id": "01KP3VSK5T0XB6MK24KF88KHX8",
+      "parent_id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
+      "position": null,
+      "short_code": 30,
+      "status": "Active"
     }
   ]
 }

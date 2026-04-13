@@ -4,7 +4,7 @@
 # Downloads the spikes binary, loads feedback, and fails if blocking issues exceed threshold.
 #
 # Usage:
-#   - uses: moritzbierling/spikes/action@v0.3.0
+#   - uses: bierlingm/spikes/action@v0.3.0
 #     with:
 #       threshold: 0
 #       ignore-paths: |
@@ -93,7 +93,7 @@ runs:
       shell: bash
       run: |
         TARGET="${{ steps.platform.outputs.target }}"
-        DOWNLOAD_URL="https://github.com/moritzbierling/spikes/releases/latest/download/spikes-${TARGET}.tar.gz"
+        DOWNLOAD_URL="https://github.com/bierlingm/spikes/releases/latest/download/spikes-${TARGET}.tar.gz"
 
         echo "Downloading spikes for $TARGET..."
         curl -fsSL "$DOWNLOAD_URL" -o spikes.tar.gz

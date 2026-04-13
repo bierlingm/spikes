@@ -266,7 +266,7 @@ Modes compose: `spikes mcp serve --transport http --remote` serves MCP over HTTP
 ## Links
 
 - **Website:** [https://spikes.sh](https://spikes.sh)
-- **GitHub:** [https://github.com/moritzbierling/spikes](https://github.com/moritzbierling/spikes)
+- **GitHub:** [https://github.com/bierlingm/spikes](https://github.com/bierlingm/spikes)
 - **npm:** `npx spikes-mcp` (no install needed)
 - **Smithery:** [spikes on Smithery](https://smithery.ai/server/spikes)
 - **llms.txt:** [https://spikes.sh/llms.txt](https://spikes.sh/llms.txt)
