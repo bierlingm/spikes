@@ -6,55 +6,59 @@
 
 | Scene | State |
 |---|---|
-| 0. Title (0:00-0:05) | Stubbed in `src/scenes/Title.tsx` — animates the landing hero |
-| 1. Broken loop (0:05-0:20) | Stubbed in `src/scenes/Problem.tsx` — mock, chat bubble, timer |
-| 2. Widget capture (0:20-0:40) | Storyboarded only |
-| 3. Feed to agent (0:40-0:60) | Storyboarded only |
-| 4. MCP skip paste (0:60-0:80) | Storyboarded only |
-| 5. Loop closed + CTA (0:80-0:90) | Storyboarded only |
+| 0. Title (0:00-0:05) | `src/scenes/Title.tsx` |
+| 1. Broken loop (0:05-0:20) | `src/scenes/Problem.tsx` |
+| 2. Widget capture (0:20-0:40) | `src/scenes/Capture.tsx` |
+| 3. Feed to agent (0:40-0:60) | `src/scenes/FeedAgent.tsx` |
+| 4. MCP skip paste (0:60-0:80) | `src/scenes/MCP.tsx` |
+| 5. Loop closed + CTA (0:80-0:90) | `src/scenes/Close.tsx` |
 
 ## Run
 
 ```bash
 cd video
-npm install       # or bun / pnpm
-npm run dev       # opens Remotion Studio to iterate on scenes visually
-npm run render    # outputs out/spikes-demo.mp4
+npm install
+npm run dev          # Remotion Studio (visual iteration)
+npm run typecheck    # tsc --noEmit
+npm run render       # out/spikes-demo.mp4 (canonical 1920x1080, H.264)
+npm run render:gif   # out/spikes-demo-loop.gif (short loop of Close scene)
+npm run render:all   # all variants
 ```
 
-## Adding a new scene
+## Outputs (`out/`)
+
+- `spikes-demo.mp4` — canonical 1920×1080, 30fps, H.264. Embedded on `spikes.sh`.
+- `spikes-demo-youtube.mp4` — CRF 18 re-encode for YouTube upload.
+- `spikes-demo-twitter.mp4` — 1080×1080 square (letterboxed), for X/Twitter.
+- `spikes-demo-loop.gif` — 10s Close scene, for README / HN previews.
+
+All social variants stay under Twitter's 2:20 and size limits.
+
+## Audio bed (optional)
+
+Drop a royalty-free track at `public/audio/bed.mp3` and it wires in automatically at 35% volume. If the file is missing, the demo renders silent. Recommended sources: Pixabay Music, Uppbeat, Artlist. Target 80 BPM, minimal synth, ~90 seconds.
+
+The renderer checks at runtime via `fetch(staticFile("audio/bed.mp3"), { method: "HEAD" })`, so there is nothing to configure — add or remove the file and re-render.
+
+## Adding a scene
 
 1. Add `src/scenes/Whatever.tsx` exporting a `React.FC`.
-2. Append it to `SCENES` in `src/Root.tsx` with its duration.
-3. Open Remotion Studio (`npm run dev`), select the composition, scrub to your scene's start frame.
+2. Append it to `SCENES` in `src/Root.tsx` with its duration in frames.
+3. Open Remotion Studio (`npm run dev`), scrub to the scene's start frame.
 
 ## Design constraints
 
-- Scenes are **30 fps, 1920×1080**. Use `useCurrentFrame()` relative to the scene start (Remotion resets frame count per `Series.Sequence`).
-- Use `interpolate(frame, [a, b], [from, to], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })` for any animated value. Never raw arithmetic with frame.
-- Theme tokens live in `src/theme.ts`. Don't hardcode hex values in scenes.
-- Fonts: Berkeley Mono preferred; falls back to system mono. No external font load — ship fonts locally if needed.
+- 30 fps, 1920×1080. `useCurrentFrame()` is scene-local inside a `Series.Sequence`.
+- Animate via `interpolate(frame, [a, b], [from, to], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })`. Never raw arithmetic with `frame`.
+- Theme tokens live in `src/theme.ts`.
+- Fonts: Berkeley Mono preferred, falls back to system mono.
 
-## Rendering for publication
+## Publishing checklist
 
-- **Landing page embed:** 1280×720 MP4, 4 Mbps VBR, H.264.
-- **YouTube:** 1920×1080, 8-10 Mbps, H.264, AAC audio.
-- **Twitter/X:** same as YouTube but keep under 100 MB and 2:20.
-- **Loop GIF for HN/docs:** First 10 seconds, palette-optimized via `gifski` post-render.
-
-Commands once `out/spikes-demo.mp4` exists:
-
-```bash
-# 720p web version
-ffmpeg -i out/spikes-demo.mp4 -vf "scale=1280:720" -c:v libx264 -b:v 4M -an out/spikes-demo-720.mp4
-
-# loop gif
-ffmpeg -i out/spikes-demo.mp4 -t 10 -vf "fps=15,scale=960:-1" -f image2pipe -vcodec ppm - | gifski -o out/spikes-demo.gif --fps 15 -
-```
-
-## What's missing before ship
-
-- Scenes 2–5 built out (biggest remaining work — probably 4-6 hours of iteration in Remotion Studio).
-- Audio bed. Either instrumental stock music (Epidemic Sound, Artlist) or original. Target 80 BPM, minimal synth.
-- Caption `.vtt` file for accessibility.
-- Real CTA page mockup instead of the placeholder inline in `Problem.tsx` — ideally screenshot of actual `site/index.html` styled page.
+- [x] Canonical MP4 in `out/`
+- [x] YouTube re-encode
+- [x] Twitter square variant
+- [x] Loop GIF
+- [x] Landing embed at `site/spikes-demo.mp4`
+- [ ] Audio bed (optional — drop at `public/audio/bed.mp3`)
+- [ ] `.vtt` caption file

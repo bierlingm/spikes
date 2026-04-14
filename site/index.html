@@ -297,7 +297,31 @@
             flex-wrap: wrap;
             animation: slide-up 0.5s ease-out 0.3s both;
         }
-        
+
+        .hero-video {
+            max-width: 960px;
+            margin: 64px auto 0;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: #09090b;
+            box-shadow: 0 30px 120px rgba(0,0,0,0.6);
+            animation: slide-up 0.5s ease-out 0.4s both;
+        }
+
+        .hero-video video {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        @media (max-width: 700px) {
+            .hero-video {
+                margin: 40px 16px 0;
+                border-radius: 10px;
+            }
+        }
+
         /* The Core Story Section */
         .use-cases {
             padding: 100px 0;
@@ -906,6 +930,17 @@
             <div class="hero-buttons">
                 <a href="#install" class="btn btn-primary">Get Started</a>
                 <a href="#how-it-works" class="btn btn-secondary">See How It Works</a>
+            </div>
+            <div class="hero-video">
+                <video
+                    src="/spikes-demo.mp4"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    preload="metadata"
+                    aria-label="90-second demo: spike an element, paste JSON to Claude, watch the fix land."
+                ></video>
             </div>
         </header>
     </div>
