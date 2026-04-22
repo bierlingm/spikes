@@ -1,0 +1,32 @@
+# Local-only workflow - run via: npx agent-ci run --workflow workflows-local/test.yml
+# Migrated from .github/workflows/test.yml (deleted to save GitHub Actions minutes)
+
+name: Test (Local)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+      - name: Install build deps
+        run: |
+          if ! command -v cc &>/dev/null || ! dpkg -s libssl-dev &>/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
+          fi
+      - name: Build
+        run: cargo build --manifest-path cli/Cargo.toml
+      - name: Test
+        run: cargo test --manifest-path cli/Cargo.toml --jobs 2
+      - name: Clippy
+        run: cargo clippy --manifest-path cli/Cargo.toml --all-targets -- -D warnings
