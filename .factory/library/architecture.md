@@ -20,6 +20,25 @@ Architectural decisions, patterns discovered, and design principles.
 | Validation | Zod schemas for all POST endpoints |
 | Pagination | Cursor-based with `?cursor=` and `?limit=` |
 
+## Widget Endpoint Resolution (Mission 01)
+
+The widget resolves its POST endpoint in this priority order:
+1. `data-endpoint` attribute (explicit) — always wins
+2. `data-project` attribute set (explicit, non-empty) → `https://spikes.sh/spikes`
+3. Neither set → `/spikes` on current origin (local dev fallback)
+
+Key: `data-project` defaults to `location.hostname` when the attribute is absent — but this default does NOT trigger the spikes.sh endpoint. Only an explicitly-provided `data-project` attribute triggers it. The check must use `script.hasAttribute('data-project')` or equivalent to distinguish explicit from default.
+
+## Widget Error Visibility (Mission 01)
+
+POST failures are surfaced via:
+- `console.error` (upgraded from `console.warn`) with endpoint URL + HTTP status
+- Red dot indicator on widget button (child div, absolutely positioned top-right)
+- Tooltip on button hover: "Last feedback failed to sync — see console"
+- Error state resets on next successful POST
+
+The "Saved!" toast fires synchronously before the XHR response — it is NOT gated on POST success.
+
 ## Two-Repo Structure
 
 The CLI at `./cli/` talks to the Worker at `../spikes-hosted/worker/`. The widget at `./widget/` is served by both the CLI (locally) and the Worker (hosted). Changes to API contracts must be reflected in both repos.

@@ -23,6 +23,13 @@ services:
     port: 8787
     depends_on: []
 
+  widget-test-server:
+    start: python3 -m http.server 8899 --directory /tmp/spikes-widget-test
+    stop: lsof -ti :8899 | xargs kill 2>/dev/null || true
+    healthcheck: curl -sf http://localhost:8899/ || true
+    port: 8899
+    depends_on: []
+
   mcp-http:
     start: cd cli && cargo run -- mcp serve --transport http --port 3848
     stop: lsof -ti :3848 | xargs kill 2>/dev/null || true
