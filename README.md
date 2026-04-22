@@ -179,6 +179,16 @@ See [action/README.md](action/README.md) for full documentation.
 
 ## Widget Attributes
 
+**Simple setup** — just add your project key and you're ready to collect feedback:
+
+```html
+<script src="https://spikes.sh/spikes.js" data-project="my-app"></script>
+```
+
+When you set `data-project`, feedback syncs automatically to `https://spikes.sh/spikes`. No need to configure an endpoint unless you're self-hosting.
+
+**Full configuration** — all available attributes:
+
 ```html
 <script src="https://spikes.sh/spikes.js"
   data-project="my-app"
@@ -186,9 +196,17 @@ See [action/README.md](action/README.md) for full documentation.
   data-color="#e74c3c"
   data-theme="dark"
   data-reviewer="Pat"
-  data-endpoint="https://api.example.com/spikes"
   data-collect-email="true"
   data-admin="true">
+</script>
+```
+
+**Self-hosting** — point to your own backend:
+
+```html
+<script src="/spikes.js"
+  data-project="my-app"
+  data-endpoint="https://my-worker.workers.dev/spikes">
 </script>
 ```
 
@@ -199,7 +217,7 @@ See [action/README.md](action/README.md) for full documentation.
 | `data-color` | Accent color (any CSS color) | `#e74c3c` |
 | `data-theme` | Modal theme: `dark` or `light` | `dark` |
 | `data-reviewer` | Pre-set reviewer name | (prompts user) |
-| `data-endpoint` | Backend URL for multi-reviewer sync | (local only) |
+| `data-endpoint` | Backend URL for multi-reviewer sync. Optional — defaults to `https://spikes.sh/spikes` when `data-project` is set. | `https://spikes.sh/spikes` (with `data-project`), `/spikes` (local dev) |
 | `data-collect-email` | Show email field in prompt | `false` |
 | `data-admin` | Enable review mode features | `false` |
 | `data-offset-x/y` | Button offset from edge | — |

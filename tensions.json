@@ -1,9 +1,9 @@
 {
-  "flushed_at": "2026-04-22T15:02:25Z",
+  "flushed_at": "2026-04-22T22:09:44Z",
   "summary": {
-    "active": 20,
+    "active": 18,
     "released": 0,
-    "resolved": 24,
+    "resolved": 26,
     "total": 44
   },
   "tensions": [
@@ -357,7 +357,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 32,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "spikes config prints 'Project: yvs' with defaults from any directory as if configured; spikes list from the same dir errors 'No .spikes/ directory found. Run spikes init first.' Inconsistent.",
@@ -434,7 +434,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 39,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "spikes deploy cloudflare is advertised as the golden path to 'add a backend', with no mention that spikes.sh is already a multi-tenant hosted backend. I (the creator of spikes.sh) used my own CLI to spin up a redundant per-project Worker + D1 for a 6-page demo site because the CLI never asked 'do you actually need your own backend?'. Two days of live widget running with no backend wiring is the dropoff signal.",
