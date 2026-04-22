@@ -1280,7 +1280,21 @@ spikes unshare my-project</code></pre>
             </div>
             
             <h2 id="widget-config">Widget Configuration</h2>
-            <p>Configure the widget with data attributes on the script tag:</p>
+            <p>The widget needs just a project key to work with spikes.sh. Add the script tag with <code>data-project</code> — feedback automatically syncs to the hosted backend:</p>
+            
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-label">HTML</span>
+                    <button class="code-copy" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre><code><span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span> <span class="attr">data-project</span>=<span class="string">"my-project"</span><span class="tag">&gt;&lt;/script&gt;</span></code></pre>
+            </div>
+            
+            <div class="note tip">
+                <p><strong>Smart default:</strong> When you set <code>data-project</code>, the widget automatically POSTs to <code>https://spikes.sh/spikes</code>. You only need <code>data-endpoint</code> if you're <a href="#multi-reviewer">self-hosting</a>.</p>
+            </div>
+            
+            <p>Full configuration with all available attributes:</p>
             
             <div class="code-block">
                 <div class="code-header">
@@ -1293,7 +1307,6 @@ spikes unshare my-project</code></pre>
   <span class="attr">data-position</span>=<span class="string">"bottom-left"</span>
   <span class="attr">data-color</span>=<span class="string">"#3498db"</span>
   <span class="attr">data-theme</span>=<span class="string">"dark"</span>
-  <span class="attr">data-endpoint</span>=<span class="string">"https://my-worker.workers.dev/spikes"</span>
   <span class="attr">data-reviewer</span>=<span class="string">"alice"</span>
   <span class="attr">data-admin</span>=<span class="string">"true"</span>
   <span class="attr">data-offset-x</span>=<span class="string">"20px"</span>
@@ -1333,8 +1346,8 @@ spikes unshare my-project</code></pre>
                         </tr>
                         <tr>
                             <td><code>data-endpoint</code></td>
-                            <td>—</td>
-                            <td>POST endpoint for multi-reviewer sync. When set, feedback is sent to this URL.</td>
+                            <td><code>https://spikes.sh/spikes</code> (with <code>data-project</code>), <code>/spikes</code> (local dev)</td>
+                            <td>POST endpoint for multi-reviewer sync. Optional — defaults to spikes.sh when <code>data-project</code> is set. Only needed for <a href="#multi-reviewer">self-hosted</a> backends.</td>
                         </tr>
                         <tr>
                             <td><code>data-reviewer</code></td>
@@ -1411,17 +1424,22 @@ cd spikes-worker
 npx wrangler deploy</code></pre>
             </div>
             
-            <h3>Configure Widget</h3>
-            <p>Add the endpoint to your widget configuration:</p>
+            <h3>Configure Widget (Self-Hosted)</h3>
+            <p>When self-hosting, add your worker URL via <code>data-endpoint</code>. Otherwise, just use <code>data-project</code> and the widget defaults to spikes.sh:</p>
             <div class="code-block">
                 <div class="code-header">
                     <span class="code-label">HTML</span>
                     <button class="code-copy" onclick="copyCode(this)">Copy</button>
                 </div>
-                <pre><code><span class="tag">&lt;script</span> 
-  <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span> 
+                <pre><code><span class="comment">&lt;!-- Self-hosted: specify your worker endpoint --&gt;</span>
+<span class="tag">&lt;script</span> 
+  <span class="attr">src</span>=<span class="string">"/spikes.js"</span>
+  <span class="attr">data-project</span>=<span class="string">"my-project"</span>
   <span class="attr">data-endpoint</span>=<span class="string">"https://your-worker.workers.dev/spikes"</span>
-<span class="tag">&gt;&lt;/script&gt;</span></code></pre>
+<span class="tag">&gt;&lt;/script&gt;</span>
+
+<span class="comment">&lt;!-- Hosted: just set data-project --&gt;</span>
+<span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="string">"https://spikes.sh/widget.js"</span> <span class="attr">data-project</span>=<span class="string">"my-project"</span><span class="tag">&gt;&lt;/script&gt;</span></code></pre>
             </div>
             
             <h3>Sync from CLI</h3>
@@ -1535,7 +1553,6 @@ SPIKES_API_URL=http://localhost:8787 spikes shares</code></pre>
         src="/widget.js" 
         data-project="spikes.sh"
         data-collect-email="true"
-        data-endpoint="https://spikes.sh/spikes"
     ></script>
 </body>
 </html>
