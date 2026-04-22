@@ -66,6 +66,8 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 ## Known Quirks
 
 - Widget requires `<body>` tag in HTML to inject properly
+- On the widget surface, direct Playwright-style click actions on the animated `#spikes-btn` can intermittently fail stability checks; prefer deterministic in-page `click()` via `agent-browser eval` when this occurs.
+- For `file://` widget validations, `agent-browser open --allow-file-access` may warn when applied after session start, but direct `file://` navigation can still succeed within the existing session.
 - `file://` URLs work for widget but not for share flow (needs HTTP)
 - wrangler dev may take 5-10 seconds to start on first run
 - D1 in wrangler dev uses local SQLite file (`.wrangler/state/`)
@@ -204,3 +206,22 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Validate clean-install behavior by removing wrapper cache (`node_modules/.cache/spikes-mcp`) in the isolated workspace before running `npx spikes-mcp`.
 - If package publish/release assets are unavailable, use the local fallback path (`npm pack packages/spikes-mcp` + `npx --package <tarball> spikes-mcp`) and record this explicitly in evidence.
 - Capture exact command output for platform detection, download URL/HTTP status, and MCP `initialize` response (or precise failure text).
+
+## Flow Validator Guidance: Widget Safe Defaults Browser Surface
+
+- Use only milestone-scoped fixture pages under `/tmp/spikes-widget-test/`; do not reuse other mission fixture directories.
+- Use only allowed mission ports (`8899` for `python3 -m http.server` and `3847` if explicitly needed by assertion setup).
+- Keep browser assertions serialized (`maxConcurrency=1`) because they share one server port and mutate widget runtime state (`window.Spikes.config.endpoint`).
+- Capture evidence for each assertion: page URL, request URL/status, tooltip text, and button-dot visibility screenshots where applicable.
+- Close every browser session opened by the validator before completion.
+
+## Flow Validator Guidance: Widget Safe Defaults Static Verification
+
+- Perform read-only checks against tracked files (`README.md`, `site/docs.html`, `site/index.html`, `widget/spikes.js`, synced copies).
+- Use deterministic commands for evidence:
+  - `diff widget/spikes.js site/spikes.js`
+  - `diff widget/spikes.js site/widget.js`
+  - `diff widget/spikes.js cli/assets/spikes.js`
+  - `gzip -c widget/spikes.js | wc -c`
+  - targeted `rg`/`grep` checks for `console.error` and `console.warn`
+- Do not modify source files during static validation; report failures with exact command output and file/line references.
