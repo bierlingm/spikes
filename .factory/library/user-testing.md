@@ -1,5 +1,37 @@
 # User Testing
 
+## Mission 01: Widget Default Endpoint + Visible Errors
+
+### Validation Surface
+
+**Primary surface:** Browser (agent-browser)
+- Widget embedded on a local HTML test page via `<script>` tag
+- Test page served on port 8899 via Python HTTP server (non-spikes.sh origin)
+- User interactions: click widget button, select elements, rate, comment, submit
+- Verification: network requests (POST URL), visual indicators (red dot), DOM inspection, tooltips
+
+**Secondary surface:** File checks (diff, grep, gzip)
+- Widget copy sync: `diff` between 4 copies
+- Source code checks: `grep` for `console.warn` vs `console.error`
+- Size check: `gzip -c widget/spikes.js | wc -c`
+
+**Testing tools:** agent-browser, curl, shell commands
+
+**Setup requirements:**
+- Local HTTP server: `python3 -m http.server 8899` serving a test HTML page from a temp directory
+- Test page must embed widget from local path (not CDN) to test unreleased changes
+- For error testing: use `data-endpoint` pointing to a non-existent URL (e.g., `https://nonexistent.invalid/spikes`)
+- For error-reset testing: mutate `window.Spikes.config.endpoint` at runtime via console
+
+**CORS note:** Cross-origin endpoints returning non-2xx may trigger `xhr.onerror` instead of `xhr.onload`. The `onload` non-2xx path should be verified via code inspection.
+
+### Validation Concurrency
+
+**Machine:** 32GB RAM, 10 CPU cores
+**Max concurrent validators:** 5 (lightweight — ~300MB per agent-browser instance + ~50MB for Python HTTP server)
+
+---
+
 Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 
 **What belongs here:** How to manually test, what tools to use, test accounts, known issues with testing setup.
