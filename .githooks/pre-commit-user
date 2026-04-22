@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Pre-commit hook: flushes tensions.json and updates README.md
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Flush tensions.json to capture current tree state
+if command -v werk &>/dev/null; then
+    werk flush 2>/dev/null || true
+fi
+git add tensions.json 2>/dev/null || true
+
+# Update README with tension tree
+python3 "$HOOK_DIR/update-readme-tree.py"
+git add README.md 2>/dev/null || true
