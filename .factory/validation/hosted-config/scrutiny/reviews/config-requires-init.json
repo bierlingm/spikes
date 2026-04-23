@@ -1,0 +1,33 @@
+{
+  "featureId": "config-requires-init",
+  "reviewedAt": "2026-04-23T00:54:13Z",
+  "commitId": "38512e1",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature implements the intended NoSpikesDir check for common uninitialized directories, but a blocking edge case remains: when `.spikes` exists as a file (not a directory), `spikes config` exits 0 while `spikes list` exits non-zero, breaking the required parity and the \"requires .spikes/ directory\" contract.",
+    "issues": [
+      {
+        "file": "cli/src/commands/config_cmd.rs",
+        "line": 9,
+        "severity": "blocking",
+        "description": "The guard uses `Path::new(\".spikes\").exists()` instead of a directory check. If `.spikes` is a regular file, this condition passes, `Config::load()` falls back to defaults (because `.spikes/config.toml` does not exist), and `spikes config` succeeds. This violates the requirement that config should fail when no `.spikes/` directory exists and breaks parity with `spikes list` (which still returns `Error::NoSpikesDir`). Evidence: `storage.rs:14` checks `.spikes/feedback.jsonl` existence and fails; local reproduction with `.spikes` file produced `config_exit=0` and `list_exit=1`."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The worker-cli skill mandates TDD (write failing tests first), but the transcript shows production logic was edited before tests were added.",
+      "evidence": "Transcript skeleton for workerSessionId 96328201-ea72-4a5a-b907-9ab1d4fde041 shows an Edit to `cli/src/commands/config_cmd.rs` that added the `.spikes` runtime guard before the later Edit that introduced the `#[cfg(test)] mod tests` block."
+    },
+    {
+      "area": "conventions",
+      "observation": "Mission artifacts are inconsistent about `spikes config --json` error shape in uninitialized directories.",
+      "evidence": "`validation-contract.md:100-103` (VAL-CONFIG-016) expects a JSON error object for `spikes config --json`, while this feature's `features.json` expectedBehavior requires the same NoSpikesDir stderr wording as human mode. `cli/src/main.rs:586` also emits plain `eprintln!(\"Error: {}\", e)` for command errors."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed transcript skeleton, handoff, skill instructions, and commit 38512e1 diff. Found one blocking correctness gap: `.spikes` file-vs-directory case allows `spikes config` to succeed, violating required init parity with `spikes list`. Report marked fail."
+}
