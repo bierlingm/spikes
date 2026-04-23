@@ -12,6 +12,7 @@ pub struct InjectOptions {
     pub directory: String,
     pub remove: bool,
     pub widget_url: Option<String>,
+    pub endpoint: Option<String>,
     pub json: bool,
 }
 
@@ -69,7 +70,17 @@ pub fn run(opts: InjectOptions) -> Result<()> {
             // Load config to get widget attributes
             let config = Config::load().unwrap_or_default();
             let widget_url = opts.widget_url.as_deref().unwrap_or("https://spikes.sh/widget.js");
-            let attrs = config.widget_attributes();
+            
+            // Build attributes: --endpoint flag takes precedence over config
+            let attrs = if let Some(ref endpoint) = opts.endpoint {
+                // Flag value is used verbatim (VAL-INJECT-002)
+                format!(r#"data-project="{}" data-endpoint="{}""#, 
+                    config.effective_project_key(), endpoint)
+            } else {
+                // Fall back to config's widget_attributes (includes data-endpoint if configured)
+                config.widget_attributes()
+            };
+            
             let script_tag = format!(r#"<script src="{}" {}></script>"#, widget_url, attrs);
             let new_content = inject_script_tag(&content, &script_tag);
             fs::write(path, new_content)?;
@@ -247,6 +258,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: Some("https://test.widget.js".to_string()),
+            endpoint: None,
             json: true,
         };
 
@@ -272,6 +284,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -298,6 +311,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: true,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -320,6 +334,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: true,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -336,6 +351,7 @@ mod tests {
             directory: "/nonexistent/path".to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -354,6 +370,7 @@ mod tests {
             directory: file_path.to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -372,6 +389,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -397,6 +415,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -425,6 +444,7 @@ mod tests {
             directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: true,
         };
 
@@ -432,5 +452,172 @@ mod tests {
 
         let content = std::fs::read_to_string(&htm_path).unwrap();
         assert!(content.contains("spikes.sh/widget.js"));
+    }
+
+    #[test]
+    fn test_inject_with_endpoint_flag_writes_verbatim_url() {
+        // VAL-INJECT-002: --endpoint <url> writes verbatim data-endpoint attribute
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("https://example.com/custom".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(content.contains(r#"data-endpoint="https://example.com/custom""#));
+    }
+
+    #[test]
+    fn test_inject_endpoint_flag_takes_precedence_over_config() {
+        // VAL-INJECT-007: --endpoint flag takes precedence over config
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+        let spikes_dir = temp_dir.path().join(".spikes");
+        std::fs::create_dir(&spikes_dir).unwrap();
+
+        // Create a config with hosted=true
+        let config_content = r#"
+[project]
+key = "test-project"
+
+[remote]
+hosted = true
+"#;
+        std::fs::write(spikes_dir.join("config.toml"), config_content).unwrap();
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        // Temporarily change to the temp directory so Config::load() finds the config
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        let opts = InjectOptions {
+            directory: ".".to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("https://custom.example.com/api".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        // Restore original directory
+        std::env::set_current_dir(original_dir).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        // Should use the flag value, not the config
+        assert!(content.contains(r#"data-endpoint="https://custom.example.com/api""#));
+        // data-endpoint should NOT contain spikes.sh (the flag takes precedence)
+        assert!(!content.contains(r#"data-endpoint="https://spikes.sh"#));
+        // But the widget src is still spikes.sh/widget.js by default
+        assert!(content.contains("spikes.sh/widget.js"));
+    }
+
+    #[test]
+    fn test_inject_endpoint_flag_preserves_relative_urls() {
+        // VAL-INJECT-012: --endpoint accepts relative URLs verbatim
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("/api/spikes".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(content.contains(r#"data-endpoint="/api/spikes""#));
+    }
+
+    #[test]
+    fn test_inject_endpoint_flag_preserves_query_strings() {
+        // VAL-INJECT-013: --endpoint preserves query strings verbatim
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("https://x.dev/spikes?token=abc&foo=bar%20baz".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        assert!(content.contains(r#"data-endpoint="https://x.dev/spikes?token=abc&foo=bar%20baz""#));
+    }
+
+    #[test]
+    fn test_inject_no_endpoint_no_config_writes_no_data_endpoint() {
+        // VAL-INJECT-006: No endpoint source writes NO data-endpoint attribute
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        // No .spikes/config.toml exists
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: None,
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        // Should NOT have data-endpoint attribute
+        assert!(!content.contains("data-endpoint"));
+        // Should still have the widget script
+        assert!(content.contains("spikes.sh/widget.js"));
+    }
+
+    #[test]
+    fn test_inject_widget_url_and_endpoint_are_independent() {
+        // VAL-INJECT-011: --widget-url and --endpoint are independent
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: Some("/custom-widget.js".to_string()),
+            endpoint: Some("https://api.example.com/spikes".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+        // Both attributes should be present
+        assert!(content.contains(r#"src="/custom-widget.js""#));
+        assert!(content.contains(r#"data-endpoint="https://api.example.com/spikes""#));
     }
 }
