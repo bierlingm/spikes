@@ -320,7 +320,6 @@ mod tests {
 
     #[test]
     fn test_effective_endpoint_hosted() {
-        // DEPRECATED: This test was for the old api.spikes.sh endpoint
         // Replaced by test_effective_endpoint_hosted_returns_canonical_url
         // Keeping for backward compatibility check - now expects canonical endpoint
         let mut config = Config::default();
