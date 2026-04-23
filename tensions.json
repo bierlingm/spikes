@@ -1,10 +1,10 @@
 {
-  "flushed_at": "2026-04-22T22:09:44Z",
+  "flushed_at": "2026-04-23T00:49:51Z",
   "summary": {
-    "active": 18,
+    "active": 19,
     "released": 0,
     "resolved": 26,
-    "total": 44
+    "total": 45
   },
   "tensions": [
     {
@@ -489,6 +489,17 @@
       "parent_id": null,
       "position": null,
       "short_code": 44,
+      "status": "Active"
+    },
+    {
+      "actual": "POST /spikes accepts any projectKey from any origin with no auth. Anyone can submit spikes tagged 'yvs' or 'decideact-2026' and they will land in the owner's inbox once #43 ships a read surface. Asymmetric with the planned authed read path — write side needs a matching decision. Options: signed projectKey+secret pair, CORS allowlist per project, origin registration at project create time, or explicit 'anyone can write, owner moderates' posture (but then document that choice).",
+      "created_at": "2026-04-23T00:49:33.737511+00:00",
+      "desired": "hosted spikes.sh POST /spikes requires proof of project-key ownership; writes from an unauthorized origin to a projectKey owned by someone else are rejected",
+      "horizon": null,
+      "id": "01KPVX0J199EJN28F9KF0536R6",
+      "parent_id": null,
+      "position": null,
+      "short_code": 45,
       "status": "Active"
     }
   ]
