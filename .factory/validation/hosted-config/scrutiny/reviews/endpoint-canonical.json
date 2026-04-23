@@ -1,0 +1,22 @@
+{
+  "featureId": "endpoint-canonical",
+  "reviewedAt": "2026-04-23T00:54:06Z",
+  "commitId": "b94cac1",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The core endpoint behavior changes are correct (canonical hosted URL, explicit-endpoint precedence, and trailing /spikes normalization), but the feature does not fully satisfy the repository purge requirement.",
+    "issues": [
+      {
+        "file": "cli/src/config.rs",
+        "line": 323,
+        "severity": "blocking",
+        "description": "A remaining source reference to `api.spikes.sh` exists in a test comment (`// DEPRECATED: This test was for the old api.spikes.sh endpoint`). The feature contract requires purging all `api.spikes.sh` references from the repo tree (outside excluded mission/ops artifacts)."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed endpoint-canonical for commit b94cac1. Functional behavior matches the feature goals, but one `api.spikes.sh` reference remains in `cli/src/config.rs`, so this review is marked fail."
+}

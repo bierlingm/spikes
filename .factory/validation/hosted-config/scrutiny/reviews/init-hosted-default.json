@@ -1,0 +1,21 @@
+{
+  "featureId": "init-hosted-default",
+  "reviewedAt": "2026-04-23T00:54:41Z",
+  "commitId": "3bc6eea",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation in `cli/src/commands/init.rs` and `cli/src/main.rs` matches the hosted-by-default requirements: non-interactive hosted default, interactive [H/s] prompt behavior, `--self-host` opt-out, explicit `[remote]` hosted+endpoint literals for hosted configs, `[remote]` self-host template without `hosted = true`, preserved idempotency, and `.spikes/feedback.jsonl`/`.gitignore` handling.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The feature includes TTY prompt assertions, but the worker transcript/handoff contains no `tuistory` usage and no interactive check entries, despite both mission and skill guidance requiring that for prompt features.",
+      "evidence": "Mission AGENTS requires `verification.interactiveChecks` with tuistory for prompt features (`/Users/moritzbierling/.factory/missions/595a9d07-8ca8-48e5-bff0-d2225412febc/AGENTS.md:67`). The worker skill marks tuistory as REQUIRED for interactive CLI prompts (`/Users/moritzbierling/werk/repos/spikes/.factory/skills/worker-cli/SKILL.md:22`). The handoff records `\"interactiveChecks\": []` and `\"followedProcedure\": true` (`/Users/moritzbierling/.factory/missions/595a9d07-8ca8-48e5-bff0-d2225412febc/handoffs/2026-04-23T00-45-52-387Z__init-hosted-default__fcd4eba5-5b19-44ce-8c33-4a8230362344.json:41,83`), and the transcript skeleton only shows skills `mission-worker-base` and `worker-cli` (no tuistory)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed init-hosted-default at commit 3bc6eea. Code changes satisfy the feature behavior requirements and no blocking implementation defects were found; review passes. Noted a shared-state/process gap: missing tuistory-backed interactive verification despite prompt-related requirements."
+}
