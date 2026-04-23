@@ -1,25 +1,84 @@
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, IsTerminal, Write};
 use std::path::Path;
 
 use crate::error::Result;
 
-const DEFAULT_CONFIG: &str = r#"# Spikes configuration
+/// Config template for hosted spikes.sh (the default)
+const HOSTED_CONFIG: &str = r##"# Spikes configuration
 # https://spikes.sh
 
 [project]
 # Project key for grouping spikes
 # key = "my-project"
 
-[sync]
-# Optional endpoint for cloud sync
-# endpoint = "https://my-worker.workers.dev/spikes"
+[widget]
+# Widget appearance
+theme = "dark"           # "dark" or "light"
+position = "bottom-right" # "bottom-right", "bottom-left", "top-right", "top-left"
+color = "#e74c3c"        # Accent color (hex)
+collect_email = false    # Ask reviewers for email (builds prospect list)
+
+[remote]
+# Use spikes.sh hosted backend (default)
+hosted = true
+endpoint = "https://spikes.sh"
+# token = "your-token-here"  # Optional: for password-protected shares
+"##;
+
+/// Config template for self-host path
+const SELF_HOST_CONFIG: &str = r##"# Spikes configuration
+# https://spikes.sh
+
+[project]
+# Project key for grouping spikes
+# key = "my-project"
+
+[widget]
+# Widget appearance
+theme = "dark"           # "dark" or "light"
+position = "bottom-right" # "bottom-right", "bottom-left", "top-right", "top-left"
+color = "#e74c3c"        # Accent color (hex)
+collect_email = false    # Ask reviewers for email (builds prospect list)
+
+[remote]
+# Cloud sync configuration - uncomment and fill in after running `spikes deploy cloudflare`
+# endpoint = "https://your-worker.workers.dev"
 # token = "your-token-here"
-"#;
+# hosted = false  # Set to true to use spikes.sh instead of self-hosted
+"##;
 
 const SPIKES_GITIGNORE_ENTRY: &str = ".spikes/\n";
 
-pub fn run(json: bool) -> Result<()> {
+/// Prompt the user for hosted vs self-host choice in interactive mode
+/// Returns true for hosted (default), false for self-host
+fn prompt_hosted_interactive() -> io::Result<bool> {
+    println!("Use hosted spikes.sh (default) or self-host? [H/s]");
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    let trimmed = input.trim();
+
+    // Empty (Enter), 'h', or 'H' = hosted (default)
+    // 's' or 'S' = self-host
+    match trimmed {
+        "" | "h" | "H" => Ok(true),
+        "s" | "S" => Ok(false),
+        _ => {
+            // Invalid input defaults to hosted
+            println!("Invalid input, defaulting to hosted spikes.sh");
+            Ok(true)
+        }
+    }
+}
+
+/// Check if stdin is interactive (TTY) or not
+fn is_interactive() -> bool {
+    io::stdin().is_terminal()
+}
+
+pub fn run(json: bool, self_host: bool) -> Result<()> {
     let spikes_dir = Path::new(".spikes");
 
     if spikes_dir.exists() {
@@ -37,8 +96,27 @@ pub fn run(json: bool) -> Result<()> {
         return Ok(());
     }
 
+    // Determine hosted vs self-host
+    let use_hosted = if self_host {
+        // Explicit --self-host flag overrides everything
+        false
+    } else if json || !is_interactive() {
+        // Non-interactive (piped stdin or --json flag) defaults to hosted
+        true
+    } else {
+        // Interactive mode - prompt the user
+        prompt_hosted_interactive().unwrap_or(true) // Default to hosted on error
+    };
+
+    // Select the appropriate config template
+    let config_content = if use_hosted {
+        HOSTED_CONFIG
+    } else {
+        SELF_HOST_CONFIG
+    };
+
     fs::create_dir_all(spikes_dir)?;
-    fs::write(spikes_dir.join("config.toml"), DEFAULT_CONFIG)?;
+    fs::write(spikes_dir.join("config.toml"), config_content)?;
     fs::write(spikes_dir.join("feedback.jsonl"), "")?;
 
     // Update .gitignore
@@ -57,11 +135,21 @@ pub fn run(json: bool) -> Result<()> {
             "{}",
             serde_json::json!({
                 "success": true,
-                "created": created
+                "created": created,
+                "hosted": use_hosted,
+                "remote": {
+                    "hosted": use_hosted,
+                    "endpoint": if use_hosted { Some("https://spikes.sh") } else { None::<&str> }
+                }
             })
         );
     } else {
-        println!("Initialized .spikes/ directory");
+        if use_hosted {
+            println!("Initialized .spikes/ directory (hosted spikes.sh)");
+        } else {
+            println!("Initialized .spikes/ directory (self-host mode)");
+            println!("  Run `spikes deploy cloudflare` to scaffold your own backend");
+        }
         println!("  Created: .spikes/config.toml");
         println!("  Created: .spikes/feedback.jsonl");
         if gitignore_updated {
