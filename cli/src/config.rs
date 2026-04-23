@@ -146,6 +146,14 @@ impl Config {
 
     /// Generate widget script tag attributes from config
     pub fn widget_attributes(&self) -> String {
+        self.widget_attributes_with_endpoint_override(None)
+    }
+
+    /// Generate widget script tag attributes with optional endpoint override
+    ///
+    /// This preserves all config-derived attributes (theme, position, color, collect_email)
+    /// while allowing the endpoint to be overridden (e.g., by CLI --endpoint flag).
+    pub fn widget_attributes_with_endpoint_override(&self, endpoint_override: Option<&str>) -> String {
         let mut attrs = vec![
             format!("data-project=\"{}\"", self.effective_project_key()),
             format!("data-theme=\"{}\"", self.widget.theme),
@@ -157,17 +165,29 @@ impl Config {
             attrs.push("data-collect-email=\"true\"".to_string());
         }
 
-        if let Some(endpoint) = self.effective_endpoint() {
-            // Normalize endpoint: strip trailing "/spikes" if present to avoid double paths
-            // This handles legacy configs where users may have manually edited endpoint to include /spikes
-            let base_endpoint = endpoint
-                .trim_end_matches('/')
-                .trim_end_matches("/spikes");
+        // Use endpoint override if provided, otherwise fall back to config
+        let config_endpoint = self.effective_endpoint();
+        let endpoint_to_use = endpoint_override.or(config_endpoint.as_deref());
 
-            let full_endpoint = if let Some(token) = &self.remote.token {
-                format!("{}/spikes?token={}", base_endpoint, token)
+        if let Some(endpoint) = endpoint_to_use {
+            // For CLI --endpoint flag, use the value verbatim (no /spikes suffix, no token handling)
+            // For config-derived endpoints, normalize and append /spikes path
+            let full_endpoint = if endpoint_override.is_some() {
+                // CLI flag value: use verbatim (VAL-INJECT-002)
+                endpoint.to_string()
             } else {
-                format!("{}/spikes", base_endpoint)
+                // Config-derived endpoint: normalize and append /spikes
+                // Normalize endpoint: strip trailing "/spikes" if present to avoid double paths
+                // This handles legacy configs where users may have manually edited endpoint to include /spikes
+                let base_endpoint = endpoint
+                    .trim_end_matches('/')
+                    .trim_end_matches("/spikes");
+
+                if let Some(token) = &self.remote.token {
+                    format!("{}/spikes?token={}", base_endpoint, token)
+                } else {
+                    format!("{}/spikes", base_endpoint)
+                }
             };
             attrs.push(format!("data-endpoint=\"{}\"", full_endpoint));
         }
@@ -512,5 +532,60 @@ key = "partial-project"
         // Widget should use defaults
         assert_eq!(config.widget.theme, "dark");
         assert_eq!(config.widget.position, "bottom-right");
+    }
+
+    #[test]
+    fn test_widget_attributes_with_endpoint_override_preserves_config_attrs() {
+        // Regression test: --endpoint flag should preserve theme, position, color, collect_email
+        let mut config = Config::default();
+        config.project.key = Some("test-project".to_string());
+        config.widget.theme = "light".to_string();
+        config.widget.position = "top-right".to_string();
+        config.widget.color = "#3498db".to_string();
+        config.widget.collect_email = true;
+
+        let attrs = config.widget_attributes_with_endpoint_override(Some("https://custom.example.com/api"));
+
+        // All config attributes should be preserved
+        assert!(attrs.contains("data-project=\"test-project\""));
+        assert!(attrs.contains("data-theme=\"light\""));
+        assert!(attrs.contains("data-position=\"top-right\""));
+        assert!(attrs.contains("data-color=\"#3498db\""));
+        assert!(attrs.contains("data-collect-email=\"true\""));
+
+        // Flag endpoint should be used verbatim
+        assert!(attrs.contains("data-endpoint=\"https://custom.example.com/api\""));
+    }
+
+    #[test]
+    fn test_widget_attributes_with_endpoint_override_no_override_uses_config() {
+        // When override is None, should behave like widget_attributes()
+        let mut config = Config::default();
+        config.remote.hosted = true;
+        config.widget.theme = "light".to_string();
+
+        let attrs_without_override = config.widget_attributes_with_endpoint_override(None);
+        let attrs_normal = config.widget_attributes();
+
+        assert_eq!(attrs_without_override, attrs_normal);
+        assert!(attrs_without_override.contains("data-endpoint=\"https://spikes.sh/spikes\""));
+    }
+
+    #[test]
+    fn test_widget_attributes_override_preserves_config_endpoint_with_token() {
+        // When using override, config's token should NOT be appended (flag is verbatim)
+        let mut config = Config::default();
+        config.remote.endpoint = Some("https://api.config.com".to_string());
+        config.remote.token = Some("config-token".to_string());
+        config.widget.theme = "light".to_string();
+
+        // Without override: token should be included
+        let attrs_no_override = config.widget_attributes_with_endpoint_override(None);
+        assert!(attrs_no_override.contains("token=config-token"));
+
+        // With override: verbatim, no token from config
+        let attrs_with_override = config.widget_attributes_with_endpoint_override(Some("https://custom.com/spikes"));
+        assert!(attrs_with_override.contains("data-endpoint=\"https://custom.com/spikes\""));
+        assert!(!attrs_with_override.contains("token="));
     }
 }

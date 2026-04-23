@@ -70,17 +70,11 @@ pub fn run(opts: InjectOptions) -> Result<()> {
             // Load config to get widget attributes
             let config = Config::load().unwrap_or_default();
             let widget_url = opts.widget_url.as_deref().unwrap_or("https://spikes.sh/widget.js");
-            
-            // Build attributes: --endpoint flag takes precedence over config
-            let attrs = if let Some(ref endpoint) = opts.endpoint {
-                // Flag value is used verbatim (VAL-INJECT-002)
-                format!(r#"data-project="{}" data-endpoint="{}""#, 
-                    config.effective_project_key(), endpoint)
-            } else {
-                // Fall back to config's widget_attributes (includes data-endpoint if configured)
-                config.widget_attributes()
-            };
-            
+
+            // Build attributes: --endpoint flag takes precedence over config but
+            // preserves ALL other config-derived attributes (theme, position, color, collect_email)
+            let attrs = config.widget_attributes_with_endpoint_override(opts.endpoint.as_deref());
+
             let script_tag = format!(r#"<script src="{}" {}></script>"#, widget_url, attrs);
             let new_content = inject_script_tag(&content, &script_tag);
             fs::write(path, new_content)?;
@@ -619,5 +613,156 @@ hosted = true
         // Both attributes should be present
         assert!(content.contains(r#"src="/custom-widget.js""#));
         assert!(content.contains(r#"data-endpoint="https://api.example.com/spikes""#));
+    }
+
+    #[test]
+    fn test_inject_endpoint_flag_preserves_all_config_attributes() {
+        // Regression test: --endpoint flag should preserve theme, position, color from config
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+        let spikes_dir = temp_dir.path().join(".spikes");
+        std::fs::create_dir(&spikes_dir).unwrap();
+
+        // Create a config with non-default widget settings
+        // Using ## delimiter to avoid issues with # in hex color codes
+        let config_content = r##"
+[project]
+key = "styled-project"
+
+[widget]
+theme = "light"
+position = "top-right"
+color = "#3498db"
+collect_email = false
+
+[remote]
+hosted = true
+"##;
+        std::fs::write(spikes_dir.join("config.toml"), config_content).unwrap();
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        // Temporarily change to the temp directory so Config::load() finds the config
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        let opts = InjectOptions {
+            directory: ".".to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("https://custom.example.com/api".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        // Restore original directory
+        std::env::set_current_dir(original_dir).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+
+        // Flag endpoint should be used verbatim
+        assert!(content.contains(r#"data-endpoint="https://custom.example.com/api""#));
+
+        // ALL config-derived attributes should be preserved
+        assert!(content.contains(r#"data-project="styled-project""#));
+        assert!(content.contains(r#"data-theme="light""#));
+        assert!(content.contains(r#"data-position="top-right""#));
+        // Using ## delimiter for assertions that contain # in color codes
+        assert!(content.contains(r##"data-color="#3498db""##));
+
+        // Should NOT have collect_email (false in config)
+        assert!(!content.contains("data-collect-email"));
+    }
+
+    #[test]
+    fn test_inject_endpoint_flag_preserves_collect_email_when_true() {
+        // Regression test: --endpoint flag should preserve data-collect-email when config has it true
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+        let spikes_dir = temp_dir.path().join(".spikes");
+        std::fs::create_dir(&spikes_dir).unwrap();
+
+        // Create a config with collect_email = true
+        // Using ## delimiter to avoid issues with # in hex color codes
+        let config_content = r##"
+[project]
+key = "email-project"
+
+[widget]
+theme = "dark"
+position = "bottom-right"
+color = "#e74c3c"
+collect_email = true
+"##;
+        std::fs::write(spikes_dir.join("config.toml"), config_content).unwrap();
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        // Temporarily change to the temp directory so Config::load() finds the config
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&temp_dir).unwrap();
+
+        let opts = InjectOptions {
+            directory: ".".to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("https://custom.example.com/spikes".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        // Restore original directory
+        std::env::set_current_dir(original_dir).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+
+        // Flag endpoint should be used
+        assert!(content.contains(r#"data-endpoint="https://custom.example.com/spikes""#));
+
+        // collect_email should be preserved
+        assert!(content.contains(r#"data-collect-email="true""#));
+
+        // All other config attributes should be preserved
+        assert!(content.contains(r#"data-project="email-project""#));
+        assert!(content.contains(r#"data-theme="dark""#));
+    }
+
+    #[test]
+    fn test_inject_endpoint_flag_with_no_config_preserves_minimal_behavior() {
+        // When no config exists and --endpoint is used, should still work with project key from dir name
+        let temp_dir = TempDir::new().unwrap();
+        let html_path = temp_dir.path().join("test.html");
+
+        // No .spikes/config.toml created
+        std::fs::write(&html_path, r#"<!DOCTYPE html>
+<html><body><h1>Test</h1></body></html>"#).unwrap();
+
+        let opts = InjectOptions {
+            directory: temp_dir.path().to_string_lossy().to_string(),
+            remove: false,
+            widget_url: None,
+            endpoint: Some("https://minimal.example.com/ingest".to_string()),
+            json: true,
+        };
+
+        run(opts).unwrap();
+
+        let content = std::fs::read_to_string(&html_path).unwrap();
+
+        // Flag endpoint should be used verbatim
+        assert!(content.contains(r#"data-endpoint="https://minimal.example.com/ingest""#));
+
+        // Project key should come from directory name (temp dir name)
+        // Default config attributes should use defaults (dark theme, bottom-right, etc.)
+        assert!(content.contains("data-project="));
+        assert!(content.contains("data-theme=\"dark\""));
+        assert!(content.contains("data-position=\"bottom-right\""));
+        // Using ## delimiter for assertions that contain # in color codes
+        assert!(content.contains(r##"data-color="#e74c3c""##));
+
+        // No collect_email when using defaults (false by default)
+        assert!(!content.contains("data-collect-email"));
     }
 }
