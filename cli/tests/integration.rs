@@ -605,3 +605,158 @@ fn test_list_unresolved_composes_with_other_filters() {
         .stdout(predicate::str::contains("spike-page-a"))
         .stdout(predicate::str::contains("spike-page-c").not());  // Resolved, should be filtered out
 }
+
+// ============================================================================
+// Init hosted-by-default tests
+// ============================================================================
+
+/// Helper to run spikes binary in a temp directory with null stdin (non-interactive mode)
+fn run_spikes_init(temp_dir: &std::path::Path, args: &[&str]) -> std::process::Output {
+    let binary = cargo_bin_cmd!("spikes").get_program().to_owned();
+    let mut cmd = std::process::Command::new(binary);
+    cmd.current_dir(temp_dir)
+        .arg("init")
+        .stdin(std::process::Stdio::null());  // Non-interactive
+    for arg in args {
+        cmd.arg(arg);
+    }
+    cmd.output().expect("Failed to run spikes init")
+}
+
+#[test]
+fn test_init_non_interactive_defaults_to_hosted() {
+    // Non-interactive (stdin closed) defaults to hosted
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let output = run_spikes_init(temp_dir.path(), &[]);
+    assert!(output.status.success(), "init should succeed");
+
+    // Verify config contains [remote] section with hosted=true and endpoint
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let content = std::fs::read_to_string(&config_path).unwrap();
+    
+    // VAL-CONFIG-005: Must contain [remote], hosted=true, endpoint="https://spikes.sh"
+    assert!(content.contains("[remote]"), "Config must contain [remote] section");
+    assert!(content.contains("hosted = true"), "Config must have hosted = true");
+    assert!(content.contains("endpoint = \"https://spikes.sh\""), "Config must have endpoint = \"https://spikes.sh\"");
+}
+
+#[test]
+fn test_init_json_non_interactive_defaults_to_hosted() {
+    // VAL-CONFIG-006a: --json with closed stdin defaults to hosted
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let output = run_spikes_init(temp_dir.path(), &["--json"]);
+    assert!(output.status.success(), "init --json should succeed");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // JSON output should indicate success
+    assert!(stdout.contains("\"success\":true"), "JSON output should indicate success");
+
+    // Verify config contains hosted=true and endpoint
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let content = std::fs::read_to_string(&config_path).unwrap();
+    
+    assert!(content.contains("[remote]"), "Config must contain [remote] section");
+    assert!(content.contains("hosted = true"), "Config must have hosted = true");
+    assert!(content.contains("endpoint = \"https://spikes.sh\""), "Config must have endpoint");
+}
+
+#[test]
+fn test_init_creates_empty_feedback_jsonl() {
+    // VAL-CONFIG-008: feedback.jsonl should be empty (0 bytes)
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let output = run_spikes_init(temp_dir.path(), &[]);
+    assert!(output.status.success(), "init should succeed");
+
+    let feedback_path = temp_dir.path().join(".spikes/feedback.jsonl");
+    assert!(feedback_path.exists(), "feedback.jsonl should exist");
+    
+    let metadata = std::fs::metadata(&feedback_path).unwrap();
+    assert_eq!(metadata.len(), 0, "feedback.jsonl should be exactly 0 bytes");
+}
+
+#[test]
+fn test_init_config_uses_remote_not_sync() {
+    // VAL-CONFIG-007: Config should use [remote], not [sync]
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let output = run_spikes_init(temp_dir.path(), &[]);
+    assert!(output.status.success(), "init should succeed");
+
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let content = std::fs::read_to_string(&config_path).unwrap();
+    
+    assert!(content.contains("[remote]"), "Config must contain [remote] section");
+    assert!(!content.contains("[sync]"), "Config must NOT contain [sync] section");
+}
+
+#[test]
+fn test_init_is_idempotent() {
+    // VAL-CONFIG-013: Running init twice should not overwrite existing .spikes/
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // First init
+    let output1 = run_spikes_init(temp_dir.path(), &[]);
+    assert!(output1.status.success(), "First init should succeed");
+
+    // Get the config content after first init
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let first_content = std::fs::read_to_string(&config_path).unwrap();
+
+    // Second init should fail gracefully
+    let output2 = run_spikes_init(temp_dir.path(), &[]);
+    // Note: status should still be success (exit 0), but with error message to stderr
+    let stderr = String::from_utf8_lossy(&output2.stderr);
+    assert!(stderr.contains("already exists"), "Should print 'already exists' message");
+
+    // Verify config was not overwritten
+    let second_content = std::fs::read_to_string(&config_path).unwrap();
+    assert_eq!(first_content, second_content, "Config should not be overwritten");
+}
+
+#[test]
+fn test_init_config_roundtrip() {
+    // VAL-CONFIG-014: Config should survive serde roundtrip
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // Init creates config
+    let output = run_spikes_init(temp_dir.path(), &[]);
+    assert!(output.status.success(), "init should succeed");
+
+    // Now use spikes config to read it back
+    let binary = cargo_bin_cmd!("spikes").get_program().to_owned();
+    let config_output = std::process::Command::new(binary)
+        .current_dir(temp_dir.path())
+        .arg("config")
+        .arg("--json")
+        .output()
+        .expect("Failed to run spikes config");
+    
+    assert!(config_output.status.success(), "config command should succeed");
+
+    let stdout = String::from_utf8_lossy(&config_output.stdout);
+    
+    // Verify JSON output has expected fields
+    assert!(stdout.contains("\"hosted\":true"), "JSON should show hosted=true");
+    assert!(stdout.contains("\"endpoint\":\"https://spikes.sh\""), "JSON should show the endpoint");
+}
+
+#[test]
+fn test_init_non_interactive_self_host_flag() {
+    // Non-interactive with --self-host flag should create self-host config
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let output = run_spikes_init(temp_dir.path(), &["--self-host"]);
+    assert!(output.status.success(), "init --self-host should succeed");
+
+    // Verify config has [remote] but NOT hosted=true
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let content = std::fs::read_to_string(&config_path).unwrap();
+    
+    assert!(content.contains("[remote]"), "Config must contain [remote] section");
+    // For self-host, hosted should not be true (either false, absent, or commented)
+    assert!(!content.contains("hosted = true"), "Self-host config should NOT have hosted = true");
+}

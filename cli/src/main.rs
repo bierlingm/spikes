@@ -42,6 +42,10 @@ enum Commands {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Self-host instead of using hosted spikes.sh (non-interactive opt-out)
+        #[arg(long)]
+        self_host: bool,
     },
 
     /// List all spikes
@@ -451,7 +455,7 @@ fn main() {
     let result = match cli.command {
         // Magic mode: no subcommand = auto-serve current directory
         None => commands::magic::run(cli.port),
-        Some(Commands::Init { json }) => commands::init::run(json),
+        Some(Commands::Init { json, self_host }) => commands::init::run(json, self_host),
         Some(Commands::List {
             json,
             page,
