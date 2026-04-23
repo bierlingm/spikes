@@ -116,11 +116,21 @@ impl Config {
     }
 
     /// Get effective endpoint (remote.endpoint or hosted fallback)
+    ///
+    /// Priority:
+    /// 1. If remote.endpoint is explicitly set, use it (explicit wins over hosted)
+    /// 2. If remote.hosted is true, use the canonical hosted URL https://spikes.sh
+    /// 3. Otherwise, return None
     pub fn effective_endpoint(&self) -> Option<String> {
+        // Explicit endpoint takes precedence over hosted flag
+        if let Some(ref endpoint) = self.remote.endpoint {
+            return Some(endpoint.clone());
+        }
+
         if self.remote.hosted {
-            Some("https://api.spikes.sh".to_string())
+            Some("https://spikes.sh".to_string())
         } else {
-            self.remote.endpoint.clone()
+            None
         }
     }
 
@@ -148,10 +158,16 @@ impl Config {
         }
 
         if let Some(endpoint) = self.effective_endpoint() {
+            // Normalize endpoint: strip trailing "/spikes" if present to avoid double paths
+            // This handles legacy configs where users may have manually edited endpoint to include /spikes
+            let base_endpoint = endpoint
+                .trim_end_matches('/')
+                .trim_end_matches("/spikes");
+
             let full_endpoint = if let Some(token) = &self.remote.token {
-                format!("{}/spikes?token={}", endpoint.trim_end_matches('/'), token)
+                format!("{}/spikes?token={}", base_endpoint, token)
             } else {
-                format!("{}/spikes", endpoint.trim_end_matches('/'))
+                format!("{}/spikes", base_endpoint)
             };
             attrs.push(format!("data-endpoint=\"{}\"", full_endpoint));
         }
@@ -304,10 +320,13 @@ mod tests {
 
     #[test]
     fn test_effective_endpoint_hosted() {
+        // DEPRECATED: This test was for the old api.spikes.sh endpoint
+        // Replaced by test_effective_endpoint_hosted_returns_canonical_url
+        // Keeping for backward compatibility check - now expects canonical endpoint
         let mut config = Config::default();
         config.remote.hosted = true;
 
-        assert_eq!(config.effective_endpoint(), Some("https://api.spikes.sh".to_string()));
+        assert_eq!(config.effective_endpoint(), Some("https://spikes.sh".to_string()));
     }
 
     #[test]
@@ -382,6 +401,98 @@ mod tests {
 
         let attrs = config.widget_attributes();
         assert!(attrs.contains("token=my-token"));
+    }
+
+    #[test]
+    fn test_effective_endpoint_hosted_returns_canonical_url() {
+        // VAL-CONFIG-001: When hosted=true, effective_endpoint() returns https://spikes.sh
+        let mut config = Config::default();
+        config.remote.hosted = true;
+
+        assert_eq!(config.effective_endpoint(), Some("https://spikes.sh".to_string()));
+    }
+
+    #[test]
+    fn test_widget_attributes_hosted_produces_correct_spikes_url() {
+        // VAL-CONFIG-002: widget_attributes() includes data-endpoint="https://spikes.sh/spikes" when hosted=true
+        let mut config = Config::default();
+        config.remote.hosted = true;
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("data-endpoint=\"https://spikes.sh/spikes\""));
+        // Ensure no double /spikes
+        assert!(!attrs.contains("/spikes/spikes"));
+    }
+
+    #[test]
+    fn test_explicit_endpoint_wins_over_hosted() {
+        // VAL-CONFIG-003: Explicit endpoint wins when both hosted=true and endpoint are set
+        let mut config = Config::default();
+        config.remote.hosted = true;
+        config.remote.endpoint = Some("https://my.worker.dev".to_string());
+
+        // When both are set, the explicit endpoint should win
+        assert_eq!(config.effective_endpoint(), Some("https://my.worker.dev".to_string()));
+    }
+
+    #[test]
+    fn test_widget_attributes_explicit_endpoint_with_hosted() {
+        // VAL-CROSS-005: Config with [remote] endpoint="https://my.worker.dev" and hosted=true
+        // resolves to the explicit endpoint
+        let mut config = Config::default();
+        config.remote.hosted = true;
+        config.remote.endpoint = Some("https://my.worker.dev".to_string());
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("data-endpoint=\"https://my.worker.dev/spikes\""));
+        // Should NOT contain spikes.sh since explicit endpoint wins
+        assert!(!attrs.contains("spikes.sh"));
+    }
+
+    #[test]
+    fn test_legacy_config_with_trailing_spikes_not_doubled() {
+        // VAL-CONFIG-004: Legacy config with endpoint ending in "/spikes" does NOT produce "/spikes/spikes"
+        let mut config = Config::default();
+        config.remote.endpoint = Some("https://spikes.sh/spikes".to_string());
+
+        let attrs = config.widget_attributes();
+        // Should strip trailing /spikes before appending
+        assert!(attrs.contains("data-endpoint=\"https://spikes.sh/spikes\""));
+        // Should NOT have double /spikes
+        assert!(!attrs.contains("/spikes/spikes"));
+    }
+
+    #[test]
+    fn test_legacy_config_with_path_prefix_preserved() {
+        // Test that endpoints with path prefixes work correctly
+        let mut config = Config::default();
+        config.remote.endpoint = Some("https://my.worker.dev/api".to_string());
+
+        let attrs = config.widget_attributes();
+        assert!(attrs.contains("data-endpoint=\"https://my.worker.dev/api/spikes\""));
+    }
+
+    #[test]
+    fn test_config_without_remote_section_loads_cleanly() {
+        // VAL-CONFIG-024: Configs with no [remote] at all still load cleanly
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+
+        let content = r#"
+[project]
+key = "no-remote-project"
+
+[widget]
+theme = "light"
+"#;
+        std::fs::write(&config_path, content).unwrap();
+
+        let config = Config::load_from(&config_path).unwrap();
+
+        // Should use defaults for missing remote section
+        assert!(!config.remote.hosted);
+        assert!(config.remote.endpoint.is_none());
+        assert!(config.remote.token.is_none());
     }
 
     #[test]
