@@ -1,5 +1,46 @@
 # User Testing
 
+## Mission 02: Hosted CLI (v0.4.0)
+
+### Validation Surface
+
+**Primary surface:** CLI (shell / cargo / assert_cmd integration tests)
+- `spikes init`, `spikes config`, `spikes inject`, `spikes deploy cloudflare`, `spikes shares` invoked in tmp dirs via the `spikes` binary under `cli/target/debug/`.
+- JSON output via `--json`; parsed with `jq` in shell.
+- File-content assertions against `.spikes/config.toml`, injected HTML files, `.gitignore`.
+- Exit-code assertions via `$?`.
+
+**Secondary surface:** Interactive CLI (tuistory)
+- Two interactive prompts in this mission: `spikes init` hosted/self-host ([H/s]); `spikes deploy cloudflare` hosted-warning ([y/N]).
+- Drive with `tuistory` to exercise the real TTY path.
+
+**Tertiary surface:** Browser (agent-browser)
+- Only two assertions in this mission use agent-browser: VAL-CROSS-001 (golden path with live POST) and VAL-CROSS-008 (widget smart-default regression guard).
+- Serve injected HTML via the `widget-test-server` (port 8899).
+- POST destination: real live `https://spikes.sh/spikes`. Tag project key `mission-02-validation`.
+
+**Testing tools:** shell, cargo, tuistory, agent-browser, curl, jq, rg
+
+**Setup requirements:**
+- Fresh tmp dirs per assertion (use `mktemp -d`).
+- Build the CLI once: `cd cli && cargo build`. Use absolute path to the binary in tests.
+- widget-test-server (port 8899) reused from Mission 01.
+- No auth credentials required — public POST endpoint.
+
+### Validation Concurrency
+
+**Machine:** 32GB RAM, 10 CPU cores
+**Max concurrent validators:** 5 (CLI-only, lightweight; agent-browser instances only needed for CROSS-001 and CROSS-008 so those are gated serially).
+
+### Known Quirks
+
+- `spikes init --json` must not block on stdin; when piped-from-/dev/null it should default to hosted.
+- `timeout` is not installed on macOS by default — use a POSIX-portable alarm pattern (see VAL-CONFIG-012).
+- `sha256sum` is not installed on macOS — use `shasum -a 256` or `cmp`.
+- Exit code 2 vs 0 is the whole point of VAL-POLISH-001; shells in non-interactive modes can also produce exit 2 for unrelated reasons, so always run `spikes shares` directly (not through another wrapper).
+
+---
+
 ## Mission 01: Widget Default Endpoint + Visible Errors
 
 ### Validation Surface
