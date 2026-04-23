@@ -1,6 +1,8 @@
 use std::fs;
+use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
+use crate::config::Config;
 use crate::error::Result;
 
 const INDEX_TS_TEMPLATE: &str = include_str!("../../templates/cloudflare/index.ts.tmpl");
@@ -12,27 +14,155 @@ const TSCONFIG_JSON: &str = include_str!("../../templates/cloudflare/tsconfig.js
 pub struct DeployOptions {
     pub dir: Option<String>,
     pub json: bool,
+    pub force: bool,
+}
+
+/// Check if the project is configured for hosted spikes.sh
+fn is_hosted_config() -> bool {
+    match Config::load() {
+        Ok(config) => config.remote.hosted,
+        Err(_) => false,
+    }
+}
+
+/// Check if stdin is a TTY (interactive terminal)
+fn is_interactive() -> bool {
+    io::stdin().is_terminal()
+}
+
+/// Print the hosted warning and prompt for confirmation
+/// Returns Ok(true) to proceed, Ok(false) to abort
+fn prompt_hosted_warning(json: bool, force: bool) -> Result<bool> {
+    // If force flag is set, skip the warning
+    if force {
+        return Ok(true);
+    }
+
+    // In non-interactive mode (no TTY), print warning to stderr and abort non-zero
+    if !is_interactive() {
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "success": false,
+                    "error": "This project is configured for spikes.sh hosted backend. Use --force to deploy Cloudflare Worker anyway."
+                })
+            );
+        } else {
+            eprintln!("Warning: This project is configured for spikes.sh hosted backend.");
+            eprintln!("Deploy cloudflare is for data isolation or custom domain use cases.");
+            eprintln!("Use --force to deploy Cloudflare Worker anyway.");
+        }
+        // Return false to abort - caller should exit non-zero
+        return Ok(false);
+    }
+
+    // Interactive mode - print warning and prompt
+    println!();
+    println!("⚠️  Warning: This project is configured for spikes.sh hosted backend.");
+    println!("   spikes.sh already hosts this backend for you.");
+    println!();
+    println!("   Use `spikes deploy cloudflare` only if you need:");
+    println!("   • Data isolation (keep feedback data in your own Cloudflare account)");
+    println!("   • Custom domain for your feedback API");
+    println!();
+    print!("Continue? [y/N] ");
+    io::stdout().flush().unwrap();
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap_or(0);
+    let trimmed = input.trim();
+
+    // Empty (Enter), 'n', or 'N' = abort
+    // 'y' or 'Y' = proceed
+    match trimmed {
+        "y" | "Y" => Ok(true),
+        _ => {
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "success": false,
+                        "error": "Aborted: deploy cancelled by user"
+                    })
+                );
+            } else {
+                println!("Aborted: deploy cancelled.");
+            }
+            Ok(false)
+        }
+    }
+}
+
+/// Check if a directory is empty (contains no visible files/directories)
+fn is_directory_empty(path: &Path) -> Result<bool> {
+    if !path.exists() {
+        return Ok(true);
+    }
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let file_name = entry.file_name();
+        // Skip hidden files (.) but count everything else
+        if let Some(name) = file_name.to_str() {
+            if !name.starts_with('.') {
+                return Ok(false);
+            }
+        } else {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
 }
 
 pub fn run(options: DeployOptions) -> Result<()> {
     let output_dir = options.dir.unwrap_or_else(|| "spikes-worker".to_string());
     let output_path = Path::new(&output_dir);
 
-    // Check if directory exists
-    if output_path.exists() {
+    // Check if directory exists and is non-empty
+    if output_path.exists() && !is_directory_empty(output_path)? {
         if options.json {
             println!(
                 "{}",
                 serde_json::json!({
                     "success": false,
-                    "error": format!("Directory '{}' already exists", output_dir)
+                    "error": format!("Directory '{}' is not empty", output_dir)
                 })
             );
         } else {
-            eprintln!("Error: Directory '{}' already exists", output_dir);
-            eprintln!("Remove it or specify a different directory with --dir");
+            eprintln!("Error: Directory '{}' is not empty", output_dir);
+            eprintln!("Remove existing files or specify a different directory with --dir");
         }
-        return Ok(());
+        // Return Err instead of Ok to ensure non-zero exit
+        return Err(crate::error::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("Directory '{}' is not empty", output_dir),
+        )));
+    }
+
+    // Check if this is a hosted config and show warning/prompt
+    if is_hosted_config() {
+        match prompt_hosted_warning(options.json, options.force) {
+            Ok(false) => {
+                // User chose not to proceed
+                if options.json {
+                    // JSON output already printed by prompt_hosted_warning
+                    std::process::exit(0);
+                } else {
+                    // Non-interactive abort exits non-zero
+                    if !is_interactive() {
+                        std::process::exit(1);
+                    }
+                    // Interactive abort exits 0
+                    std::process::exit(0);
+                }
+            }
+            Ok(true) => {
+                // Proceed with deploy
+            }
+            Err(e) => return Err(e),
+        }
     }
 
     // Generate token
@@ -40,7 +170,7 @@ pub fn run(options: DeployOptions) -> Result<()> {
     let project_name = sanitize_project_name(&output_dir);
     let db_name = format!("{}-db", project_name);
 
-    // Create directory structure
+    // Create directory structure (handles both new dirs and empty existing dirs)
     fs::create_dir_all(output_path.join("src"))?;
 
     // Write index.ts (no templating needed)
@@ -72,26 +202,10 @@ pub fn run(options: DeployOptions) -> Result<()> {
     let readme = generate_readme(&project_name, &db_name, &token);
     fs::write(output_path.join("README.md"), readme)?;
 
-    // Save config to .spikes/config.toml if it exists
+    // Save config to .spikes/config.toml if it exists (merge instead of replace)
     let spikes_dir = Path::new(".spikes");
     if spikes_dir.exists() {
-        let config_path = spikes_dir.join("config.toml");
-        let config_content = format!(
-            r#"# Spikes configuration
-# https://spikes.sh
-
-[project]
-# Project key for grouping spikes
-# key = "my-project"
-
-[remote]
-# Cloudflare Worker endpoint (update after deploying)
-# endpoint = "https://{}.YOUR_SUBDOMAIN.workers.dev"
-token = "{}"
-"#,
-            project_name, token
-        );
-        fs::write(config_path, config_content)?;
+        update_config_with_token(&token, &project_name, options.json)?;
     }
 
     if options.json {
@@ -158,6 +272,26 @@ token = "{}"
     Ok(())
 }
 
+/// Update the existing config.toml with new remote token, preserving other sections
+fn update_config_with_token(token: &str, _project_name: &str, _json: bool) -> Result<()> {
+    // Load existing config
+    let config = Config::load()?;
+
+    // Create updated config with new remote settings
+    let mut new_config = config.clone();
+
+    // Only update the remote section - preserve other sections
+    new_config.remote.token = Some(token.to_string());
+    // Note: we don't change hosted status here - if user was hosted, they remain hosted
+    // but with a token for the new self-hosted backend
+    new_config.remote.hosted = false; // Self-hosted backend is not "hosted"
+
+    // Save the merged config
+    new_config.save()?;
+
+    Ok(())
+}
+
 fn generate_token() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -197,9 +331,21 @@ fn generate_readme(project_name: &str, db_name: &str, token: &str) -> String {
     format!(
         r#"# {} — Spikes Worker
 
-Cloudflare Worker + D1 backend for multi-reviewer feedback sync.
+Self-hosted Cloudflare Worker + D1 backend for multi-reviewer feedback sync.
 
 Generated by: `spikes deploy cloudflare`
+
+## Why Self-Host?
+
+**spikes.sh already hosts this backend** — for most users, the hosted service is the best choice:
+- No setup or maintenance required
+- Automatic updates and scaling
+- Built-in security and backups
+
+Use `spikes deploy cloudflare` only if you need:
+- **Data isolation** — Keep all feedback data within your own Cloudflare account
+- **Custom domain** — Serve your feedback API from your own domain (e.g., `api.yourdomain.com`)
+- **Enterprise compliance** — Meet organizational requirements for data residency
 
 ## Setup
 
@@ -329,4 +475,114 @@ This starts a local development server with a local D1 database.
         token,
         token
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_generate_token_format() {
+        let token = generate_token();
+        // Token should match pattern: 16 hex chars - 16 hex chars
+        assert!(token.len() == 33, "Token should be 33 characters (16 + 1 + 16)");
+        assert!(token.contains('-'), "Token should contain hyphen separator");
+        
+        let parts: Vec<&str> = token.split('-').collect();
+        assert_eq!(parts.len(), 2, "Token should have exactly 2 parts");
+        assert_eq!(parts[0].len(), 16, "First part should be 16 hex chars");
+        assert_eq!(parts[1].len(), 16, "Second part should be 16 hex chars");
+        
+        // Verify hex format
+        assert!(u64::from_str_radix(parts[0], 16).is_ok(), "First part should be valid hex");
+        assert!(u64::from_str_radix(parts[1], 16).is_ok(), "Second part should be valid hex");
+    }
+
+    #[test]
+    fn test_sanitize_project_name() {
+        assert_eq!(sanitize_project_name("My Project"), "my-project");
+        assert_eq!(sanitize_project_name("test_project"), "test-project");
+        assert_eq!(sanitize_project_name("UPPERCASE"), "uppercase");
+        assert_eq!(sanitize_project_name("---leading-dashes"), "leading-dashes");
+        assert_eq!(sanitize_project_name("trailing-dashes---"), "trailing-dashes");
+        assert_eq!(sanitize_project_name("a-b-c-123"), "a-b-c-123");
+    }
+
+    #[test]
+    fn test_generate_readme_contains_hosted_info() {
+        let readme = generate_readme("test-project", "test-project-db", "test-token-1234");
+        
+        // Check for spikes.sh mention
+        assert!(readme.contains("spikes.sh"), "README should mention spikes.sh");
+        
+        // Check for data isolation mention
+        assert!(
+            readme.to_lowercase().contains("data isolation") || 
+            readme.to_lowercase().contains("custom domain") ||
+            readme.to_lowercase().contains("self-host"),
+            "README should mention data isolation, custom domain, or self-host rationale"
+        );
+        
+        // Check for "Why Self-Host" section
+        assert!(readme.contains("Why Self-Host"), "README should have 'Why Self-Host' section");
+    }
+
+    #[test]
+    fn test_generate_readme_contains_token() {
+        let token = "abcd1234-5678efgh";
+        let readme = generate_readme("test", "test-db", token);
+        
+        // Token should appear in README
+        assert!(readme.contains(token), "README should contain the auth token");
+    }
+
+    #[test]
+    fn test_is_directory_empty_new_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let new_path = temp_dir.path().join("new_dir");
+        
+        // Non-existent directory should be considered "empty" (will be created)
+        assert!(is_directory_empty(&new_path).unwrap(), "Non-existent dir should be considered empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_actually_empty() {
+        let temp_dir = TempDir::new().unwrap();
+        let empty_dir = temp_dir.path().join("empty");
+        fs::create_dir(&empty_dir).unwrap();
+        
+        assert!(is_directory_empty(&empty_dir).unwrap(), "Truly empty dir should be empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_with_hidden_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let hidden_dir = temp_dir.path().join("hidden");
+        fs::create_dir(&hidden_dir).unwrap();
+        fs::write(hidden_dir.join(".gitkeep"), "").unwrap();
+        
+        // Hidden files should not count as non-empty
+        assert!(is_directory_empty(&hidden_dir).unwrap(), "Dir with only hidden files should be considered empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_with_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let non_empty_dir = temp_dir.path().join("nonempty");
+        fs::create_dir(&non_empty_dir).unwrap();
+        fs::write(non_empty_dir.join("some-file.txt"), "content").unwrap();
+        
+        assert!(!is_directory_empty(&non_empty_dir).unwrap(), "Dir with files should not be empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_with_visible_dir() {
+        let temp_dir = TempDir::new().unwrap();
+        let parent_dir = temp_dir.path().join("parent");
+        fs::create_dir(&parent_dir).unwrap();
+        fs::create_dir(parent_dir.join("subdir")).unwrap();
+        
+        assert!(!is_directory_empty(&parent_dir).unwrap(), "Dir with subdirectories should not be empty");
+    }
 }

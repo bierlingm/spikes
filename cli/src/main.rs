@@ -345,7 +345,13 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum DeployBackend {
-    /// Scaffold Cloudflare Worker + D1 for multi-reviewer sync
+    /// Scaffold Cloudflare Worker + D1 for self-hosted feedback sync
+    ///
+    /// This scaffolds a Cloudflare Worker with D1 database for self-hosting your feedback
+    /// backend. Use this when you need data isolation or a custom domain. For quick
+    /// temporary previews, use `spikes share` instead.
+    ///
+    /// spikes.sh already hosts this backend for you — this is for self-hosting only.
     Cloudflare {
         /// Output directory (default: ./spikes-worker)
         #[arg(long)]
@@ -354,6 +360,10 @@ enum DeployBackend {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Bypass the hosted spikes.sh warning prompt (non-interactive)
+        #[arg(long, short)]
+        force: bool,
     },
 }
 
@@ -506,8 +516,8 @@ fn main() {
             cors_allow_origin,
         }),
         Some(Commands::Deploy { backend }) => match backend {
-            DeployBackend::Cloudflare { dir, json } => {
-                commands::deploy::run(DeployOptions { dir, json })
+            DeployBackend::Cloudflare { dir, json, force } => {
+                commands::deploy::run(DeployOptions { dir, json, force })
             }
         },
         Some(Commands::Pull {

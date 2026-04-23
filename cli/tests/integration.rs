@@ -760,3 +760,376 @@ fn test_init_non_interactive_self_host_flag() {
     // For self-host, hosted should not be true (either false, absent, or commented)
     assert!(!content.contains("hosted = true"), "Self-host config should NOT have hosted = true");
 }
+
+// ============================================================================
+// Deploy command tests
+// ============================================================================
+
+#[test]
+fn test_deploy_no_config_scaffolds_normally() {
+    // In a directory without .spikes/, deploy should scaffold normally (no hosted warning)
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Spikes Cloudflare Worker scaffolded"));
+
+    // Verify scaffold files exist
+    assert!(temp_dir.path().join("spikes-worker/src/index.ts").exists());
+    assert!(temp_dir.path().join("spikes-worker/wrangler.toml").exists());
+    assert!(temp_dir.path().join("spikes-worker/README.md").exists());
+}
+
+#[test]
+fn test_deploy_creates_custom_dir() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--dir")
+        .arg("custom-worker")
+        .assert()
+        .success();
+
+    // Verify files in custom directory
+    assert!(temp_dir.path().join("custom-worker/src/index.ts").exists());
+    assert!(temp_dir.path().join("custom-worker/wrangler.toml").exists());
+}
+
+#[test]
+fn test_deploy_empty_existing_dir_succeeds() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let empty_dir = temp_dir.path().join("empty-worker");
+    std::fs::create_dir(&empty_dir).unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--dir")
+        .arg("empty-worker")
+        .assert()
+        .success();
+
+    // Verify scaffold files in the previously-empty directory
+    assert!(empty_dir.join("src/index.ts").exists());
+    assert!(empty_dir.join("wrangler.toml").exists());
+}
+
+#[test]
+fn test_deploy_non_empty_dir_fails() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let non_empty_dir = temp_dir.path().join("nonempty-worker");
+    std::fs::create_dir(&non_empty_dir).unwrap();
+    std::fs::write(non_empty_dir.join("existing-file.txt"), "content").unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--dir")
+        .arg("nonempty-worker")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not empty"));
+
+    // Verify existing file is preserved
+    assert!(non_empty_dir.join("existing-file.txt").exists());
+    // Verify scaffold files were NOT written
+    assert!(!non_empty_dir.join("wrangler.toml").exists());
+}
+
+#[test]
+fn test_deploy_json_output() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--json")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"success\":true"))
+        .stdout(predicate::str::contains("\"directory\":\"spikes-worker\""))
+        .stdout(predicate::str::contains("\"token\""))
+        .stdout(predicate::str::contains("\"files\""));
+}
+
+#[test]
+fn test_deploy_generates_valid_token() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let output = cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--json")
+        .assert()
+        .success()
+        .get_output()
+        .to_owned();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    let token = json["token"].as_str().unwrap();
+
+    // Token should match pattern: 16 hex chars - 16 hex chars
+    assert!(token.len() == 33, "Token should be 33 characters");
+    assert!(token.contains('-'), "Token should contain hyphen");
+}
+
+#[test]
+fn test_deploy_readme_contains_hosted_info() {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .assert()
+        .success();
+
+    let readme_path = temp_dir.path().join("spikes-worker/README.md");
+    let readme = std::fs::read_to_string(&readme_path).unwrap();
+
+    // README should mention spikes.sh
+    assert!(readme.contains("spikes.sh"), "README should mention spikes.sh");
+    
+    // README should explain self-host rationale
+    assert!(
+        readme.to_lowercase().contains("data isolation") ||
+        readme.to_lowercase().contains("custom domain") ||
+        readme.to_lowercase().contains("self-host"),
+        "README should explain why to self-host"
+    );
+}
+
+#[test]
+fn test_deploy_help_contains_share_vs_deploy_info() {
+    let output = cargo_bin_cmd!("spikes")
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--help")
+        .assert()
+        .success()
+        .get_output()
+        .to_owned();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // Help should mention spikes share for quick/temporary/preview
+    assert!(
+        stdout.to_lowercase().contains("share") && 
+        (stdout.to_lowercase().contains("quick") ||
+         stdout.to_lowercase().contains("temporary") ||
+         stdout.to_lowercase().contains("preview")),
+        "Help should contrast spikes share (quick/temporary/preview) with deploy"
+    );
+    
+    // Help should mention data isolation or custom domain for deploy
+    assert!(
+        stdout.to_lowercase().contains("data isolation") ||
+        stdout.to_lowercase().contains("custom domain"),
+        "Help should mention data isolation or custom domain for deploy"
+    );
+}
+
+#[test]
+fn test_deploy_force_flag_exposed() {
+    let output = cargo_bin_cmd!("spikes")
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--help")
+        .assert()
+        .success()
+        .get_output()
+        .to_owned();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // Help should mention --force flag
+    assert!(stdout.contains("--force"), "Help should mention --force flag");
+    assert!(stdout.contains("-f"), "Help should mention -f short flag");
+}
+
+#[test]
+fn test_deploy_non_interactive_hosted_config_aborts() {
+    // In a hosted-configured project, deploy with piped stdin should abort non-zero
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // First init (creates hosted config)
+    run_spikes_init(temp_dir.path(), &[]);
+
+    // Verify config is hosted
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let config_content = std::fs::read_to_string(&config_path).unwrap();
+    assert!(config_content.contains("hosted = true"), "Config should be hosted");
+
+    // Now try to deploy with null stdin (non-interactive)
+    let binary = cargo_bin_cmd!("spikes").get_program().to_owned();
+    let output = std::process::Command::new(binary)
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("Failed to run spikes deploy");
+
+    // Should fail with non-zero exit
+    assert!(!output.status.success(), "deploy should fail in non-interactive mode with hosted config");
+    
+    // Should print warning to stderr
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("spikes.sh"), "stderr should mention spikes.sh");
+    assert!(stderr.contains("--force"), "stderr should mention --force bypass");
+
+    // Verify no scaffold files were created
+    assert!(!temp_dir.path().join("spikes-worker").exists(), "No scaffold dir should be created");
+}
+
+#[test]
+fn test_deploy_force_bypasses_hosted_warning() {
+    // In a hosted-configured project, deploy --force should bypass the warning
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // First init (creates hosted config)
+    run_spikes_init(temp_dir.path(), &[]);
+
+    // Deploy with --force should succeed even with hosted config
+    let output = cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--force")
+        .assert()
+        .success()
+        .get_output()
+        .to_owned();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // Should scaffold normally
+    assert!(stdout.contains("Spikes Cloudflare Worker scaffolded"), "Should scaffold with --force");
+    
+    // Should NOT have hosted warning
+    assert!(!stdout.contains("Warning"), "Should not show hosted warning");
+    assert!(!stdout.contains("Continue?"), "Should not prompt");
+
+    // Verify scaffold files were created
+    assert!(temp_dir.path().join("spikes-worker/src/index.ts").exists());
+}
+
+#[test]
+fn test_deploy_self_hosted_config_no_warning() {
+    // In a self-hosted config (endpoint only, hosted=false), no warning should show
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // First init with --self-host (creates self-host config)
+    run_spikes_init(temp_dir.path(), &["--self-host"]);
+
+    // Verify config is NOT hosted
+    let config_path = temp_dir.path().join(".spikes/config.toml");
+    let config_content = std::fs::read_to_string(&config_path).unwrap();
+    assert!(!config_content.contains("hosted = true"), "Config should not be hosted");
+
+    // Deploy should proceed without warning
+    let output = cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .assert()
+        .success()
+        .get_output()
+        .to_owned();
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    
+    // Should scaffold normally without warning
+    assert!(stdout.contains("Spikes Cloudflare Worker scaffolded"), "Should scaffold");
+    
+    // Should NOT have hosted warning
+    assert!(!stdout.contains("spikes.sh"), "Should not mention spikes.sh for self-host config");
+    assert!(!stdout.contains("Continue?"), "Should not prompt");
+}
+
+#[test]
+fn test_deploy_force_does_not_override_non_empty_dir() {
+    // --force should bypass hosted warning but NOT override non-empty dir safety
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    // First init (creates hosted config)
+    run_spikes_init(temp_dir.path(), &[]);
+
+    // Create non-empty directory
+    let existing_dir = temp_dir.path().join("spikes-worker");
+    std::fs::create_dir(&existing_dir).unwrap();
+    std::fs::write(existing_dir.join("existing.txt"), "content").unwrap();
+
+    // Deploy with --force should still fail on non-empty dir
+    let output = cargo_bin_cmd!("spikes")
+        .current_dir(temp_dir.path())
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--force")
+        .assert()
+        .failure()
+        .get_output()
+        .to_owned();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    
+    // Should fail with non-empty error, NOT hosted warning
+    assert!(stderr.contains("not empty"), "Should fail with not-empty error");
+
+    // Existing file should be preserved
+    assert!(existing_dir.join("existing.txt").exists(), "Existing file should be preserved");
+    // Scaffold files should NOT be created
+    assert!(!existing_dir.join("wrangler.toml").exists(), "Should not create wrangler.toml");
+}
+
+#[test]
+fn test_deploy_dot_dir_in_empty_cwd_succeeds() {
+    // --dir . in an empty cwd should succeed
+    let temp_dir = tempfile::tempdir().unwrap();
+    let empty_cwd = temp_dir.path().join("empty-cwd");
+    std::fs::create_dir(&empty_cwd).unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(&empty_cwd)
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--dir")
+        .arg(".")
+        .assert()
+        .success();
+
+    // Verify scaffold files in cwd
+    assert!(empty_cwd.join("src/index.ts").exists());
+    assert!(empty_cwd.join("wrangler.toml").exists());
+}
+
+#[test]
+fn test_deploy_dot_dir_in_nonempty_cwd_fails() {
+    // --dir . in a non-empty cwd should fail
+    let temp_dir = tempfile::tempdir().unwrap();
+    let nonempty_cwd = temp_dir.path().join("nonempty-cwd");
+    std::fs::create_dir(&nonempty_cwd).unwrap();
+    std::fs::write(nonempty_cwd.join("file.txt"), "content").unwrap();
+
+    cargo_bin_cmd!("spikes")
+        .current_dir(&nonempty_cwd)
+        .arg("deploy")
+        .arg("cloudflare")
+        .arg("--dir")
+        .arg(".")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not empty"));
+}
