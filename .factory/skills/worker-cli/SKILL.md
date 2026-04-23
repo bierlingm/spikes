@@ -11,9 +11,16 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 
 Features that modify the Rust CLI at `./cli/`. This includes:
 - MCP server tools, transports, and modes (rmcp SDK)
-- CLI commands (auth, usage, etc.)
+- CLI commands (init, config, inject, deploy cloudflare, shares, auth, usage, etc.)
 - Integration tests and unit tests
 - Dependency changes in Cargo.toml
+- CLI-adjacent docs / README / templates under `./` and `./docs/`
+- Version bumps and git tag creation (when explicitly the feature goal)
+
+## Required Skills
+
+- `tuistory` — REQUIRED when implementing or verifying any interactive CLI prompt (stdin TTY). Invoke before driving prompts like `spikes init`'s hosted/self-host selection or `spikes deploy cloudflare`'s hosted-warning confirmation. Each tuistory session counts as one `interactiveChecks` entry in the handoff.
+- `agent-browser` — REQUIRED when the feature includes an end-to-end widget-in-page flow (e.g., golden-path `spikes init` → `spikes inject` → widget POST to `https://spikes.sh/spikes` served via `widget-test-server`). Use it to click the widget button, submit a test spike, and capture network logs for the live POST response. Do not substitute with curl when an assertion calls for a real browser interaction.
 
 ## Work Procedure
 

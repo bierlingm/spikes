@@ -20,6 +20,19 @@ Architectural decisions, patterns discovered, and design principles.
 | Validation | Zod schemas for all POST endpoints |
 | Pagination | Cursor-based with `?cursor=` and `?limit=` |
 
+## Hosted-First CLI (Mission 02 — v0.4.0)
+
+The CLI treats `https://spikes.sh` as the default backend:
+
+- Canonical hosted base URL: `https://spikes.sh` (NOT `api.spikes.sh` — that string is dead and has been purged from the repo).
+- `Config::effective_endpoint()` returns `Some("https://spikes.sh")` when `remote.hosted == true`. Widget attributes then append `/spikes` so `data-endpoint` resolves to `https://spikes.sh/spikes`.
+- `spikes init` defaults to hosted. The written `.spikes/config.toml` has `[remote] hosted = true` AND `endpoint = "https://spikes.sh"` (auditable decision). Self-host path uses `[remote]` without `hosted = true`.
+- `.spikes/config.toml` uses the `[remote]` section (matches `Config` struct). The legacy `[sync]` section was replaced in v0.4.0 init output.
+- `spikes inject` takes `--endpoint <url>`. Resolution order: `--endpoint` flag > `.spikes/config.toml` `[remote]` > nothing (widget runtime smart default applies). Path prefixes and query strings pass through verbatim.
+- `spikes deploy cloudflare` prints a hosted-warning prompt when `[remote] hosted = true`, with `--force` to bypass. `--dir .` and `--dir <empty-path>` are now accepted. Help text contrasts `spikes share` (quick previews) vs `spikes deploy cloudflare` (data isolation / custom domain).
+- `spikes config` requires `.spikes/` to exist (parity with `spikes list`). Error message: `No .spikes/ directory found. Run 'spikes init' first.`
+- `spikes shares` exits 0 on empty success (previously exited 2).
+
 ## Widget Endpoint Resolution (Mission 01)
 
 The widget resolves its POST endpoint in this priority order:
