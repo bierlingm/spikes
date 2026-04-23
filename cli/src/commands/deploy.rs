@@ -31,7 +31,7 @@ fn is_interactive() -> bool {
 }
 
 /// Print the hosted warning and prompt for confirmation
-/// Returns Ok(true) to proceed, Ok(false) to abort
+/// Returns Ok(true) to proceed, Ok(false) to abort (caller should exit with appropriate code)
 fn prompt_hosted_warning(json: bool, force: bool) -> Result<bool> {
     // If force flag is set, skip the warning
     if force {
@@ -41,11 +41,12 @@ fn prompt_hosted_warning(json: bool, force: bool) -> Result<bool> {
     // In non-interactive mode (no TTY), print warning to stderr and abort non-zero
     if !is_interactive() {
         if json {
-            println!(
+            eprintln!(
                 "{}",
                 serde_json::json!({
                     "success": false,
-                    "error": "This project is configured for spikes.sh hosted backend. Use --force to deploy Cloudflare Worker anyway."
+                    "error": "Hosted backend detected; use --force to override",
+                    "code": "HOSTED_BACKEND"
                 })
             );
         } else {
@@ -67,7 +68,7 @@ fn prompt_hosted_warning(json: bool, force: bool) -> Result<bool> {
     println!("   • Custom domain for your feedback API");
     println!();
     print!("Continue? [y/N] ");
-    io::stdout().flush().unwrap();
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap_or(0);
@@ -94,23 +95,19 @@ fn prompt_hosted_warning(json: bool, force: bool) -> Result<bool> {
     }
 }
 
-/// Check if a directory is empty (contains no visible files/directories)
+/// Check if a directory is empty (contains no files/directories)
+/// ANY directory entry, including hidden dotfiles (e.g., .git, .spikes, .env),
+/// causes the directory to be treated as non-empty.
 fn is_directory_empty(path: &Path) -> Result<bool> {
     if !path.exists() {
         return Ok(true);
     }
 
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        let file_name = entry.file_name();
-        // Skip hidden files (.) but count everything else
-        if let Some(name) = file_name.to_str() {
-            if !name.starts_with('.') {
-                return Ok(false);
-            }
-        } else {
-            return Ok(false);
-        }
+    // Check if there are ANY entries - hidden dotfiles count as non-empty
+    // This prevents scaffolding into directories with .git/, .spikes/, .env, etc.
+    let mut entries = fs::read_dir(path)?;
+    if entries.next().is_some() {
+        return Ok(false);
     }
 
     Ok(true)
@@ -145,18 +142,14 @@ pub fn run(options: DeployOptions) -> Result<()> {
     if is_hosted_config() {
         match prompt_hosted_warning(options.json, options.force) {
             Ok(false) => {
-                // User chose not to proceed
-                if options.json {
-                    // JSON output already printed by prompt_hosted_warning
-                    std::process::exit(0);
-                } else {
-                    // Non-interactive abort exits non-zero
-                    if !is_interactive() {
-                        std::process::exit(1);
-                    }
-                    // Interactive abort exits 0
-                    std::process::exit(0);
+                // User chose not to proceed (or non-interactive abort)
+                // Non-interactive mode always exits non-zero (1)
+                if !is_interactive() {
+                    std::process::exit(1);
                 }
+                // Interactive mode: JSON output already printed by prompt_hosted_warning, exit 0
+                // (human mode also printed "Aborted" message)
+                std::process::exit(0);
             }
             Ok(true) => {
                 // Proceed with deploy
@@ -562,8 +555,41 @@ mod tests {
         fs::create_dir(&hidden_dir).unwrap();
         fs::write(hidden_dir.join(".gitkeep"), "").unwrap();
         
-        // Hidden files should not count as non-empty
-        assert!(is_directory_empty(&hidden_dir).unwrap(), "Dir with only hidden files should be considered empty");
+        // Hidden files DO count as non-empty (regression fix: ANY entry counts)
+        assert!(!is_directory_empty(&hidden_dir).unwrap(), "Dir with hidden files should be considered non-empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_with_dot_git() {
+        let temp_dir = TempDir::new().unwrap();
+        let git_dir = temp_dir.path().join("git_project");
+        fs::create_dir(&git_dir).unwrap();
+        fs::create_dir(git_dir.join(".git")).unwrap();
+        
+        // .git/ directory counts as non-empty
+        assert!(!is_directory_empty(&git_dir).unwrap(), "Dir with .git/ should be considered non-empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_with_dot_spikes() {
+        let temp_dir = TempDir::new().unwrap();
+        let spikes_dir = temp_dir.path().join("spikes_project");
+        fs::create_dir(&spikes_dir).unwrap();
+        fs::create_dir(spikes_dir.join(".spikes")).unwrap();
+        
+        // .spikes/ directory counts as non-empty
+        assert!(!is_directory_empty(&spikes_dir).unwrap(), "Dir with .spikes/ should be considered non-empty");
+    }
+
+    #[test]
+    fn test_is_directory_empty_with_dot_env() {
+        let temp_dir = TempDir::new().unwrap();
+        let env_dir = temp_dir.path().join("env_project");
+        fs::create_dir(&env_dir).unwrap();
+        fs::write(env_dir.join(".env"), "SECRET=value").unwrap();
+        
+        // .env file counts as non-empty
+        assert!(!is_directory_empty(&env_dir).unwrap(), "Dir with .env file should be considered non-empty");
     }
 
     #[test]
