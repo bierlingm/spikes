@@ -32,6 +32,11 @@
 **Machine:** 32GB RAM, 10 CPU cores
 **Max concurrent validators:** 5 (CLI-only, lightweight; agent-browser instances only needed for CROSS-001 and CROSS-008 so those are gated serially).
 
+For milestone `inject-and-deploy`:
+- Shell surface max concurrency: 2
+- Tuistory surface max concurrency: 1
+- Browser surface max concurrency: 1 (serialized)
+
 ### Known Quirks
 
 - `spikes init --json` must not block on stdin; when piped-from-/dev/null it should default to hosted.
@@ -52,6 +57,30 @@
 - Exercise true TTY flows with `tuistory`; do not substitute non-TTY pipes for interactive assertions.
 - Keep each assertion in an isolated temp dir and include transcript snapshots as evidence.
 - Use `/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes` for all CLI invocations.
+
+## Flow Validator Guidance: Inject-and-Deploy Shell Surface
+
+- Use only your assigned workspace under `/tmp/spikes-utv-inject-deploy-shell` and create fresh child temp dirs per assertion cluster.
+- Use the built binary at `/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes` for all command assertions.
+- Cover `VAL-INJECT-001..016`, `VAL-DEPLOY-005..019`, and shell portions of `VAL-CROSS-004`.
+- Do not write outside `.factory/validation/inject-and-deploy/user-testing/flows/` and assigned evidence directory.
+- Record exact commands, exit codes, and key stdout/stderr snippets.
+
+## Flow Validator Guidance: Inject-and-Deploy Tuistory Surface
+
+- Use only your assigned workspace under `/tmp/spikes-utv-inject-deploy-tuistory`.
+- Exercise true TTY flows for hosted warning prompts and decisions.
+- Cover `VAL-DEPLOY-001..004`, `VAL-CROSS-003`, and TTY portions of `VAL-CROSS-004`.
+- Use isolated temp dirs per branch (`y`, `n`, and Enter-default) and capture transcript snapshots.
+- Keep all filesystem effects scoped to your assigned workspace.
+
+## Flow Validator Guidance: Inject-and-Deploy Browser Surface
+
+- Use only your assigned workspace under `/tmp/spikes-utv-inject-deploy-browser`.
+- Cover `VAL-CROSS-001` and `VAL-CROSS-008` only.
+- Use `widget-test-server` on port `8899` and serve namespaced fixture pages from `/tmp/spikes-widget-test/`.
+- Use project key `mission-02-validation` when submitting live POST evidence to `https://spikes.sh/spikes`.
+- Run browser validations serially (max concurrency 1 for this surface) to avoid shared fixture interference.
 
 ---
 
