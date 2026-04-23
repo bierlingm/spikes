@@ -67,8 +67,17 @@ pub fn run(opts: InjectOptions) -> Result<()> {
         } else if has_script {
             skipped.push(path.display().to_string());
         } else {
-            // Load config to get widget attributes
-            let config = Config::load().unwrap_or_default();
+            // Load config from the target directory (not caller cwd) to avoid
+            // leaking unrelated project config into arbitrary inject paths.
+            let config_path = dir.join(".spikes").join("config.toml");
+            let mut config = Config::load_from(&config_path).unwrap_or_default();
+            if config.project.key.is_none() {
+                if let Some(dir_name) = dir.file_name().and_then(|name| name.to_str()) {
+                    if !dir_name.is_empty() {
+                        config.project.key = Some(dir_name.to_string());
+                    }
+                }
+            }
             let widget_url = opts.widget_url.as_deref().unwrap_or("https://spikes.sh/widget.js");
 
             // Build attributes: --endpoint flag takes precedence over config but
@@ -491,12 +500,8 @@ hosted = true
         std::fs::write(&html_path, r#"<!DOCTYPE html>
 <html><body><h1>Test</h1></body></html>"#).unwrap();
 
-        // Temporarily change to the temp directory so Config::load() finds the config
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&temp_dir).unwrap();
-
         let opts = InjectOptions {
-            directory: ".".to_string(),
+            directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
             endpoint: Some("https://custom.example.com/api".to_string()),
@@ -504,9 +509,6 @@ hosted = true
         };
 
         run(opts).unwrap();
-
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
 
         let content = std::fs::read_to_string(&html_path).unwrap();
         // Should use the flag value, not the config
@@ -642,12 +644,8 @@ hosted = true
         std::fs::write(&html_path, r#"<!DOCTYPE html>
 <html><body><h1>Test</h1></body></html>"#).unwrap();
 
-        // Temporarily change to the temp directory so Config::load() finds the config
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&temp_dir).unwrap();
-
         let opts = InjectOptions {
-            directory: ".".to_string(),
+            directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
             endpoint: Some("https://custom.example.com/api".to_string()),
@@ -655,9 +653,6 @@ hosted = true
         };
 
         run(opts).unwrap();
-
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
 
         let content = std::fs::read_to_string(&html_path).unwrap();
 
@@ -699,12 +694,8 @@ collect_email = true
         std::fs::write(&html_path, r#"<!DOCTYPE html>
 <html><body><h1>Test</h1></body></html>"#).unwrap();
 
-        // Temporarily change to the temp directory so Config::load() finds the config
-        let original_dir = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&temp_dir).unwrap();
-
         let opts = InjectOptions {
-            directory: ".".to_string(),
+            directory: temp_dir.path().to_string_lossy().to_string(),
             remove: false,
             widget_url: None,
             endpoint: Some("https://custom.example.com/spikes".to_string()),
@@ -712,9 +703,6 @@ collect_email = true
         };
 
         run(opts).unwrap();
-
-        // Restore original directory
-        std::env::set_current_dir(original_dir).unwrap();
 
         let content = std::fs::read_to_string(&html_path).unwrap();
 
