@@ -115,6 +115,10 @@ enum Commands {
         #[arg(long)]
         widget_url: Option<String>,
 
+        /// Endpoint URL for the widget to POST feedback to (overrides config)
+        #[arg(long)]
+        endpoint: Option<String>,
+
         /// Output as JSON
         #[arg(long)]
         json: bool,
@@ -486,11 +490,13 @@ fn main() {
             directory,
             remove,
             widget_url,
+            endpoint,
             json,
         }) => commands::inject::run(InjectOptions {
             directory,
             remove,
             widget_url,
+            endpoint,
             json,
         }),
         Some(Commands::Serve { port, dir, marked, cors_allow_origin }) => commands::serve::run(ServeOptions {

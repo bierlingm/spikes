@@ -61,6 +61,7 @@ pub fn run(port: u16) -> Result<()> {
             directory: ".".to_string(),
             remove: false,
             widget_url: None,
+            endpoint: None,
             json: false,
         });
 
