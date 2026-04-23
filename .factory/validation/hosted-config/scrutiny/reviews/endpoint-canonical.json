@@ -1,22 +1,15 @@
 {
   "featureId": "endpoint-canonical",
-  "reviewedAt": "2026-04-23T00:54:06Z",
-  "commitId": "b94cac1",
+  "reviewedAt": "2026-04-23T02:59:32Z",
+  "commitId": "fafa754",
   "transcriptSkeletonReviewed": true,
   "diffReviewed": true,
-  "status": "fail",
+  "status": "pass",
   "codeReview": {
-    "summary": "The core endpoint behavior changes are correct (canonical hosted URL, explicit-endpoint precedence, and trailing /spikes normalization), but the feature does not fully satisfy the repository purge requirement.",
-    "issues": [
-      {
-        "file": "cli/src/config.rs",
-        "line": 323,
-        "severity": "blocking",
-        "description": "A remaining source reference to `api.spikes.sh` exists in a test comment (`// DEPRECATED: This test was for the old api.spikes.sh endpoint`). The feature contract requires purging all `api.spikes.sh` references from the repo tree (outside excluded mission/ops artifacts)."
-      }
-    ]
+    "summary": "All requirements satisfied. The effective_endpoint() logic correctly returns 'https://spikes.sh' when hosted=true (commit b94cac1), explicit endpoints take precedence over hosted flag, legacy '/spikes' suffixes are normalized to prevent doubling, and all api.spikes.sh references have been purged (commit fafa754). All 37 config-related tests pass.",
+    "issues": []
   },
   "sharedStateObservations": [],
-  "addressesFailureFrom": null,
-  "summary": "Reviewed endpoint-canonical for commit b94cac1. Functional behavior matches the feature goals, but one `api.spikes.sh` reference remains in `cli/src/config.rs`, so this review is marked fail."
+  "addressesFailureFrom": "/Users/moritzbierling/werk/repos/spikes/.factory/validation/hosted-config/scrutiny/reviews/endpoint-canonical.json",
+  "summary": "Reviewed endpoint-canonical fix commit fafa754. All api.spikes.sh references have been purged from the codebase. The implementation correctly: (1) Returns 'https://spikes.sh' when remote.hosted=true, (2) Prioritizes explicit endpoint over hosted flag for backward compatibility, (3) Normalizes trailing '/spikes' to avoid double paths, (4) All 37 config tests pass. Status: PASS."
 }

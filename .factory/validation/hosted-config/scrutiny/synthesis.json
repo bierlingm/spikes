@@ -1,65 +1,40 @@
 {
   "milestone": "hosted-config",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "validatorsRun": {
     "test": {
       "passed": true,
-      "command": "cd cli && cargo test --jobs 5",
+      "command": "cargo test --manifest-path \"/Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml\" --jobs 5",
       "exitCode": 0
     },
     "typecheck": {
       "passed": true,
-      "command": "cd cli && cargo check",
+      "command": "cargo check --manifest-path \"/Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml\"",
       "exitCode": 0
     },
     "lint": {
       "passed": true,
-      "command": "cd cli && cargo clippy -- -D warnings",
+      "command": "cargo clippy --manifest-path \"/Users/moritzbierling/werk/repos/spikes/cli/Cargo.toml\" -- -D warnings",
       "exitCode": 0
     }
   },
   "reviewsSummary": {
-    "total": 3,
-    "passed": 1,
-    "failed": 2,
-    "failedFeatures": [
-      "endpoint-canonical",
-      "config-requires-init"
-    ]
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
-    {
-      "featureId": "endpoint-canonical",
-      "severity": "blocking",
-      "description": "A remaining `api.spikes.sh` reference exists in `cli/src/config.rs` (test comment), violating the feature requirement to purge all such references from the repository tree (outside excluded artifacts)."
-    },
-    {
-      "featureId": "config-requires-init",
-      "severity": "blocking",
-      "description": "`spikes config` checks `.spikes` with `exists()` instead of requiring a directory; when `.spikes` is a file, `spikes config` exits 0 while `spikes list` fails, violating parity and the `.spikes/` directory requirement."
-    }
-  ],
+  "blockingIssues": [],
   "appliedUpdates": [],
   "suggestedGuidanceUpdates": [
     {
       "target": "skills",
-      "suggestion": "Tighten worker validation expectations so prompt-related features must include explicit interactive verification evidence (e.g., tuistory transcript references or recorded interactiveChecks) before handoff is considered complete.",
-      "evidence": "init-hosted-default review found prompt-related assertions but no tuistory usage or interactiveChecks evidence in handoff/transcript.",
-      "isSystemic": false
-    },
-    {
-      "target": "mission-contract-generation",
-      "suggestion": "Align feature expectedBehavior with validation-contract assertions for `spikes config --json` uninitialized-dir behavior (JSON error object vs plain stderr wording) to avoid contradictory acceptance criteria.",
-      "evidence": "config-requires-init review found mismatch between feature expectedBehavior and VAL-CONFIG-016 in validation-contract.md.",
+      "suggestion": "Clarify `worker-cli` procedure for low-risk non-functional cleanups (e.g., comment/string-only fixes): allow a reduced path that skips mandatory tests-first red phase and explicit `cargo build`, while still requiring targeted verification and clear deviation reporting.",
+      "evidence": "Both fix reviews (`fix-endpoint-canonical-residual-ref`, `fix-config-requires-dir-not-just-exists`) flagged procedural mismatch between strict skill steps and observed practical workflow, including one case where implementation preceded regression test addition.",
       "isSystemic": true
     }
   ],
-  "rejectedObservations": [
-    {
-      "observation": "Worker-cli TDD-order drift in config-requires-init (implementation edit before test edit).",
-      "reason": "process-level execution detail in a single session; no shared-state file change recommended."
-    }
-  ],
-  "previousRound": null
+  "rejectedObservations": [],
+  "previousRound": ".factory/validation/hosted-config/scrutiny/synthesis.round1.json"
 }
