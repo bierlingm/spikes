@@ -6,7 +6,8 @@ use crate::error::{Error, Result};
 /// Show current configuration
 pub fn run(json: bool) -> Result<()> {
     // Check if .spikes/ directory exists - parity with `spikes list`
-    if !Path::new(".spikes").exists() {
+    // Must be a directory, not just any file type (handles file/symlink edge case)
+    if !Path::new(".spikes").is_dir() {
         return Err(Error::NoSpikesDir);
     }
 
@@ -167,6 +168,58 @@ mod tests {
         // With .spikes/ directory and config, config --json should succeed
         let result = run(true);
         assert!(result.is_ok(), "config --json should succeed when .spikes/ exists: {:?}", result);
+
+        std::env::set_current_dir(original_cwd).unwrap();
+    }
+
+    /// Regression test: .spikes as a file (not directory) should fail with NoSpikesDir
+    /// This ensures parity with `spikes list` behavior per VAL-CROSS-007
+    #[test]
+    fn test_config_requires_spikes_dir_not_file() {
+        let _lock = TEST_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create .spikes as a FILE, not a directory
+        let spikes_file = temp_dir.path().join(".spikes");
+        fs::write(&spikes_file, "not a directory").unwrap();
+
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        // When .spikes is a file, config should fail with NoSpikesDir
+        // (same as spikes list behavior - parity check)
+        let result = run(false);
+        assert!(result.is_err(), "config should fail when .spikes is a file");
+        assert!(matches!(result.unwrap_err(), Error::NoSpikesDir),
+            "config should return NoSpikesDir when .spikes is a file, not a directory");
+
+        // Also verify spikes list fails the same way (parity)
+        let list_result = crate::storage::load_spikes();
+        assert!(list_result.is_err(), "list should fail when .spikes is a file");
+        assert!(matches!(list_result.unwrap_err(), Error::NoSpikesDir),
+            "list should return NoSpikesDir when .spikes is a file, not a directory");
+
+        std::env::set_current_dir(original_cwd).unwrap();
+    }
+
+    /// Regression test: .spikes as a file with --json flag
+    #[test]
+    fn test_config_requires_spikes_dir_not_file_json() {
+        let _lock = TEST_MUTEX.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create .spikes as a FILE, not a directory
+        let spikes_file = temp_dir.path().join(".spikes");
+        fs::write(&spikes_file, "not a directory").unwrap();
+
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp_dir.path()).unwrap();
+
+        // When .spikes is a file, config --json should also fail with NoSpikesDir
+        let result = run(true);
+        assert!(result.is_err(), "config --json should fail when .spikes is a file");
+        assert!(matches!(result.unwrap_err(), Error::NoSpikesDir),
+            "config --json should return NoSpikesDir when .spikes is a file");
 
         std::env::set_current_dir(original_cwd).unwrap();
     }
