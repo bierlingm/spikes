@@ -1,10 +1,10 @@
 {
-  "flushed_at": "2026-04-23T00:49:51Z",
+  "flushed_at": "2026-04-23T10:02:14Z",
   "summary": {
-    "active": 19,
+    "active": 22,
     "released": 0,
-    "resolved": 26,
-    "total": 45
+    "resolved": 25,
+    "total": 47
   },
   "tensions": [
     {
@@ -434,7 +434,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 39,
-      "status": "Resolved"
+      "status": "Active"
     },
     {
       "actual": "spikes deploy cloudflare is advertised as the golden path to 'add a backend', with no mention that spikes.sh is already a multi-tenant hosted backend. I (the creator of spikes.sh) used my own CLI to spin up a redundant per-project Worker + D1 for a 6-page demo site because the CLI never asked 'do you actually need your own backend?'. Two days of live widget running with no backend wiring is the dropoff signal.",
@@ -500,6 +500,28 @@
       "parent_id": null,
       "position": null,
       "short_code": 45,
+      "status": "Active"
+    },
+    {
+      "actual": "shares.ts:431 unconditionally appends a widget <script> before </body>. Pages that self-instrument with the Spikes widget (e.g. yvs/*.html) render two stacked red FAB tiles on the share — one for the page's own data-project, one for the share id.",
+      "created_at": "2026-04-23T09:42:19.714128+00:00",
+      "desired": "spikes-hosted share worker injects widget.js idempotently — no duplicate widget when shared HTML already includes <script src=\".../widget.js\">",
+      "horizon": null,
+      "id": "01KPWVG2T2AV1S4W0HWKGZFHVV",
+      "parent_id": null,
+      "position": null,
+      "short_code": 46,
+      "status": "Active"
+    },
+    {
+      "actual": "Today the share-worker injects its own widget pointing at the share id, and the customer's self-hosted page points at their own data-project. Feedback is split across two project ids — and including both scripts produces duplicate FAB widgets. No mechanism to declare 'this share id and this customer project id are the same store'.",
+      "created_at": "2026-04-23T09:44:54.587429+00:00",
+      "desired": "Widget supports dual hosting: a page can be served both from a spikes.sh share and from the customer's own domain, with feedback from both surfaces flowing into the same project store",
+      "horizon": null,
+      "id": "01KPWVMT1VH0EB6CEKB12H8XSD",
+      "parent_id": null,
+      "position": null,
+      "short_code": 47,
       "status": "Active"
     }
   ]
