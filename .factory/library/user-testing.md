@@ -39,6 +39,20 @@
 - `sha256sum` is not installed on macOS — use `shasum -a 256` or `cmp`.
 - Exit code 2 vs 0 is the whole point of VAL-POLISH-001; shells in non-interactive modes can also produce exit 2 for unrelated reasons, so always run `spikes shares` directly (not through another wrapper).
 
+## Flow Validator Guidance: Hosted Config Shell Surface
+
+- Use only your assigned workspace under `/tmp/spikes-utv-hosted-config-shell` and create fresh child temp dirs per assertion.
+- Use the built binary at `/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes`.
+- Do not mutate repository files outside `.factory/validation/hosted-config/user-testing/flows/` and evidence output paths.
+- Capture exact command, exit code, and key stdout/stderr snippets for every assertion.
+
+## Flow Validator Guidance: Hosted Config Tuistory Surface
+
+- Use only your assigned workspace under `/tmp/spikes-utv-hosted-config-tuistory`.
+- Exercise true TTY flows with `tuistory`; do not substitute non-TTY pipes for interactive assertions.
+- Keep each assertion in an isolated temp dir and include transcript snapshots as evidence.
+- Use `/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes` for all CLI invocations.
+
 ---
 
 ## Mission 01: Widget Default Endpoint + Visible Errors

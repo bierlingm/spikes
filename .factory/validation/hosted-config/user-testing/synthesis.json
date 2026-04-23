@@ -1,0 +1,30 @@
+{
+  "milestone": "hosted-config",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CONFIG-006b",
+    "VAL-CONFIG-009",
+    "VAL-CONFIG-010",
+    "VAL-CONFIG-011",
+    "VAL-CONFIG-012",
+    "VAL-CONFIG-025",
+    "VAL-CROSS-002"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added milestone-specific flow validator guidance for hosted-config shell and tuistory surfaces, including isolation boundaries, CLI binary path, and evidence requirements.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}

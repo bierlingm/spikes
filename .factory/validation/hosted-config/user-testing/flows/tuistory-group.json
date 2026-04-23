@@ -1,0 +1,191 @@
+{
+  "groupId": "tuistory-group",
+  "testedAt": "2026-04-23T11:37:51.905460Z",
+  "isolation": {
+    "surface": "interactive CLI with true PTY/TTY only",
+    "workspaceRoot": "/tmp/spikes-utv-hosted-config-tuistory",
+    "cliBinary": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes",
+    "missionDir": "/Users/moritzbierling/.factory/missions/595a9d07-8ca8-48e5-bff0-d2225412febc",
+    "forbiddenWorkspace": "/tmp/spikes-utv-hosted-config-shell"
+  },
+  "toolsUsed": [
+    "tuistory",
+    "shell",
+    "rg"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-CONFIG-006b",
+      "title": "spikes init --json in a TTY writes hosted config and does not hang",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run guarded TTY init command",
+          "command": "( /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init --json > out.json 2> err.txt ) & pid=$!; ( sleep 2; if kill -0 $pid 2>/dev/null; then echo __GUARD_KILLED__; kill $pid; fi ) & guard=$!; wait $pid; ec=$?; kill $guard 2>/dev/null; wait $guard 2>/dev/null; echo __INIT_EXIT__:$ec",
+          "expected": "Process completes under guard, not killed, exits 0",
+          "observed": "Transcript shows __INIT_EXIT__:0 and no __GUARD_KILLED__ marker",
+          "exitCode": 0
+        },
+        {
+          "action": "Inspect JSON output and generated config",
+          "command": "cat out.json; cat err.txt; rg -n 'hosted|endpoint' .spikes/config.toml",
+          "expected": "JSON reports hosted decision and config contains hosted=true + endpoint=https://spikes.sh",
+          "observed": "out.json: success=true, hosted=true, remote.endpoint=https://spikes.sh; err.txt empty; config contains hosted = true and endpoint = \"https://spikes.sh\"",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-006b-r3-transcript.txt",
+          "hosted-config/tuistory-group/VAL-CONFIG-006b-r3-details.txt"
+        ],
+        "screenshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-006b-r3.png"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CONFIG-009",
+      "title": "Interactive hosted-vs-self-host prompt is recognizable",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Start interactive init and capture pre-input prompt",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init",
+          "expected": "Prompt mentions hosted/spikes.sh, self-host, and hosted-default indicator",
+          "observed": "Prompt captured exactly as: 'Use hosted spikes.sh (default) or self-host? [H/s]'",
+          "exitCode": 0
+        },
+        {
+          "action": "Accept default and verify resulting config",
+          "command": "<Enter>; echo __INIT_EXIT__: $?; cat .spikes/config.toml",
+          "expected": "Init completes with hosted config",
+          "observed": "__INIT_EXIT__: 0; config includes hosted = true and endpoint = \"https://spikes.sh\"",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-009-r2-prompt.txt",
+          "hosted-config/tuistory-group/VAL-CONFIG-009-r2-outcome.txt"
+        ],
+        "screenshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-009-r2-prompt.png",
+          "hosted-config/tuistory-group/VAL-CONFIG-009-r2-outcome.png"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CONFIG-010",
+      "title": "Interactive H, empty Enter, and h all select hosted",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run interactive init, send uppercase H, inspect config",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init; input: H<Enter>; echo __INIT_EXIT__: $?; cat .spikes/config.toml",
+          "expected": "Hosted path selected",
+          "observed": "__INIT_EXIT__: 0; config contains hosted = true and endpoint = \"https://spikes.sh\"",
+          "exitCode": 0
+        },
+        {
+          "action": "Run interactive init, send empty Enter, inspect config",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init; input: <Enter>; echo __INIT_EXIT__: $?; cat .spikes/config.toml",
+          "expected": "Hosted default selected",
+          "observed": "__INIT_EXIT__: 0; config contains hosted = true and endpoint = \"https://spikes.sh\"",
+          "exitCode": 0
+        },
+        {
+          "action": "Run interactive init, send lowercase h, inspect config",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init; input: h<Enter>; echo __INIT_EXIT__: $?; cat .spikes/config.toml",
+          "expected": "Hosted path selected",
+          "observed": "__INIT_EXIT__: 0; config contains hosted = true and endpoint = \"https://spikes.sh\"",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-010-rH-outcome.txt",
+          "hosted-config/tuistory-group/VAL-CONFIG-010-renter-outcome.txt",
+          "hosted-config/tuistory-group/VAL-CONFIG-010-rh-outcome.txt"
+        ],
+        "screenshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-010-rH-outcome.png",
+          "hosted-config/tuistory-group/VAL-CONFIG-010-renter-outcome.png",
+          "hosted-config/tuistory-group/VAL-CONFIG-010-rh-outcome.png"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CONFIG-011",
+      "title": "Interactive s selects self-host",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run interactive init and select self-host",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init; input: s<Enter>",
+          "expected": "Self-host mode selected",
+          "observed": "Init output shows 'Initialized .spikes/ directory (self-host mode)' and __INIT_EXIT__: 0",
+          "exitCode": 0
+        },
+        {
+          "action": "Verify hosted=true is absent",
+          "command": "rg -n 'hosted = true' .spikes/config.toml; echo __RG_EXIT__: $?",
+          "expected": "No hosted=true literal",
+          "observed": "No matches; __RG_EXIT__: 1",
+          "exitCode": 1
+        },
+        {
+          "action": "Validate config parses via spikes config",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes config; echo __CONFIG_EXIT__: $?",
+          "expected": "Command succeeds (no parse errors)",
+          "observed": "Rendered config with Remote '(not configured)'; __CONFIG_EXIT__: 0",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-011-rs-prompt.txt",
+          "hosted-config/tuistory-group/VAL-CONFIG-011-rs-outcome.txt"
+        ],
+        "screenshots": [
+          "hosted-config/tuistory-group/VAL-CONFIG-011-rs-outcome.png"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "tuistory sessions prepend a macOS shell notice ('default interactive shell is now zsh') to each transcript, so assertion matching required focusing on the command/prompt region.",
+      "resolved": true,
+      "resolution": "Used dedicated prompt/outcome transcript files per assertion and matched exact assertion strings within those files.",
+      "affectedAssertions": [
+        "VAL-CONFIG-006b",
+        "VAL-CONFIG-009",
+        "VAL-CONFIG-010",
+        "VAL-CONFIG-011"
+      ]
+    },
+    {
+      "description": "When driving the [H/s] prompt via tuistory, uppercase H is echoed as lowercase h in terminal output.",
+      "resolved": true,
+      "resolution": "Validated behavior by command input path and resulting config outcome (hosted=true, endpoint=https://spikes.sh), which satisfied the assertion contract.",
+      "affectedAssertions": [
+        "VAL-CONFIG-010"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions (VAL-CONFIG-006b, VAL-CONFIG-009, VAL-CONFIG-010, VAL-CONFIG-011) on true TTY via tuistory in isolated temp dirs; all 4 passed."
+}

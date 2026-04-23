@@ -1,0 +1,120 @@
+{
+  "groupId": "shell-group",
+  "testedAt": "2026-04-23T10:08:02.562175Z",
+  "isolation": {
+    "surface": "shell CLI validation only",
+    "workspaceRoot": "/tmp/spikes-utv-hosted-config-shell",
+    "cliBinary": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes",
+    "missionDir": "/Users/moritzbierling/.factory/missions/595a9d07-8ca8-48e5-bff0-d2225412febc"
+  },
+  "toolsUsed": [
+    "shell",
+    "python3"
+  ],
+  "assertions": [
+    {
+      "id": "VAL-CONFIG-012",
+      "title": "Non-TTY stdin (CI) defaults to hosted without hanging",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run guarded non-TTY init",
+          "command": "( /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init < /dev/null ) & pid=$!; ( sleep 2; kill -0 $pid 2>/dev/null && kill $pid ) & wait $pid",
+          "expected": "Init exits 0 before guard kill and does not hang",
+          "observed": "init exit=0, guard exit=0, guard_action=not_killed",
+          "exitCode": 0
+        },
+        {
+          "action": "Inspect generated config",
+          "command": "cat .spikes/config.toml && grep -F 'hosted = true' .spikes/config.toml && grep -F 'endpoint = \"https://spikes.sh\"' .spikes/config.toml",
+          "expected": "Config contains hosted=true and endpoint=https://spikes.sh",
+          "observed": "Both literals present; grep checks exit 0",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/shell-group/VAL-CONFIG-012-terminal.txt",
+          "hosted-config/shell-group/VAL-CONFIG-012-config.toml"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CONFIG-025",
+      "title": "spikes remote add <url> --hosted resolves to https://spikes.sh",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Initialize workspace and set hosted remote",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init < /dev/null && /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes remote add https://example.com --hosted",
+          "expected": "Remote configuration accepted with hosted mode",
+          "observed": "init exit=0; remote add exit=0; output shows 'Using: spikes.sh hosted backend'",
+          "exitCode": 0
+        },
+        {
+          "action": "Validate config JSON",
+          "command": "/Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes config --json",
+          "expected": "remote.endpoint=https://spikes.sh and remote.hosted=true",
+          "observed": "JSON includes remote.endpoint='https://spikes.sh' and remote.hosted=true",
+          "exitCode": 0
+        },
+        {
+          "action": "Inject widget into HTML",
+          "command": "printf '<!doctype html><html><body><h1>demo</h1></body></html>' > index.html && /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes inject .",
+          "expected": "Injected script contains data-endpoint='https://spikes.sh/spikes'",
+          "observed": "inject exit=0; index.html contains exact data-endpoint literal",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/shell-group/VAL-CONFIG-025-terminal.txt",
+          "hosted-config/shell-group/VAL-CONFIG-025-config.toml",
+          "hosted-config/shell-group/VAL-CONFIG-025-config.json",
+          "hosted-config/shell-group/VAL-CONFIG-025-index.html"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Hosted by default for invisible users (no URL ever typed)",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Execute scenario commands without manually typing URL literals",
+          "command": "mkdir app && cd app && /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes init --json && printf '<!doctype html><html><body><button>Test</button></body></html>' > index.html && /Users/moritzbierling/werk/repos/spikes/cli/target/debug/spikes inject .",
+          "expected": "Scenario succeeds without user-entered URL",
+          "observed": "All scenario commands exit 0; logged command list contains no manually typed hosted URL",
+          "exitCode": 0
+        },
+        {
+          "action": "Validate generated config and injected HTML",
+          "command": "cat .spikes/config.toml && cat index.html",
+          "expected": "index.html contains https://spikes.sh/widget.js and data-endpoint=https://spikes.sh/spikes",
+          "observed": "config endpoint is https://spikes.sh; index.html contains src=https://spikes.sh/widget.js and data-endpoint=https://spikes.sh/spikes",
+          "exitCode": 0
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "hosted-config/shell-group/VAL-CROSS-002-terminal.txt",
+          "hosted-config/shell-group/VAL-CROSS-002-init.json",
+          "hosted-config/shell-group/VAL-CROSS-002-config.toml",
+          "hosted-config/shell-group/VAL-CROSS-002-index.html"
+        ],
+        "network": "n/a",
+        "consoleErrors": "n/a"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 3 assertions (VAL-CONFIG-012, VAL-CONFIG-025, VAL-CROSS-002): all 3 passed via shell validation in isolated temp workspaces."
+}
