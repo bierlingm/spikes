@@ -266,21 +266,40 @@ pub fn run(options: DeployOptions) -> Result<()> {
 }
 
 /// Update the existing config.toml with new remote token, preserving other sections
+/// Uses toml_edit for format-preserving edits that retain comments, ordering, and unknown fields.
 fn update_config_with_token(token: &str, _project_name: &str, _json: bool) -> Result<()> {
-    // Load existing config
-    let config = Config::load()?;
+    let config_path = Path::new(".spikes/config.toml");
 
-    // Create updated config with new remote settings
-    let mut new_config = config.clone();
+    // Read existing config file as string
+    let config_content = fs::read_to_string(config_path)?;
 
-    // Only update the remote section - preserve other sections
-    new_config.remote.token = Some(token.to_string());
-    // Note: we don't change hosted status here - if user was hosted, they remain hosted
-    // but with a token for the new self-hosted backend
-    new_config.remote.hosted = false; // Self-hosted backend is not "hosted"
+    // Parse into toml_edit DocumentMut for format-preserving editing
+    let mut doc = config_content.parse::<toml_edit::DocumentMut>().map_err(|e| {
+        crate::error::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Failed to parse config.toml: {}", e),
+        ))
+    })?;
 
-    // Save the merged config
-    new_config.save()?;
+    // Ensure [remote] table exists
+    if !doc.contains_key("remote") {
+        doc["remote"] = toml_edit::table();
+    }
+
+    // Get mutable reference to [remote] table
+    let remote = doc["remote"].as_table_mut().ok_or_else(|| {
+        crate::error::Error::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "[remote] is not a valid TOML table",
+        ))
+    })?;
+
+    // Update token and hosted fields
+    remote["token"] = toml_edit::value(token);
+    remote["hosted"] = toml_edit::value(false);
+
+    // Write back preserving format
+    fs::write(config_path, doc.to_string())?;
 
     Ok(())
 }
