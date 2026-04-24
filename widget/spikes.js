@@ -26,13 +26,32 @@
         return scripts[scripts.length - 1];
     })();
 
+    // Check for explicit data-project attribute (not just the fallback default)
+    var hasExplicitProject = script.hasAttribute('data-project');
+    var projectValue = script.getAttribute('data-project');
+    var isProjectExplicitlySet = hasExplicitProject && projectValue !== null && projectValue !== '';
+    
+    // Determine endpoint: explicit data-endpoint wins, then smart default if data-project is set, then null (for /spikes fallback)
+    var endpointValue = script.getAttribute('data-endpoint');
+    var hasExplicitEndpoint = script.hasAttribute('data-endpoint');
+    var isEndpointExplicitlySet = hasExplicitEndpoint && endpointValue !== null && endpointValue !== '';
+    
+    var resolvedEndpoint = null;
+    if (isEndpointExplicitlySet) {
+        resolvedEndpoint = endpointValue;
+    } else if (isProjectExplicitlySet) {
+        // Smart default: when data-project is explicitly set and data-endpoint is not, use spikes.sh
+        resolvedEndpoint = 'https://spikes.sh/spikes';
+    }
+    // else: null - will fall back to /spikes in saveSpike for local dev
+    
     var config = {
-        project: script.getAttribute('data-project') || location.hostname || 'local',
+        project: projectValue || location.hostname || 'local',
         position: script.getAttribute('data-position') || 'bottom-right',
         color: script.getAttribute('data-color') || '#e74c3c',
         theme: script.getAttribute('data-theme') || 'dark',
         presetReviewer: script.getAttribute('data-reviewer') || null,
-        endpoint: script.getAttribute('data-endpoint') || null,
+        endpoint: resolvedEndpoint,
         collectEmail: script.getAttribute('data-collect-email') === 'true',
         offsetX: script.getAttribute('data-offset-x') || null,
         offsetY: script.getAttribute('data-offset-y') || null,
@@ -80,6 +99,11 @@
     var popover = null;
     var reviewerIndicator = null;
     var toastTimeout = null;
+    
+    // Error visibility state (VAL-ERROR)
+    var errorDot = null;
+    var lastPostFailed = false;
+    var defaultButtonTitle = '';
     
     // Spike mode state: 'idle' | 'armed' | 'capturing'
     var spikeMode = 'idle';
@@ -241,6 +265,66 @@
         }
     }
 
+    // Error visibility helpers (VAL-ERROR)
+    function setErrorState(postUrl, status) {
+        lastPostFailed = true;
+        
+        // Show red dot indicator
+        if (btn && errorDot) {
+            errorDot.style.display = 'block';
+        }
+        
+        // Update tooltip to show error state
+        if (btn) {
+            btn.setAttribute('title', 'Last feedback failed to sync — see console');
+        }
+        
+        // Log detailed error to console
+        if (status) {
+            console.error('[Spikes] Sync failed (HTTP ' + status + '):', postUrl);
+        } else {
+            console.error('[Spikes] Could not sync to endpoint:', postUrl);
+        }
+    }
+    
+    function clearErrorState() {
+        if (!lastPostFailed) return;
+        
+        lastPostFailed = false;
+        
+        // Hide red dot indicator
+        if (errorDot) {
+            errorDot.style.display = 'none';
+        }
+        
+        // Restore default tooltip
+        if (btn && defaultButtonTitle) {
+            btn.setAttribute('title', defaultButtonTitle);
+        }
+    }
+    
+    function createErrorDot() {
+        if (!btn) return;
+        
+        errorDot = document.createElement('div');
+        errorDot.id = 'spikes-error-dot';
+        errorDot.style.cssText = [
+            'position:absolute',
+            'top:-2px',
+            'right:-2px',
+            'width:12px',
+            'height:12px',
+            'background:#dc2626',
+            'border-radius:50%',
+            'border:2px solid white',
+            'display:none',
+            'z-index:2147483648',
+            'box-shadow:0 1px 3px rgba(0,0,0,0.3)'
+        ].join(';');
+        
+        btn.appendChild(errorDot);
+    }
+
     function saveSpike(spike) {
         // Check for duplicate (VAL-UX-003)
         if (isDuplicateSpike(spike)) {
@@ -281,16 +365,20 @@
                 xhr.open('POST', postUrl, true);
                 xhr.setRequestHeader('Content-Type', 'application/json');
                 xhr.onerror = function() {
-                    console.warn('[Spikes] Could not sync to endpoint:', postUrl);
+                    setErrorState(postUrl, null);
                 };
                 xhr.onload = function() {
                     if (xhr.status < 200 || xhr.status >= 300) {
-                        console.warn('[Spikes] Sync failed (HTTP ' + xhr.status + '):', postUrl);
+                        setErrorState(postUrl, xhr.status);
+                    } else {
+                        // Success - clear any previous error state
+                        clearErrorState();
                     }
                 };
                 xhr.send(JSON.stringify(spike));
             } catch (e) {
-                console.warn('[Spikes] Could not sync to endpoint:', postUrl, e.message || e);
+                console.error('[Spikes] Could not sync to endpoint:', postUrl, e.message || e);
+                setErrorState(postUrl, null);
             }
         }
         
@@ -750,7 +838,8 @@
         btn.id = 'spikes-btn';
         btn.innerHTML = '/';
         btn.setAttribute('aria-label', 'Give Feedback');
-        btn.setAttribute('title', 'Spikes v' + VERSION + ' - Click to give feedback');
+        defaultButtonTitle = 'Spikes v' + VERSION + ' - Click to give feedback';
+        btn.setAttribute('title', defaultButtonTitle);
         btn.style.cssText = [
             'width:52px',
             'height:52px',
@@ -766,7 +855,8 @@
             'display:flex',
             'align-items:center',
             'justify-content:center',
-            'font-family:ui-monospace,SF Mono,Monaco,monospace'
+            'font-family:ui-monospace,SF Mono,Monaco,monospace',
+            'position:relative'
         ].join(';');
 
         btn.onmouseenter = function() {
@@ -807,6 +897,9 @@
         
         container.appendChild(btn);
         container.appendChild(reviewerIndicator);
+        
+        // Create error indicator dot (VAL-ERROR)
+        createErrorDot();
         
         // Create Review button (VAL-UX-006) - only visible with data-admin="true"
         var reviewBtn = null;
