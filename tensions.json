@@ -1,10 +1,10 @@
 {
-  "flushed_at": "2026-04-23T10:02:14Z",
+  "flushed_at": "2026-04-24T10:44:14Z",
   "summary": {
-    "active": 22,
+    "active": 23,
     "released": 0,
     "resolved": 25,
-    "total": 47
+    "total": 48
   },
   "tensions": [
     {
@@ -522,6 +522,17 @@
       "parent_id": null,
       "position": null,
       "short_code": 47,
+      "status": "Active"
+    },
+    {
+      "actual": "Spikes works but provides no feedback",
+      "created_at": "2026-04-24T10:42:46.881866+00:00",
+      "desired": "We have explored, decided on, and implemented a bit of subtle feedback the user gets when they take actions with the widget",
+      "horizon": null,
+      "id": "01KPZHBFZ197C4DMNK8TDW0T7V",
+      "parent_id": null,
+      "position": null,
+      "short_code": 48,
       "status": "Active"
     }
   ]
