@@ -739,9 +739,9 @@ fn test_init_config_roundtrip() {
 
     let stdout = String::from_utf8_lossy(&config_output.stdout);
     
-    // Verify JSON output has expected fields
-    assert!(stdout.contains("\"hosted\":true"), "JSON should show hosted=true");
-    assert!(stdout.contains("\"endpoint\":\"https://spikes.sh\""), "JSON should show the endpoint");
+    // Verify JSON output has expected fields (pretty-printed JSON has spaces)
+    assert!(stdout.contains("\"hosted\": true"), "JSON should show hosted=true, got: {}", stdout);
+    assert!(stdout.contains("\"endpoint\": \"https://spikes.sh\""), "JSON should show the endpoint, got: {}", stdout);
 }
 
 #[test]
