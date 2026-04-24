@@ -286,10 +286,11 @@ cd widget
 
 ### Worker
 
+The Worker backend lives in the private `spikes-hosted` repo. To test it:
+
 ```bash
 cd ../spikes-hosted/worker
-npm install
-npx vitest run          # 284+ tests
+npm test              # 284+ tests (vitest)
 npx wrangler dev
 ```
 
@@ -319,7 +320,7 @@ Use **`spikes deploy cloudflare`** when you need **data isolation** (feedback st
 - **Security**: PBKDF2 password hashing, path traversal fixes, XSS protection
 - **Auth**: Magic link authentication (no passwords to forget)
 - **Billing**: Stripe integration with Pro tier support
-- **Testing**: 160 CLI tests + 284 worker tests
+- **Testing**: 160 CLI tests + 284 worker tests (in ../spikes-hosted/worker)
 - **Architecture**: Modular worker with clean separation of concerns
 - **CI/CD**: Automated testing and deployment pipelines
 

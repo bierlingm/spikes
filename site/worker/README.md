@@ -1,53 +1,32 @@
-# spikes.sh Worker
+# spikes.sh Worker (Source Pointer)
 
-Cloudflare Worker + D1 backend for collecting feedback on spikes.sh.
+This directory does **not** contain the Worker source code.
 
-## Setup
+## Where is the Worker source?
 
-1. Install dependencies:
-```bash
-npm install
+The canonical Worker source lives in the private `spikes-hosted` repository:
+
+```
+../spikes-hosted/worker/
 ```
 
-2. Create the D1 database:
-```bash
-npm run db:create
-```
+## Why is the source elsewhere?
 
-3. Copy the `database_id` from the output and update `wrangler.toml`
+The Worker backend contains:
+- Stripe billing integration (private keys)
+- Authentication logic and D1 schema migrations
+- Deployment configuration via separate wrangler environment
 
-4. Generate a secure token and update `SPIKES_TOKEN` in `wrangler.toml`:
-```bash
-openssl rand -hex 32
-```
+This code is kept private and deployed separately from the open-source CLI/widget.
 
-5. Run the migration:
-```bash
-npm run db:migrate
-```
+## What's in this directory?
 
-6. Deploy:
-```bash
-npm run deploy
-```
+This `site/worker/` directory exists for deployment artifacts only. The compiled Worker is deployed to Cloudflare Workers from the `spikes-hosted` repo, not from here.
 
-## Endpoints
-
-### POST /spikes (public)
-Create a new spike. No auth required (for widget).
-
-### GET /spikes?token=XXX
-List all spikes. Requires token.
-
-### GET /prospects?token=XXX
-Export collected emails for prospect list. Requires token.
+## Testing the Worker
 
 ```bash
-curl "https://spikes-sh-worker.YOUR_SUBDOMAIN.workers.dev/prospects?token=YOUR_TOKEN"
-```
-
-## Local Development
-
-```bash
-npm run dev
+cd ../spikes-hosted/worker
+npm test          # 284+ Worker tests (vitest)
+npm run dev       # Local wrangler dev server
 ```
