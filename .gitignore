@@ -24,7 +24,6 @@ Thumbs.db
 
 # Rust
 **/*.rs.bk
-Cargo.lock
 
 # bv (beads viewer) local config and caches
 .bv/
