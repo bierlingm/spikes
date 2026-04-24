@@ -36,14 +36,23 @@ curl -fsSL https://spikes.sh/install.sh | sh
 # Or: cargo install spikes
 ```
 
-### 2. Add the widget to your HTML
+### 2. Initialize your project
 
 ```bash
-spikes inject ./mockups/        # Injects widget script tag
+spikes init                     # Defaults to hosted spikes.sh
+# spikes init --self-host       # Opt out — scaffold a self-hosted config instead
+```
+
+`spikes init` creates `.spikes/config.toml` with a `[remote]` section pointing at `https://spikes.sh` by default. Pass `--self-host` (or answer `s` at the prompt) to skip the hosted defaults.
+
+### 3. Add the widget to your HTML
+
+```bash
+spikes inject ./mockups/        # Injects widget script tag (uses configured endpoint)
 spikes serve                    # http://localhost:3847
 ```
 
-### 3. Collect and use feedback
+### 4. Collect and use feedback
 
 ```bash
 spikes list                     # See all feedback
@@ -59,13 +68,13 @@ spikes resolve <id>             # Mark items done
 
 | Command | Description |
 |---------|-------------|
-| `spikes init` | Create `.spikes/` directory with config |
+| `spikes init` | Create `.spikes/` directory with config (hosted by default; `--self-host` to opt out) |
 | `spikes list` | List feedback (`--json`, `--page`, `--reviewer`, `--rating`, `--unresolved`) |
 | `spikes show <id>` | Show single spike details |
 | `spikes export` | Export to JSON/CSV/JSONL/Cursor/Claude context |
 | `spikes hotspots` | Elements with most feedback |
 | `spikes reviewers` | List all reviewers |
-| `spikes inject <dir>` | Add/remove widget from HTML files |
+| `spikes inject <dir>` | Add/remove widget from HTML files (`--endpoint <url>` overrides the configured endpoint) |
 | `spikes serve` | Local dev server (`--port`, `--marked`, `--cors-allow-origin`) |
 | `spikes mcp serve` | Start MCP server for AI agent integration |
 | `spikes pull/push/sync` | Sync with remote endpoint |
