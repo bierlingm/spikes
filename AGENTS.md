@@ -138,8 +138,8 @@ Target: browser-based device code flow (CLI opens browser → confirm → CLI au
 ## Testing
 
 ```bash
-cd cli && cargo test                    # 160+ CLI tests
-cd ../spikes-hosted/worker && npm test  # 284+ Worker tests (vitest)
+cd cli && cargo test                    # CLI test suite (Rust)
+cd ../spikes-hosted/worker && npm test  # Worker test suite (vitest)
 ```
 
 **Note:** The Worker source code lives in the private `spikes-hosted` repo at `../spikes-hosted/worker/`. The `site/worker/` directory in this repo contains only this README pointer for deployment purposes.

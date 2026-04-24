@@ -27,6 +27,6 @@ This `site/worker/` directory exists for deployment artifacts only. The compiled
 
 ```bash
 cd ../spikes-hosted/worker
-npm test          # 284+ Worker tests (vitest)
+npm test          # Worker test suite (vitest)
 npm run dev       # Local wrangler dev server
 ```
