@@ -16,7 +16,7 @@ All work tracking lives in werk. Update tensions as you go — `werk reality <id
 - **What:** Feedback tool for AI-assisted building. Click elements, rate them, get JSON with CSS selectors.
 - **Stack:** Rust CLI + vanilla JS widget + Cloudflare Workers/D1/R2 + Stripe
 - **Domain:** spikes.sh
-- **CLI version:** 0.3.2
+- **CLI version:** 0.4.0
 - **Root goal:** 10 paying users (werk tension #1)
 - **Tests:** `cd cli && cargo test` / `cd site/worker && npm test`
 - **Agent-CI:** `npx agent-ci run --workflow workflows-local/test.yml` (local only)

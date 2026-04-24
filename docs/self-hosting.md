@@ -1,6 +1,8 @@
 # Self-Hosting Guide
 
-This guide explains how to deploy your own Spikes backend using Cloudflare Workers, D1 database, and R2 storage. Self-hosting gives you full control over your feedback data without relying on spikes.sh.
+**spikes.sh hosted is the default.** Most users don't need this guide — just use `spikes share` or add `data-project` to your widget and your feedback syncs to the hosted backend at `https://spikes.sh/spikes`.
+
+This guide is for users who need **data isolation** (feedback stays in your own Cloudflare account), a **custom domain**, or want full infrastructure control. Self-hosting requires a Cloudflare account and deploys to Cloudflare Workers, D1 database, and R2 storage.
 
 ## Prerequisites
 
@@ -28,7 +30,13 @@ wrangler login
 
 ## Overview
 
-Self-hosting is for advanced users who want full control over their feedback data. The hosted backend at spikes.sh uses this same architecture:
+Self-hosting is for scenarios where the hosted backend at spikes.sh doesn't meet your requirements:
+
+- **Data isolation** — Your feedback data stays entirely within your Cloudflare account
+- **Custom domain** — Serve the backend from your own domain (e.g., `feedback.yourcompany.com`)
+- **Compliance** — You have specific data residency or regulatory requirements
+
+The hosted backend uses this same Cloudflare architecture, so you're running identical code:
 
 - **Cloudflare Worker** — API endpoints and request handling
 - **D1 Database** — Structured feedback storage

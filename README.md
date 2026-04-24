@@ -76,6 +76,13 @@ spikes resolve <id>             # Mark items done
 
 All commands support `--json` for scripting. See [full CLI reference](docs/cli-reference.md).
 
+**Viewing spikes for a hosted project:**
+
+```bash
+# List all spikes for a specific project
+curl -H "Authorization: Bearer $SPIKES_TOKEN" https://spikes.sh/spikes?project=my-project
+```
+
 ---
 
 ## AI Agent Integration
@@ -289,6 +296,12 @@ cd spikes-worker && npx wrangler deploy
 ```
 
 See [Self-Hosting Guide](docs/self-hosting.md) for full setup with D1 database, authentication, and Stripe billing integration.
+
+### Share vs. Deploy Cloudflare: Which to Choose?
+
+Use **`spikes share`** when you want instant sharing without any setup — files are uploaded to spikes.sh and served from our infrastructure. Great for quick reviews, client feedback, or when you don't want to manage a backend.
+
+Use **`spikes deploy cloudflare`** when you need **data isolation** (feedback stays in your Cloudflare account), a **custom domain**, or want full control over the infrastructure. Self-hosting requires a Cloudflare account and a one-time deployment setup.
 
 ---
 
