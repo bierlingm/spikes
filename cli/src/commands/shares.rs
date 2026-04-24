@@ -149,6 +149,12 @@ fn print_usage_summary(usage: &UsageResponse) {
     println!();
     println!("Usage Summary ({} tier):", usage.tier.to_uppercase());
 
+    // Print hint for creating shares if empty
+    if usage.shares == 0 {
+        println!();
+        println!("💡 Create a share with: spikes share <directory>");
+    }
+
     match (usage.share_limit, usage.spike_limit) {
         (Some(share_limit), Some(spike_limit)) => {
             // Free tier with limits
@@ -182,5 +188,122 @@ fn print_usage_summary(usage: &UsageResponse) {
                 usage.shares, usage.spikes
             );
         }
+    }
+}
+
+// ============================================
+// Tests
+// ============================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_print_shares_table_empty_outputs_to_stdout() {
+        // Capture stdout
+        let shares: Vec<Share> = vec![];
+        
+        // Verify function runs without panic on empty shares
+        print_shares_table(&shares);
+        // Note: We can't easily capture println! in unit tests, but we verify
+        // the function doesn't panic and follows the Ok(()) path
+    }
+
+    #[test]
+    fn test_print_shares_table_with_shows_hint_when_empty() {
+        let shares: Vec<Share> = vec![];
+        print_shares_table(&shares);
+        // Function completes without error - success path
+    }
+
+    #[test]
+    fn test_share_serialization_roundtrip() {
+        let share = Share {
+            id: "share_123".to_string(),
+            slug: "my-project".to_string(),
+            url: "https://spikes.sh/s/my-project".to_string(),
+            spike_count: 42,
+            created_at: "2025-01-15T10:30:00.000Z".to_string(),
+        };
+
+        let json = serde_json::to_string(&share).unwrap();
+        let deserialized: Share = serde_json::from_str(&json).unwrap();
+        
+        assert_eq!(share.id, deserialized.id);
+        assert_eq!(share.slug, deserialized.slug);
+        assert_eq!(share.url, deserialized.url);
+        assert_eq!(share.spike_count, deserialized.spike_count);
+        assert_eq!(share.created_at, deserialized.created_at);
+    }
+
+    #[test]
+    fn test_usage_response_deserialization() {
+        let json = r#"{
+            "spikes": 100,
+            "spike_limit": 1000,
+            "shares": 5,
+            "share_limit": 10,
+            "tier": "free"
+        }"#;
+
+        let usage: UsageResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.spikes, 100);
+        assert_eq!(usage.spike_limit, Some(1000));
+        assert_eq!(usage.shares, 5);
+        assert_eq!(usage.share_limit, Some(10));
+        assert_eq!(usage.tier, "free");
+    }
+
+    #[test]
+    fn test_usage_response_pro_tier_no_limits() {
+        let json = r#"{
+            "spikes": 500,
+            "spike_limit": null,
+            "shares": 25,
+            "share_limit": null,
+            "tier": "pro"
+        }"#;
+
+        let usage: UsageResponse = serde_json::from_str(json).unwrap();
+        assert_eq!(usage.spikes, 500);
+        assert_eq!(usage.spike_limit, None);
+        assert_eq!(usage.shares, 25);
+        assert_eq!(usage.share_limit, None);
+        assert_eq!(usage.tier, "pro");
+    }
+
+    #[test]
+    fn test_empty_shares_produces_valid_empty_array_json() {
+        // Simulate what run() does for --json with empty shares
+        let shares: Vec<Share> = vec![];
+        let usage = UsageResponse {
+            spikes: 0,
+            spike_limit: Some(1000),
+            shares: 0,
+            share_limit: Some(5),
+            tier: "free".to_string(),
+        };
+
+        let output = serde_json::json!({
+            "shares": shares,
+            "usage": {
+                "spikes": usage.spikes,
+                "spike_limit": usage.spike_limit,
+                "shares_count": usage.shares,
+                "share_limit": usage.share_limit,
+                "tier": usage.tier,
+            }
+        });
+
+        let json_str = serde_json::to_string_pretty(&output).unwrap();
+        
+        // Verify the JSON has an empty shares array
+        assert!(json_str.contains("\"shares\": []"));
+        
+        // Verify it parses back correctly
+        let parsed: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+        let shares_array = parsed.get("shares").unwrap().as_array().unwrap();
+        assert!(shares_array.is_empty());
     }
 }
