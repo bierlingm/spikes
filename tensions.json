@@ -1,10 +1,10 @@
 {
-  "flushed_at": "2026-04-13T17:11:54Z",
+  "flushed_at": "2026-04-24T19:17:36Z",
   "summary": {
-    "active": 7,
+    "active": 18,
     "released": 0,
-    "resolved": 23,
-    "total": 30
+    "resolved": 32,
+    "total": 50
   },
   "tensions": [
     {
@@ -170,7 +170,7 @@
       "parent_id": "01KKYEY7ZJ13D2J8A24BZZB04E",
       "position": null,
       "short_code": 15,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "Intake form submitted 2026-04-13. Awaiting Stripe response (SLA: 2 business days). If admitted to May cohort, tensions #28 (marketing kit polish) + #29 (Stripe App build) + #30 (coordinated promo) activate in sequence. Repo URL fixes committed in cf0f7c0 + follow-up draft removed in 5ffd684.",
@@ -335,6 +335,226 @@
       "parent_id": "01KMR8MD2MDJ7VENCQCV0KBMN3",
       "position": null,
       "short_code": 30,
+      "status": "Active"
+    },
+    {
+      "actual": "inject has no endpoint option; scaffold README says 'add data-endpoint to your widget' but no CLI path to apply it to existing HTML — must hand-edit. Hit this 2026-04-22 wiring yvs backend at statecraft.systems/yvs/.",
+      "created_at": "2026-04-22T14:43:34.229187+00:00",
+      "desired": "spikes inject accepts --endpoint (and/or reads .spikes/config.toml [remote]) so widget wiring to a deployed Worker is one command",
+      "horizon": null,
+      "id": "01KPTTAYPNNF0S7KPF4BA270V6",
+      "parent_id": null,
+      "position": null,
+      "short_code": 31,
+      "status": "Resolved"
+    },
+    {
+      "actual": "widget.js silently sets postUrl=null and stores only to localStorage on HTTPS when no data-endpoint is set. Live on statecraft.systems/yvs/ for 2 days before I caught it; zero remote feedback collected even though the widget appeared to work. Real data loss.",
+      "created_at": "2026-04-22T14:43:50.953211+00:00",
+      "desired": "widget warns visibly (console.error + optional subtle UI badge) when it has no endpoint and is running on HTTPS — so developers notice their feedback is being silently dropped to localStorage",
+      "horizon": null,
+      "id": "01KPTTBF19BPNA4WBNZHX7XBZ6",
+      "parent_id": null,
+      "position": null,
+      "short_code": 32,
+      "status": "Resolved"
+    },
+    {
+      "actual": "spikes config prints 'Project: yvs' with defaults from any directory as if configured; spikes list from the same dir errors 'No .spikes/ directory found. Run spikes init first.' Inconsistent.",
+      "created_at": "2026-04-22T14:43:50.975801+00:00",
+      "desired": "spikes config from an uninitialized dir either says '(not initialized — run spikes init)' or exits non-zero; consistent with spikes list which errors out",
+      "horizon": null,
+      "id": "01KPTTBF1ZDQZRZZVZ34XCGHE5",
+      "parent_id": null,
+      "position": null,
+      "short_code": 33,
+      "status": "Resolved"
+    },
+    {
+      "actual": "refuses 'Directory . already exists' even when empty. Surprising for a scaffold; forced me to cd out and pick a fresh subdir name.",
+      "created_at": "2026-04-22T14:43:50.994860+00:00",
+      "desired": "spikes deploy cloudflare --dir <path> accepts an existing empty directory (or --dir .)",
+      "horizon": null,
+      "id": "01KPTTBF2J2NT6BMC655B7S1DZ",
+      "parent_id": null,
+      "position": null,
+      "short_code": 34,
+      "status": "Resolved"
+    },
+    {
+      "actual": "both paths exist for enabling remote feedback collection; unclear which is golden for 'static site already hosted elsewhere, just need a backend endpoint.' Had to read source + README to pick deploy cloudflare.",
+      "created_at": "2026-04-22T14:43:51.014236+00:00",
+      "desired": "docs include a one-paragraph decision guide for 'spikes share vs spikes deploy cloudflare' — when to use which",
+      "horizon": null,
+      "id": "01KPTTBF36A4CAJ4VAZ3MEKZ6P",
+      "parent_id": null,
+      "position": null,
+      "short_code": 35,
+      "status": "Resolved"
+    },
+    {
+      "actual": "exits 2 with 'No shares found' + Usage Summary on stderr on a clean account; looks like an error at first glance.",
+      "created_at": "2026-04-22T14:43:51.035133+00:00",
+      "desired": "spikes shares exits 0 on success (even when empty) and prints usage summary to stdout",
+      "horizon": null,
+      "id": "01KPTTBF3VVV27R9GA241XKFV5",
+      "parent_id": null,
+      "position": null,
+      "short_code": 36,
+      "status": "Resolved"
+    },
+    {
+      "actual": "only per-project-Cloudflare-Worker path exists via 'spikes deploy cloudflare' — creates fresh Worker + D1 + token each time. For yvs this spun up a redundant Worker (spikes-worker-yvs.moritzbierling.workers.dev) parallel to the existing spikes.sh infrastructure. No multi-tenant 'add project to hosted service' flow surfaced in CLI.",
+      "created_at": "2026-04-22T14:44:05.601301+00:00",
+      "desired": "golden-path 'enable remote feedback for a static site I host elsewhere' is a single command: 'spikes project create <name>' on spikes.sh hosted backend, returns a ready-to-paste data-endpoint; deploy cloudflare is reframed as the self-host alternative",
+      "horizon": null,
+      "id": "01KPTTBXB1GB55872TDG2P5B02",
+      "parent_id": null,
+      "position": null,
+      "short_code": 37,
+      "status": "Resolved"
+    },
+    {
+      "actual": "2026-04-22 ran the full 6-step README path (npm install → wrangler d1 create → paste id → wrangler d1 execute --remote --file=schema.sql → wrangler deploy). Worker live at https://spikes-worker-yvs.moritzbierling.workers.dev. D1 bound, token vars set. Only friction was wrangler d1 execute needing --remote flag (not spikes' fault).",
+      "created_at": "2026-04-22T14:44:05.624066+00:00",
+      "desired": "keep the spikes deploy cloudflare golden path as-is — it works end-to-end from scaffold to live Worker",
+      "horizon": null,
+      "id": "01KPTTBXBRMWQFEFDJNWYK56TF",
+      "parent_id": null,
+      "position": null,
+      "short_code": 38,
+      "status": "Active"
+    },
+    {
+      "actual": "widget.js falls back to same-origin /spikes on HTTPS, which 404s silently on any site not hosted on spikes.sh. Forces every user to either set data-endpoint or stand up their own backend. The hosted multi-tenant backend at https://spikes.sh/spikes already exists and accepts POSTs with CORS *, but the widget doesn't use it by default. Discovered 2026-04-22 — I (creator) didn't know my own widget's default routing and scaffolded a redundant Worker.",
+      "created_at": "2026-04-22T14:53:12.834048+00:00",
+      "desired": "widget.js defaults to https://spikes.sh/spikes when data-project is set and no data-endpoint given — hosted path just works out of the box",
+      "horizon": null,
+      "id": "01KPTTWKR29SE0C5NXTXX0FNEK",
+      "parent_id": null,
+      "position": null,
+      "short_code": 39,
+      "status": "Active"
+    },
+    {
+      "actual": "spikes deploy cloudflare is advertised as the golden path to 'add a backend', with no mention that spikes.sh is already a multi-tenant hosted backend. I (the creator of spikes.sh) used my own CLI to spin up a redundant per-project Worker + D1 for a 6-page demo site because the CLI never asked 'do you actually need your own backend?'. Two days of live widget running with no backend wiring is the dropoff signal.",
+      "created_at": "2026-04-22T14:53:12.865418+00:00",
+      "desired": "spikes deploy cloudflare prints a 'hold on — did you know spikes.sh hosts this for you?' prompt before scaffolding, OR the CLI has a separate spikes use-hosted command that just prints the widget tag with data-endpoint=https://spikes.sh/spikes pre-filled",
+      "horizon": null,
+      "id": "01KPTTWKS14BNR2M65NPF5NX6C",
+      "parent_id": null,
+      "position": null,
+      "short_code": 40,
+      "status": "Resolved"
+    },
+    {
+      "actual": "Write-side hosted-endpoint documentation in CLI/README is live as of v0.4.0 tag. READ path for hosted spikes (dashboard or documented GET/token pattern) remains undocumented; users wire widget and post to spikes.sh/spikes but have no clear way to view collected feedback.",
+      "created_at": "2026-04-22T14:53:12.885995+00:00",
+      "desired": "README, docs, and CLI output document https://spikes.sh/spikes as the canonical hosted endpoint, plus a one-line 'how to view your spikes for project=X' (dashboard URL or GET+token pattern)",
+      "horizon": null,
+      "id": "01KPTTWKSNHA4MBJ2TZB29K4Q0",
+      "parent_id": null,
+      "position": null,
+      "short_code": 41,
+      "status": "Active"
+    },
+    {
+      "actual": "site/worker/ has README, package.json, tsconfig.json — but no index.ts, no wrangler.toml, no schema.sql. Looks like a stub. Makes the hosted backend opaque: from the public repo you cannot tell what fields the hosted /spikes endpoint accepts or what validation it runs. I discovered the real accepted shape by POSTing probes.",
+      "created_at": "2026-04-22T14:53:12.904890+00:00",
+      "desired": "site/worker/ in the repo contains the actual hosted Worker source (or a clear pointer to where it lives) so contributors can see what the hosted endpoint accepts",
+      "horizon": null,
+      "id": "01KPTTWKT8JDZ2708E7TRSTYXY",
+      "parent_id": null,
+      "position": null,
+      "short_code": 42,
+      "status": "Active"
+    },
+    {
+      "actual": "hosted backend at POST https://spikes.sh/spikes is write-only from a user's perspective. All SPA routes (/dashboard, /p/yvs, /projects/yvs) serve the marketing HTML. spikes serve's dashboard only reads local file storage, not hosted D1. Spikes land in spikes-sh-db with no discoverable way for the project owner to view them. Without this, the hosted write path is pointless for anyone who isn't an admin with D1 query access. Blocking for the yvs → Tyler review loop: Tyler will click, feedback will land, Moritz cannot read it.",
+      "created_at": "2026-04-22T15:02:25.302372+00:00",
+      "desired": "hosted spikes.sh has a project-owner read surface: a dashboard or JSON endpoint at e.g. https://spikes.sh/p/<project>?token=<token> showing all spikes for that projectKey, with filters by page/rating/date",
+      "horizon": null,
+      "id": "01KPTVDF8PD85JNGDVVDZH9TKV",
+      "parent_id": null,
+      "position": null,
+      "short_code": 43,
+      "status": "Active"
+    },
+    {
+      "actual": "nothing in CI catches the 'widget embedded on a customer site with no data-endpoint → silent 404' case. yvs ran for 2 days live with this exact failure and the test suite was green. A headless-browser test loading the widget on a file:// or third-party origin, doing a click-and-submit, and asserting a successful POST to a real endpoint would have caught it.",
+      "created_at": "2026-04-22T15:02:25.325605+00:00",
+      "desired": "CI smoke test fails the build if widget.js, loaded on an origin other than spikes.sh with data-project set and no data-endpoint, cannot reach a real backend",
+      "horizon": null,
+      "id": "01KPTVDF9DPDPN9QS7GFJBVKEZ",
+      "parent_id": null,
+      "position": null,
+      "short_code": 44,
+      "status": "Active"
+    },
+    {
+      "actual": "POST /spikes accepts any projectKey from any origin with no auth. Anyone can submit spikes tagged 'yvs' or 'decideact-2026' and they will land in the owner's inbox once #43 ships a read surface. Asymmetric with the planned authed read path — write side needs a matching decision. Options: signed projectKey+secret pair, CORS allowlist per project, origin registration at project create time, or explicit 'anyone can write, owner moderates' posture (but then document that choice).",
+      "created_at": "2026-04-23T00:49:33.737511+00:00",
+      "desired": "hosted spikes.sh POST /spikes requires proof of project-key ownership; writes from an unauthorized origin to a projectKey owned by someone else are rejected",
+      "horizon": null,
+      "id": "01KPVX0J199EJN28F9KF0536R6",
+      "parent_id": null,
+      "position": null,
+      "short_code": 45,
+      "status": "Active"
+    },
+    {
+      "actual": "shares.ts:431 unconditionally appends a widget <script> before </body>. Pages that self-instrument with the Spikes widget (e.g. yvs/*.html) render two stacked red FAB tiles on the share — one for the page's own data-project, one for the share id.",
+      "created_at": "2026-04-23T09:42:19.714128+00:00",
+      "desired": "spikes-hosted share worker injects widget.js idempotently — no duplicate widget when shared HTML already includes <script src=\".../widget.js\">",
+      "horizon": null,
+      "id": "01KPWVG2T2AV1S4W0HWKGZFHVV",
+      "parent_id": null,
+      "position": null,
+      "short_code": 46,
+      "status": "Active"
+    },
+    {
+      "actual": "Today the share-worker injects its own widget pointing at the share id, and the customer's self-hosted page points at their own data-project. Feedback is split across two project ids — and including both scripts produces duplicate FAB widgets. No mechanism to declare 'this share id and this customer project id are the same store'.",
+      "created_at": "2026-04-23T09:44:54.587429+00:00",
+      "desired": "Widget supports dual hosting: a page can be served both from a spikes.sh share and from the customer's own domain, with feedback from both surfaces flowing into the same project store",
+      "horizon": null,
+      "id": "01KPWVMT1VH0EB6CEKB12H8XSD",
+      "parent_id": null,
+      "position": null,
+      "short_code": 47,
+      "status": "Active"
+    },
+    {
+      "actual": "Spikes works but provides no feedback",
+      "created_at": "2026-04-24T10:42:46.881866+00:00",
+      "desired": "We have explored, decided on, and implemented a bit of subtle feedback the user gets when they take actions with the widget",
+      "horizon": null,
+      "id": "01KPZHBFZ197C4DMNK8TDW0T7V",
+      "parent_id": null,
+      "position": null,
+      "short_code": 48,
+      "status": "Active"
+    },
+    {
+      "actual": "widget.js on Cloudflare Pages is stale — Mission 01's commit d8fd752 never landed on main and main has since been force-merged past it. Real users running the hosted golden path fall back to same-origin /spikes and silently fail. Validation contract VAL-CROSS-008 was relaxed to test local site/widget.js instead of the CDN for Mission 02; rolling the fix to production is a separate, trivial-to-do task.",
+      "created_at": "2026-04-24T14:41:15.712479+00:00",
+      "desired": "production CDN https://spikes.sh/widget.js serves the widget with the smart-default fix from Mission 01 commit d8fd752 (so self-hosted installs without data-endpoint correctly fall back to https://spikes.sh/spikes)",
+      "horizon": null,
+      "id": "01KPZZ05E0H67ACGKWQKD5APKP",
+      "parent_id": null,
+      "position": null,
+      "short_code": 49,
+      "status": "Active"
+    },
+    {
+      "actual": "v0.4.0 was tagged and GitHub release published with 4 binary assets, but npm (packages/spikes-mcp) and crates.io (cli/) publish steps were not performed. Users installing via those channels will still get v0.3.2 behavior. Out of Mission 02 scope; tracked here for a follow-up publish pass.",
+      "created_at": "2026-04-24T14:41:24.642411+00:00",
+      "desired": "npm package spikes-mcp and crates.io package spikes are published for v0.4.0 so 'npx spikes-mcp' and 'cargo install spikes' serve the latest hosted-first CLI",
+      "horizon": null,
+      "id": "01KPZZ0E52J60NBXJGWB0RRFX7",
+      "parent_id": null,
+      "position": null,
+      "short_code": 50,
       "status": "Active"
     }
   ]
