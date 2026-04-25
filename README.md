@@ -87,10 +87,21 @@ All commands support `--json` for scripting. See [full CLI reference](docs/cli-r
 
 **Viewing spikes for a hosted project:**
 
+The hosted dashboard at **<https://spikes.sh/dashboard>** lists every project you own and lets you drill into individual spikes (filter by page, rating, resolved). Sign in with the same token you use for the CLI.
+
+You can also hit the JSON API directly with your bearer token (`$SPIKES_TOKEN` from `spikes login`):
+
 ```bash
-# List all spikes for a specific project
-curl -H "Authorization: Bearer $SPIKES_TOKEN" https://spikes.sh/spikes?project=my-project
+# List all projects you own (with spike_count + last_activity)
+curl -H "Authorization: Bearer $SPIKES_TOKEN" \
+  https://spikes.sh/me/projects
+
+# List spikes for one of your projects (paginated, filterable)
+curl -H "Authorization: Bearer $SPIKES_TOKEN" \
+  "https://spikes.sh/me/projects/my-project/spikes?page=1&per_page=50"
 ```
+
+Both endpoints are user-scoped: you only ever see projects and spikes you own.
 
 ---
 

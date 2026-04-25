@@ -103,6 +103,16 @@ interface Spike {
 }
 ```
 
+## Hosted Read Surface (spikes.sh)
+
+Project owners read their hosted spikes through three surfaces, all user-scoped (Bearer token from `spikes login`):
+
+- **Dashboard SPA:** <https://spikes.sh/dashboard> — project list → drill-in → filter by page/rating/resolved → toggle `resolved` (persists via PATCH).
+- **`GET /me/projects`** — returns `{ data: [{ id, key, allowed_origins, created_at, spike_count, last_activity }], pagination }` for the caller's projects.
+- **`GET /me/projects/:key/spikes`** — paginated, filterable spike list for one of the caller's projects (`?page`, `?per_page`, `?filter_page`, `?filter_rating`, `?filter_resolved`). `PATCH /me/projects/:key/spikes/:id` mutates the `resolved` flag.
+
+API keys (`sk_spikes_*`) and the admin `SPIKES_TOKEN` are **not** accepted on `/me/*` — those endpoints require a user bearer token. Cross-tenant requests return `404 PROJECT_NOT_FOUND` (enumeration-proof, never 403).
+
 ## MCP Server
 
 `spikes mcp serve` exposes 9 tools (feedback CRUD, shares, usage).
