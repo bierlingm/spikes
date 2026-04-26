@@ -11,7 +11,7 @@
 AI can build a prototype in an hour.<br>
 Turning feedback into action is still the slow part.
 
-[Quick Start](#quick-start) · [CLI Reference](#cli-commands) · [Widget Docs](docs/widget-attributes.md) · [Self-Hosting](docs/self-hosting.md)
+[Quick Start](#quick-start) · [CLI Reference](#cli-commands) · [Widget Docs](docs/widget-attributes.md) · [Hosted Dashboard](https://spikes.sh/dashboard) · [Self-Hosting](docs/self-hosting.md)
 
 </div>
 
@@ -87,7 +87,7 @@ All commands support `--json` for scripting. See [full CLI reference](docs/cli-r
 
 **Viewing spikes for a hosted project:**
 
-The hosted dashboard at **<https://spikes.sh/dashboard>** lists every project you own and lets you drill into individual spikes (filter by page, rating, resolved). Sign in with the same token you use for the CLI.
+The hosted dashboard at **<https://spikes.sh/dashboard>** lists every project you own and lets you drill into individual spikes (filter by page, rating, resolved, toggle `resolved` inline). Sign in with the same token you use for the CLI.
 
 You can also hit the JSON API directly with your bearer token (`$SPIKES_TOKEN` from `spikes login`):
 
@@ -98,15 +98,32 @@ curl -H "Authorization: Bearer $SPIKES_TOKEN" \
   https://spikes.sh/me/projects
 
 # GET /me/projects/:key/spikes
-# List spikes for one of your projects (paginated, filterable)
+# List spikes for one of your projects (paginated, filterable: page, per_page,
+# filter_page, filter_rating, filter_resolved)
 curl -H "Authorization: Bearer $SPIKES_TOKEN" \
   "https://spikes.sh/me/projects/my-project/spikes?page=1&per_page=50"
+
+# PATCH /me/projects/:key/spikes/:id
+# Toggle the `resolved` flag on one spike
+curl -X PATCH -H "Authorization: Bearer $SPIKES_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"resolved": true}' \
+  https://spikes.sh/me/projects/my-project/spikes/<spike_id>
+
+# POST /projects
+# Create a new project (user bearer only)
+curl -X POST -H "Authorization: Bearer $SPIKES_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"key": "my-project", "allowed_origins": ["https://example.com"]}' \
+  https://spikes.sh/projects
 
 # Single-line variant (copy-paste friendly)
 curl -H "Authorization: Bearer $SPIKES_TOKEN" https://spikes.sh/me/projects
 ```
 
-Both endpoints are user-scoped: you only ever see projects and spikes you own.
+All `/me/*` endpoints are user-scoped: you only ever see projects and spikes you own. Cross-tenant requests return `404 PROJECT_NOT_FOUND` (enumeration-proof).
+
+> **Security note:** API keys (`sk_spikes_*`) and the admin `SPIKES_TOKEN` are **not** accepted on `/me/*` endpoints or `POST /projects` — those require a user bearer token from `spikes login`. The `POST /spikes` collect endpoint enforces a per-project origin allowlist and per-project rate limits; rejected widget requests surface as a small red `#spikes-error-dot` indicator on the widget button (404 / 403 / 429).
 
 ---
 
