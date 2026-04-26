@@ -92,13 +92,18 @@ The hosted dashboard at **<https://spikes.sh/dashboard>** lists every project yo
 You can also hit the JSON API directly with your bearer token (`$SPIKES_TOKEN` from `spikes login`):
 
 ```bash
+# GET /me/projects
 # List all projects you own (with spike_count + last_activity)
 curl -H "Authorization: Bearer $SPIKES_TOKEN" \
   https://spikes.sh/me/projects
 
+# GET /me/projects/:key/spikes
 # List spikes for one of your projects (paginated, filterable)
 curl -H "Authorization: Bearer $SPIKES_TOKEN" \
   "https://spikes.sh/me/projects/my-project/spikes?page=1&per_page=50"
+
+# Single-line variant (copy-paste friendly)
+curl -H "Authorization: Bearer $SPIKES_TOKEN" https://spikes.sh/me/projects
 ```
 
 Both endpoints are user-scoped: you only ever see projects and spikes you own.

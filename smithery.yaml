@@ -6,6 +6,7 @@ description: >
   Feedback collection for AI-assisted building. Click elements, leave comments,
   get exact CSS selectors. Structured JSON output for Claude Code, Cursor, and
   other AI coding assistants. Read, write, and manage feedback programmatically.
+  Hosted dashboard at https://spikes.sh/dashboard.
 
 startCommand:
   type: stdio

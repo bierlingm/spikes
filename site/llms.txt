@@ -12,6 +12,7 @@
 ## Docs
 
 - [Documentation](https://spikes.sh/docs.html.md): Complete CLI reference, widget configuration, data formats
+- [Hosted Dashboard](https://spikes.sh/dashboard): Browse your projects and spikes (also via `GET /me/projects`)
 - [Quick Start](https://spikes.sh/docs.html.md#quick-start): Get running in 30 seconds
 
 ## CLI Commands
