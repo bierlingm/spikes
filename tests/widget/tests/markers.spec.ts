@@ -9,7 +9,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
-const WIDGET_PATH = path.join(REPO_ROOT, 'widget', 'spikes.js');
+const WIDGET_PATH = process.env.SCRATCH_WIDGET_PATH || path.join(REPO_ROOT, 'widget', 'spikes.js');
 
 test.describe('Marker Checks', () => {
 	test('VAL-MARKER-001: widget/spikes.js exists and is non-empty', () => {

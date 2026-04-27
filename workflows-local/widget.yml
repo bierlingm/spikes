@@ -1,0 +1,27 @@
+# Local-only workflow - run via: npx agent-ci run --workflow workflows-local/widget.yml
+# No GitHub Actions version exists (cost-driven decision — local CI only)
+
+name: Widget Test (Local)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+      - name: Install dependencies
+        working-directory: tests/widget
+        run: npm ci
+      - name: Install Playwright Chromium
+        working-directory: tests/widget
+        run: npx playwright install --with-deps chromium
+      - name: Run widget tests
+        working-directory: tests/widget
+        run: npm test

@@ -19,6 +19,7 @@ All work tracking lives in werk. Update tensions as you go — `werk reality <id
 - **CLI version:** 0.4.0
 - **Root goal:** 10 paying users (werk tension #1)
 - **Tests:** `cd cli && cargo test` / `cd ../spikes-hosted/worker && npm test`
+- **Widget Tests:** `cd tests/widget && npm test` / `npx agent-ci run --workflow workflows-local/widget.yml`
 - **Agent-CI:** `npx agent-ci run --workflow workflows-local/test.yml` (local only)
 - **Deploy:** push to main (site) or tag v* (binaries)
 
