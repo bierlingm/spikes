@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Test Fixture - Reverse Path</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    p { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Spikes Widget Test Fixture - Reverse Path</h1>
+  <p>This page tests error handling with mocked 403, 500, and network failures.</p>
+  <p data-testid="target-element">Target element for element-level spikes.</p>
+
+  <!-- Widget with unique data-project for reverse tests -->
+  <script src="/spikes.js" data-project="widget-ci-reverse-test"></script>
+</body>
+</html>

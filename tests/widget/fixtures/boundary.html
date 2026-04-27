@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Test Fixture - Boundary Test</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; }
+    p { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Spikes Widget Test Fixture - Boundary Test</h1>
+  <p>This page tests explicit data-endpoint with no data-project (should fallback to localhost).</p>
+  <p data-testid="target-element">Target element for element-level spikes.</p>
+
+  <!-- Widget with explicit data-endpoint, no data-project - projectKey should fallback to localhost -->
+  <script src="/spikes.js" data-endpoint="http://localhost:4717/sink"></script>
+</body>
+</html>
