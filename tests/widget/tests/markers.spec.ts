@@ -30,9 +30,9 @@ test.describe('Marker Checks', () => {
 		expect(count).toBeGreaterThanOrEqual(4);
 	});
 
-	test('VAL-MARKER-004: [Spikes] Sync failed occurs >= 1 time', () => {
+	test('VAL-MARKER-004: console.error(\'[Spikes] Sync failed occurs >= 1 time', () => {
 		const content = fs.readFileSync(WIDGET_PATH, 'utf-8');
-		const count = (content.match(/\[Spikes\] Sync failed/g) || []).length;
+		const count = (content.match(/console\.error\('\[Spikes\] Sync failed/g) || []).length;
 		expect(count).toBeGreaterThanOrEqual(1);
 	});
 
@@ -55,6 +55,6 @@ test.describe('Marker Checks', () => {
 
 		expect(grepCount('spikes-error-dot')).toBeGreaterThanOrEqual(1);
 		expect(grepCount('setErrorState')).toBeGreaterThanOrEqual(4);
-		expect(grepCount('\\[Spikes\\] Sync failed')).toBeGreaterThanOrEqual(1);
+		expect(grepCount("'\\[Spikes\\] Sync failed")).toBeGreaterThanOrEqual(1);
 	});
 });
