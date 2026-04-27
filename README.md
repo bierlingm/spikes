@@ -87,7 +87,7 @@ All commands support `--json` for scripting. See [full CLI reference](docs/cli-r
 
 **Viewing spikes for a hosted project:**
 
-The hosted dashboard at **<https://spikes.sh/dashboard>** lists every project you own and lets you drill into individual spikes (filter by page, rating, resolved, toggle `resolved` inline). Sign in with the same token you use for the CLI.
+The hosted dashboard at **<https://spikes.sh/dashboard>** lists every project you own and lets you drill into individual spikes (filter by page, rating, resolved, toggle `resolved` inline). Sign in directly in your browser: click **Sign in**, open the verification page, and confirm via the magic link sent to your email — no CLI required.
 
 You can also hit the JSON API directly with your bearer token (`$SPIKES_TOKEN` from `spikes login`):
 
