@@ -317,6 +317,23 @@ cd widget
 # Test by running: spikes serve from the project root
 ```
 
+### Widget Regression Tests
+
+CI suite that catches the silent-data-loss bug class (e.g., widget loaded on a non-allowed origin failing to sync without surfacing the error):
+
+```bash
+cd tests/widget
+npm install
+npx playwright install chromium    # one-time
+npm test                           # 23 tests: marker checks + happy/reverse/boundary specs (<60s)
+```
+
+Also wired into local agent-ci:
+
+```bash
+npx agent-ci run --workflow workflows-local/widget.yml
+```
+
 ### Worker
 
 The Worker backend lives in the private `spikes-hosted` repo. To test it:
