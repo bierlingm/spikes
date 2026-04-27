@@ -53,8 +53,18 @@ test.describe('Marker Checks', () => {
 			}
 		};
 
+		// Fixed-string grep for patterns with special chars (parentheses, brackets)
+		const grepFixedCount = (pattern: string): number => {
+			try {
+				const result = execSync(`grep -Fc "${pattern}" ${WIDGET_PATH}`, { encoding: 'utf-8' });
+				return parseInt(result.trim(), 10);
+			} catch (e) {
+				return 0;
+			}
+		};
+
 		expect(grepCount('spikes-error-dot')).toBeGreaterThanOrEqual(1);
 		expect(grepCount('setErrorState')).toBeGreaterThanOrEqual(4);
-		expect(grepCount("'\\[Spikes\\] Sync failed")).toBeGreaterThanOrEqual(1);
+		expect(grepFixedCount("console.error('[Spikes] Sync failed")).toBeGreaterThanOrEqual(1);
 	});
 });
