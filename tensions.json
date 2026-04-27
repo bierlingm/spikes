@@ -1,10 +1,10 @@
 {
-  "flushed_at": "2026-04-24T19:14:53Z",
+  "flushed_at": "2026-04-27T07:26:59Z",
   "summary": {
-    "active": 18,
+    "active": 15,
     "released": 0,
-    "resolved": 32,
-    "total": 50
+    "resolved": 36,
+    "total": 51
   },
   "tensions": [
     {
@@ -448,7 +448,7 @@
       "status": "Resolved"
     },
     {
-      "actual": "Write-side hosted-endpoint documentation in CLI/README is live as of v0.4.0 tag. READ path for hosted spikes (dashboard or documented GET/token pattern) remains undocumented; users wire widget and post to spikes.sh/spikes but have no clear way to view collected feedback.",
+      "actual": "Both write-side (v0.4.0) and read-side (M03) hosted-endpoint documentation are live: README/docs/CLI output cite https://spikes.sh/spikes for writes and https://spikes.sh/dashboard + /me/projects(/:key/spikes) for reads, with single-line curl examples. Outstanding: in-browser sign-in for /dashboard is broken end-to-end (dashboard initiates a device-code flow at /auth/device but spikes login uses email magic-link and never registers a device-code session) — tracked as a child tension.",
       "created_at": "2026-04-22T14:53:12.885995+00:00",
       "desired": "README, docs, and CLI output document https://spikes.sh/spikes as the canonical hosted endpoint, plus a one-line 'how to view your spikes for project=X' (dashboard URL or GET+token pattern)",
       "horizon": null,
@@ -467,7 +467,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 42,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "hosted backend at POST https://spikes.sh/spikes is write-only from a user's perspective. All SPA routes (/dashboard, /p/yvs, /projects/yvs) serve the marketing HTML. spikes serve's dashboard only reads local file storage, not hosted D1. Spikes land in spikes-sh-db with no discoverable way for the project owner to view them. Without this, the hosted write path is pointless for anyone who isn't an admin with D1 query access. Blocking for the yvs → Tyler review loop: Tyler will click, feedback will land, Moritz cannot read it.",
@@ -478,7 +478,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 43,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "nothing in CI catches the 'widget embedded on a customer site with no data-endpoint → silent 404' case. yvs ran for 2 days live with this exact failure and the test suite was green. A headless-browser test loading the widget on a file:// or third-party origin, doing a click-and-submit, and asserting a successful POST to a real endpoint would have caught it.",
@@ -500,7 +500,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 45,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "shares.ts:431 unconditionally appends a widget <script> before </body>. Pages that self-instrument with the Spikes widget (e.g. yvs/*.html) render two stacked red FAB tiles on the share — one for the page's own data-project, one for the share id.",
@@ -544,7 +544,7 @@
       "parent_id": null,
       "position": null,
       "short_code": 49,
-      "status": "Active"
+      "status": "Resolved"
     },
     {
       "actual": "v0.4.0 was tagged and GitHub release published with 4 binary assets, but npm (packages/spikes-mcp) and crates.io (cli/) publish steps were not performed. Users installing via those channels will still get v0.3.2 behavior. Out of Mission 02 scope; tracked here for a follow-up publish pass.",
@@ -555,6 +555,17 @@
       "parent_id": null,
       "position": null,
       "short_code": 50,
+      "status": "Active"
+    },
+    {
+      "actual": "Clicking Sign in on /dashboard shows a device code and asks user to visit /auth/device, but /auth/device says 'Run spikes login in your terminal first' — and spikes login runs the email magic-link flow which does NOT register a device-code session. Result: dashboard auth is broken end-to-end for browser-only users.",
+      "created_at": "2026-04-27T07:26:44.009971+00:00",
+      "desired": "Dashboard browser sign-in works end-to-end (user can authenticate from /dashboard without opening a terminal)",
+      "horizon": null,
+      "id": "01KQ6XANS9TYEC5X5VMRV8ADHZ",
+      "parent_id": "01KPTTWKSNHA4MBJ2TZB29K4Q0",
+      "position": null,
+      "short_code": 51,
       "status": "Active"
     }
   ]
