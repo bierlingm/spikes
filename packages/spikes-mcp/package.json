@@ -1,6 +1,6 @@
 {
   "name": "spikes-mcp",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "mcpName": "io.github.bierlingm/spikes",
   "description": "MCP server for Spikes — structured feedback for AI-assisted building. Downloads the platform binary and starts the MCP server on stdio.",
   "license": "MIT",
