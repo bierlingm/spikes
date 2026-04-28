@@ -2,6 +2,29 @@
 
 All notable changes to Spikes will be documented in this file.
 
+## [0.4.1] - 2025-04-28
+
+### Fixed
+
+**spikes-mcp NPM Package**
+- Added missing `README.md` to package (was listed in `files[]` but absent from disk)
+- Aligned `server.json` version fields to 0.4.1 (both top-level and `packages[0].version`) for MCP Registry consistency
+
+## [0.4.0] - 2025-04-24
+
+### Summary
+
+Mission 05 (v0.4.0 release-close) outcomes:
+
+- **CLI 0.4.0** republished to crates.io with worker MIME type bug fix (ensures proper content-type headers on API responses)
+- **spikes-mcp 0.4.0** published to npm with `mcpName` field for MCP Registry identification
+- **CDN /widget.js** verified live and serving with correct cache headers
+- **werk tensions closed**: #50 (publish verification), #39 (admin tasks), #41 (additional admin)
+
+### Changed
+
+- All 0.4.0 artifacts now stable and available across crates.io, npm, and CDN
+
 ## [0.3.1] - 2025-03-03
 
 ### Added
