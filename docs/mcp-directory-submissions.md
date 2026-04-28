@@ -47,11 +47,14 @@ Total time: about 5 minutes, blocked only on the GitHub device-code paste.
 
 ## 2. cursor.directory (community directory behind cursor.com)
 
-[cursor.directory](https://cursor.directory) is maintained in the [pontusab/cursor.directory](https://github.com/pontusab/cursor.directory) repo. MCP entries live under `apps/` or `packages/` (check the repo layout at submission time — it's been restructuring through 2026).
+[cursor.directory](https://cursor.directory) is maintained in the [leerob/directories](https://github.com/leerob/directories) repo (formerly `pontusab/cursor.directory`). MCP entries live under `apps/` or `packages/` (check the repo layout at submission time — it's been restructuring through 2026).
 
 **Steps:**
 
-1. Fork `pontusab/cursor.directory`.
+1. Fork `leerob/directories`:
+   ```bash
+   gh repo fork leerob/directories --clone
+   ```
 2. Find the MCP servers data file (currently under `apps/mcp/` or `packages/data/mcp-servers/` — open the repo and check the latest layout).
 3. Add an entry like this (format may have drifted — match whatever's in the file):
    ```json
@@ -86,7 +89,7 @@ The Cursor marketplace has a formal publish flow at https://cursor.com/marketpla
    {
      "name": "spikes",
      "description": "Structured UI feedback for AI-assisted building",
-     "version": "0.3.1",
+     "version": "0.4.1",
      "author": { "name": "Moritz Bierling" },
      "mcp_servers": [
        {
@@ -97,8 +100,8 @@ The Cursor marketplace has a formal publish flow at https://cursor.com/marketpla
      ]
    }
    ```
-4. Push it to its own public GitHub repo (e.g., `bierlingm/spikes-cursor-plugin`) — all Cursor plugins must be open source.
-5. Go to https://cursor.com/marketplace/publish, point it at the repo, submit.
+4. Push it to its own public GitHub repo — all Cursor plugins must be open source. The scaffold is live at [`bierlingm/spikes-cursor-plugin`](https://github.com/bierlingm/spikes-cursor-plugin).
+5. Go to https://cursor.com/marketplace/publish, point it at the repo (`bierlingm/spikes-cursor-plugin`), submit.
 6. Manual security review takes a few days.
 
 Note: this is *Cursor-specific glue*. You can skip it if the MCP Registry listing is enough, since Cursor also reads the registry. The marketplace listing gets you the "Add to Cursor" one-click button.
@@ -114,13 +117,13 @@ Windsurf's MCP Marketplace is curated by the Codeium team and has no public subm
 
 **Draft email/message:**
 
-> Subject: MCP Marketplace submission — Spikes (structured UI feedback for agents)
+> Subject: MCP Marketplace submission — Spikes v0.4.1 (structured UI feedback for agents)
 >
 > Hi Windsurf team,
 >
 > I run [Spikes](https://spikes.sh), an MCP server for capturing structured UI feedback that AI coding agents can act on directly. Reviewers click elements on a page, rate them, and optionally comment; the agent reads JSON (selector + bounding box + viewport + rating + comment) and writes diffs.
 >
-> It's already live on NPM as `spikes-mcp` and will be on the official MCP Registry as `io.github.bierlingm/spikes`. Install for Cascade is a one-liner:
+> It's live on NPM as `spikes-mcp` and now listed on the official MCP Registry as `io.github.bierlingm/spikes@0.4.1`. Install for Cascade is a one-liner:
 >
 > ```bash
 > npx -y spikes-mcp
