@@ -40,14 +40,18 @@ pub fn run(options: UnshareOptions) -> Result<()> {
             ))
         })?;
 
+    // Accept either a bare slug or a full share URL
+    // (e.g. https://spikes.sh/s/<slug>) — normalize to the slug the API expects.
+    let slug = crate::commands::pull::parse_share_slug(&options.slug)?;
+
     // Get share info first to retrieve the ID and spikes
-    let share_info = fetch_share_info(&token, &options.slug)?;
+    let share_info = fetch_share_info(&token, &slug)?;
 
     // Confirm unless --force
     if !options.force && !options.json {
         print!(
             "Delete share '{}'? This cannot be undone. [y/N] ",
-            options.slug
+            slug
         );
         io::stdout().flush()?;
 
@@ -64,11 +68,11 @@ pub fn run(options: UnshareOptions) -> Result<()> {
     delete_share(&token, &share_info.id)?;
 
     // Save exported spikes to .spikes/{slug}.jsonl
-    let backup_path = save_exported_spikes(&options.slug, &share_info.exported_spikes)?;
+    let backup_path = save_exported_spikes(&slug, &share_info.exported_spikes)?;
 
     let result = UnshareResult {
         success: true,
-        slug: options.slug.clone(),
+        slug: slug.clone(),
         spikes_saved: share_info.exported_spikes.len(),
         backup_path: backup_path.clone(),
     };
@@ -82,7 +86,7 @@ pub fn run(options: UnshareOptions) -> Result<()> {
         println!();
         println!("  🗡️  Share deleted");
         println!();
-        println!("  Slug:           {}", options.slug);
+        println!("  Slug:           {}", slug);
         println!("  Spikes saved:   {}", share_info.exported_spikes.len());
         if let Some(path) = backup_path {
             println!("  Backup:         {}", path);

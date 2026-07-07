@@ -300,7 +300,7 @@ fn run_from_share(url: &str, json_output: bool) -> Result<()> {
     Ok(())
 }
 
-fn parse_share_slug(url: &str) -> Result<String> {
+pub(crate) fn parse_share_slug(url: &str) -> Result<String> {
     // Handle both full URLs and bare slugs
     // Full URL: https://spikes.sh/s/governance-x7k2m
     // Bare slug: governance-x7k2m
