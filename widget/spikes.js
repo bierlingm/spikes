@@ -55,7 +55,8 @@
         collectEmail: script.getAttribute('data-collect-email') === 'true',
         offsetX: script.getAttribute('data-offset-x') || null,
         offsetY: script.getAttribute('data-offset-y') || null,
-        isAdmin: script.getAttribute('data-admin') === 'true'
+        isAdmin: script.getAttribute('data-admin') === 'true',
+        edit: script.getAttribute('data-edit') || null
     };
     
     // Theme colors
@@ -1941,6 +1942,22 @@
         document.head.appendChild(style);
     }
     
+    // Load edit mode script if configured
+    function loadEditMode() {
+        if (!config.edit) return;
+        // Resolve edit.js relative to spikes.js
+        var src = script.getAttribute('src');
+        if (!src) return;
+        var editSrc = src.replace(/spikes\.js(\?.*)?$/, 'edit.js');
+        // Also try CDN path
+        if (editSrc === src) {
+            editSrc = src.replace(/widget\.js(\?.*)?$/, 'edit.js');
+        }
+        var editScript = document.createElement('script');
+        editScript.src = editSrc;
+        document.head.appendChild(editScript);
+    }
+
     // Initialize when DOM is ready
     function init() {
         initReviewer();
@@ -1948,6 +1965,7 @@
         createButton();
         createModal();
         createPopover();
+        loadEditMode();
     }
 
     if (document.readyState === 'loading') {
@@ -1979,7 +1997,9 @@
         isReviewMode: function() { return reviewMode; },
         toggleReviewMode: toggleReviewMode,
         showReviewMarkers: showReviewMarkers,
-        hideReviewMarkers: hideReviewMarkers
+        hideReviewMarkers: hideReviewMarkers,
+        // Internal hook for edit mode coordination
+        _exitSpikeMode: exitSpikeMode
     };
 
     // Log version info to console for debugging
