@@ -155,6 +155,40 @@ Enables admin features in the widget UI. Currently shows a "Review" button that 
 
 ---
 
+### data-readback
+
+Controls whether the widget loads feedback that already exists for the current page from the hosted API (`GET /public/spikes`) and renders it as pins on the page, coloured by status: open (widget colour), addressed (green), won't do (grey). Clicking a pin shows the comment, its status, the version it was addressed in, and the builder's last reply. Spikes left by the current reviewer are labelled "yours". Page-level spikes are listed under "Earlier feedback" in the feedback dialog, and the matching version label (`GET /public/versions`) is shown as a chip under the button and in the dialog header. The version chip stays on while either this attribute or `data-questions` is on; only with both set to `"off"` does the widget make no `/public` requests. Only active when `data-project` is set and the endpoint is a hosted `…/spikes` URL; failures are silent.
+
+| Property | Value |
+|----------|-------|
+| **Description** | Show existing feedback, status and version on the page |
+| **Valid Values** | `"off"` to disable (any other value keeps it on) |
+| **Default Value** | on |
+| **Example** | `data-readback="off"` |
+
+```html
+<script src="spikes.js" data-project="my-project" data-readback="off"></script>
+```
+
+---
+
+### data-questions
+
+Controls the "Questions for you" section. Open questions the builder asked (`GET /public/questions`) appear as a badge under the button and as a list with a text box each in the feedback dialog; sending posts the answer with the stored reviewer identity to `POST /public/questions/:id/answers` and remembers it in `localStorage` (`spikes:answered:<project>`). Same activation rule as `data-readback`.
+
+| Property | Value |
+|----------|-------|
+| **Description** | Show and answer builder questions |
+| **Valid Values** | `"off"` to disable (any other value keeps it on) |
+| **Default Value** | on |
+| **Example** | `data-questions="off"` |
+
+```html
+<script src="spikes.js" data-project="my-project" data-questions="off"></script>
+```
+
+---
+
 ### data-offset-x
 
 Horizontal offset from the configured position. Positive values move the button toward the center. Accepts CSS length values.

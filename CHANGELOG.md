@@ -2,6 +2,28 @@
 
 All notable changes to Spikes will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+**Feedback loop v2 (CLI + MCP)** — closes the loop between reviewer, builder, and agent. Contract: `docs/design/feedback-loop-v2-api.md`.
+
+- `spikes status`: credential source, endpoint, `GET /me` result or the specific 401 (`TOKEN_REVOKED` with `revoked_at`, `TOKEN_EXPIRED` with `expires_at`, `AUTH_FAILED`), cache age. Exits 1 when unusable.
+- `.spikes/state.json` pull stamp; `list`, `show`, `export`, `hotspots` warn on stderr when a remote is configured and the cache is unstamped or older than 24 h.
+- `spikes pull --since <ISO|last> [--url-prefix <p>]`; changed spikes are replaced in place instead of ignored.
+- `spikes projects create|list`, `spikes auth create-key --project <key> [--save]` for project-scoped keys.
+- `spikes reply <id> <text> [--version] [--status] [--name]`.
+- `spikes resolve --in <label> | --wont-do | --undo` sending the v2 `status` field; plain `resolve` unchanged. `resolve` now also PATCHes the remote when one is configured.
+- `spikes versions add|list|notes`, `spikes questions add|list|answers|close`.
+- `spikes watch [--since] [--interval] [--url-prefix] [--exec <cmd>] [--once]`: JSON lines per new/updated spike and per question answer; `--exec` pipes each event to a command (Herdr bridge: `spikes watch --exec 'herdr agent prompt builder'`).
+- MCP: `get_spikes` gains `url_prefix` and `since`; new tools `reply_to_spike`, `set_spike_status`, `list_versions`, `add_version`, `list_questions`, `ask_question`, `get_question_answers` (16 tools total). Server `instructions` describe the turn-start pattern.
+- Spike records carry `status`, `addressedIn`, `version`, `replyCount`, `lastReply`, `createdAt`, `updatedAt` when the hosted API provides them; old JSONL lines still parse.
+
+### Changed
+
+- Hosted credential precedence for new commands: `[remote] token` in `.spikes/config.toml`, then `SPIKES_TOKEN`, then the global auth file.
+- 401 responses with `TOKEN_REVOKED` / `TOKEN_EXPIRED` map to specific errors; `402 UPGRADE_REQUIRED` maps to an upgrade message.
+
 ## [0.4.1] - 2025-04-28
 
 ### Fixed

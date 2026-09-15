@@ -12,6 +12,7 @@ pub struct ListOptions {
 }
 
 pub fn run(options: ListOptions) -> Result<()> {
+    crate::state::warn_if_stale();
     let spikes = load_spikes()?;
 
     let filtered: Vec<Spike> = spikes

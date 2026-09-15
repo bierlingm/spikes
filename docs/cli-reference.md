@@ -191,7 +191,7 @@ spikes delete abc1 --force
 
 ### spikes resolve
 
-Mark a spike as resolved (or unresolved).
+Mark a spike as addressed, won't do, or open again.
 
 ```bash
 spikes resolve <ID> [OPTIONS]
@@ -205,15 +205,106 @@ spikes resolve <ID> [OPTIONS]
 **Options:**
 | Flag | Description |
 |------|-------------|
-| `--unresolve` | Mark as unresolved instead |
+| `--in <LABEL>` | Mark as addressed in a version (sets `status: addressed`, `addressed_in`) |
+| `--wont-do` | Mark as won't do (`status: wont_do`) |
+| `--undo` | Reopen the spike (`status: open`) |
+| `--unresolve` | Alias of `--undo` |
 | `--json` | Output as JSON |
 
-**Description:** Adds `resolved: true` and `resolvedAt` timestamp to the spike. Resolved spikes are excluded from `spikes list --unresolved`.
+**Description:** Updates the local cache when the spike is there. When a remote is configured (`[remote]` in `.spikes/config.toml`), the change is also sent as `PATCH /spikes/:id`. Without flags the request body stays `{ "resolved": true }`; `--in`, `--wont-do`, and `--undo` send the `status` field. Resolved spikes are excluded from `spikes list --unresolved`.
 
 **Examples:**
 ```bash
 spikes resolve abc123
-spikes resolve abc123 --unresolve
+spikes resolve abc123 --in v0.5
+spikes resolve abc123 --wont-do
+spikes resolve --undo abc123
+```
+
+---
+
+### spikes reply
+
+Answer a reviewer's spike. The reply shows up on the page where the comment was left (hosted projects).
+
+```bash
+spikes reply <ID> <TEXT> [OPTIONS]
+```
+
+**Arguments:**
+| Argument | Description |
+|----------|-------------|
+| `<ID>` | Spike ID or prefix (a prefix is expanded from the local cache) |
+| `<TEXT>` | Reply text |
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--version <LABEL>` | Version this reply refers to; implies `--status addressed` and sets `addressed_in` |
+| `--status <STATUS>` | `addressed`, `wont_do`, or `open` |
+| `--name <AUTHOR>` | Author name shown to the reviewer (default: Builder) |
+| `--json` | Output as JSON |
+
+**Description:** Sends `POST /spikes/:id/replies`. The local cache entry (if any) is updated with the new status, `addressedIn`, `replyCount`, and `lastReply`.
+
+**Examples:**
+```bash
+spikes reply abc123 "Moved the hero up, see v0.5" --version v0.5
+spikes reply abc123 "Out of scope for this round" --status wont-do
+spikes reply abc123 "Did you mean the mobile menu?" --name Moritz
+```
+
+---
+
+### spikes status
+
+Show which credential is in use, whether the server accepts it, and how fresh the local cache is.
+
+```bash
+spikes status [--json]
+```
+
+**Description:** Resolves the credential in this order: `[remote] token` in `.spikes/config.toml`, then `SPIKES_TOKEN`, then the global auth file. Calls `GET /me` and reports the identity, or the specific failure: `TOKEN_REVOKED` (with `revoked_at`), `TOKEN_EXPIRED` (with `expires_at`), or `AUTH_FAILED`. Reports the age of `.spikes/state.json`. **Exits 1 when the credential is unusable.**
+
+**Example output:**
+```
+  Endpoint:    https://spikes.sh
+  Credential:  sk_spikes_ab… (api_key)
+  Source:      .spikes/config.toml [remote].token
+  Auth:        INVALID (TOKEN_REVOKED)
+               revoked at 2026-09-01T00:00:00Z
+  Cache:       pulled 5 days ago (2026-09-10T11:38:00Z) — stale
+```
+
+---
+
+### spikes watch
+
+Stream new and updated feedback as JSON lines, one object per event.
+
+```bash
+spikes watch [OPTIONS]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--since <ISO\|last>` | Start point: an ISO 8601 timestamp, or `last` for the previous pull (default; falls back to now) |
+| `--interval <SECONDS>` | Poll interval (default: 30) |
+| `--url-prefix <PREFIX>` | Only spikes whose URL starts with this prefix |
+| `--exec <COMMAND>` | Run a shell command per event with the JSON on stdin |
+| `--once` | Poll once and exit |
+
+**Events:** `spike.created`, `spike.updated` (each with a `spike` object), and, when `[project].key` is configured, `question.answered` (with `question` and `answer`). The stamp in `.spikes/state.json` is updated after every poll, so the next `spikes pull --since last` continues from here. A non-zero exit of the `--exec` command is logged to stderr and polling continues. Revoked or expired credentials stop the watch with exit 1.
+
+**Examples:**
+```bash
+spikes watch
+spikes watch --once --since last | jq .
+spikes watch --url-prefix https://statecraft.systems/prosser/versions/v0-5/
+
+# Herdr bridge: prompt a named agent with every new comment
+spikes watch --exec 'herdr agent prompt builder'
 ```
 
 ---
@@ -295,13 +386,19 @@ spikes pull [OPTIONS]
 | `--endpoint <URL>` | Remote endpoint URL (or from config) |
 | `--token <TOKEN>` | Auth token (or from config) |
 | `--from <URL>` | Pull from a public share URL |
+| `--since <ISO\|last>` | Only spikes updated after a timestamp, or since the previous pull (`last`) |
+| `--url-prefix <PREFIX>` | Only spikes whose URL starts with this prefix |
 | `--json` | Output as JSON |
+
+**Description:** New spikes are appended to `.spikes/feedback.jsonl`; spikes that already exist locally are replaced in place when the remote copy changed (status, replies). Every successful pull writes `.spikes/state.json` (`last_pulled_at`, `endpoint`, `credential_prefix`). `list`, `show`, `export`, and `hotspots` warn on stderr when a remote is configured and this stamp is missing or older than 24 hours.
 
 **Examples:**
 ```bash
 spikes pull
+spikes pull --since last
+spikes pull --since 2026-09-14T00:00:00Z --url-prefix https://example.com/v0-5/
 spikes pull --from "https://spikes.sh/s/my-project"
-spikes pull --endpoint "https://api.example.com/spikes" --token "secret"
+spikes pull --endpoint "https://api.example.com" --token "secret"
 ```
 
 ---
@@ -406,6 +503,67 @@ spikes remote show [OPTIONS]
 
 ---
 
+### spikes projects
+
+Manage hosted projects.
+
+```bash
+spikes projects create <KEY> [--origin <ORIGIN>]... [--json]
+spikes projects list [--json]
+```
+
+**Description:** `create` calls `POST /projects` (user token or account key) and, when a `.spikes/` directory exists without a `[project].key`, writes the key into `.spikes/config.toml`. `list` calls `GET /me/projects`.
+
+**Examples:**
+```bash
+spikes projects create prosser --origin https://statecraft.systems
+spikes projects list
+```
+
+---
+
+### spikes versions
+
+Declare review versions for the configured project (`[project].key`).
+
+```bash
+spikes versions add <LABEL> --prefix <URL_PREFIX> [--notes <TEXT>] [--json]
+spikes versions list [--json]
+spikes versions notes <LABEL> <TEXT> [--json]
+```
+
+**Description:** A spike belongs to the version with the longest `url_prefix` matching its URL. Notes are shown to reviewers as "what changed".
+
+**Examples:**
+```bash
+spikes versions add v0.5 --prefix /prosser/versions/v0-5/ --notes "Addresses comments 3, 5 and 6"
+spikes versions list
+spikes versions notes v0.5 "Also fixed the mobile menu"
+```
+
+---
+
+### spikes questions
+
+Ask reviewers questions and read their answers (configured project).
+
+```bash
+spikes questions add <TITLE> [--body <TEXT>] [--json]
+spikes questions list [--closed] [--json]
+spikes questions answers <ID> [--json]
+spikes questions close <ID> [--json]
+```
+
+**Examples:**
+```bash
+spikes questions add "Pool hours?" --body "Should the calendar show night bookings?"
+spikes questions list
+spikes questions answers q_abc123
+spikes questions close q_abc123
+```
+
+---
+
 ## Authentication
 
 ### spikes login
@@ -469,6 +627,34 @@ spikes whoami [OPTIONS]
 ```bash
 spikes whoami
 spikes whoami --json
+```
+
+---
+
+### spikes auth create-key
+
+Create an API key for agent authentication.
+
+```bash
+spikes auth create-key [--name <NAME>] [--project <KEY>] [--save] [--json]
+```
+
+**Options:**
+| Flag | Description |
+|------|-------------|
+| `--name <NAME>` | Label for the key |
+| `--project <KEY>` | Scope the key to one project (requires `spikes login`); it can only read and write that project |
+| `--save` | Write the key into `.spikes/config.toml` under `[remote]` (and set `[project].key` if unset) |
+| `--json` | Output as JSON |
+
+**Description:** Account keys are stored in the global auth file. Project keys are not; put them in the repo's `.spikes/config.toml` (or pass `--save`). A project key never expires unless revoked, and leaking it exposes one project, not the account.
+
+**Examples:**
+```bash
+spikes auth create-key --name "my-agent"
+spikes auth create-key --project prosser --save
+spikes auth list-keys
+spikes auth revoke-key key_abc123
 ```
 
 ---
@@ -743,8 +929,8 @@ spikes deploy cloudflare --dir ./my-spikes-worker
 
 | Variable | Description |
 |----------|-------------|
-| `SPIKES_TOKEN` | Override auth token (takes precedence over config file) |
-| `SPIKES_API_URL` | Override API base URL (default: https://spikes.sh) |
+| `SPIKES_TOKEN` | Auth token. Precedence for hosted commands: `[remote] token` in `.spikes/config.toml`, then `SPIKES_TOKEN`, then the global auth file |
+| `SPIKES_API_URL` | Override API base URL (default: https://spikes.sh); `[remote] endpoint` in `.spikes/config.toml` wins when set |
 
 **Examples:**
 ```bash

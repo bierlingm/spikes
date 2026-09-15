@@ -33,6 +33,7 @@ impl std::str::FromStr for ExportFormat {
 }
 
 pub fn run(format: ExportFormat) -> Result<()> {
+    crate::state::warn_if_stale();
     let spikes = load_spikes()?;
     let stdout = io::stdout();
     let mut handle = stdout.lock();
@@ -439,6 +440,7 @@ mod tests {
             } else {
                 None
             },
+            ..Default::default()
         }
     }
 

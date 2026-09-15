@@ -9,7 +9,7 @@ Spikes turns visual feedback into structured, machine-readable data:
 - **Element-level feedback** with exact CSS selectors your agent can act on
 - **Page-level feedback** with ratings (love / like / meh / no) and comments
 - **JSON output** everywhere — CLI, MCP, API all speak structured data
-- **MCP integration** — 9 tools for reading, writing, and managing feedback
+- **MCP integration** — 16 tools for reading, writing, replying to, and managing feedback
 - **Two workflows**: (1) You reviewing agent work, (2) Collecting feedback from others via shareable links
 
 ## Authentication
@@ -60,7 +60,7 @@ API keys support scoped access:
 
 ## MCP Tools Reference
 
-Spikes exposes **9 MCP tools** via `spikes mcp serve`. These tools let AI agents read, write, and manage feedback programmatically through the Model Context Protocol.
+Spikes exposes **16 MCP tools** via `spikes mcp serve`. These tools let AI agents read, write, and manage feedback programmatically through the Model Context Protocol.
 
 ### Read Tools
 
@@ -156,6 +156,30 @@ View usage statistics.
 No parameters required.
 
 **Returns:** Spike/share counts, limits, tier, and cost info (agent tier).
+
+### Feedback-Loop Tools (hosted mode, `spikes mcp serve --remote`)
+
+#### reply_to_spike
+Answer a reviewer; the reply shows on the page where the comment was left.
+
+| Parameter       | Type    | Required | Description                                      |
+|-----------------|---------|----------|--------------------------------------------------|
+| `spike_id`      | String  | Yes      | Full spike ID                                    |
+| `body`          | String  | Yes      | Reply text                                       |
+| `version_label` | String  | No       | Version the reply refers to (e.g. `v0.5`)        |
+| `status`        | String  | No       | `open`, `addressed`, or `wont_do`                |
+| `addressed_in`  | String  | No       | Version label recorded on the spike              |
+
+#### set_spike_status
+Mark a spike `open`, `addressed`, or `wont_do`, optionally with `addressed_in`.
+
+#### list_versions / add_version
+List review versions (label, URL prefix, spike and open counts, notes) or add one (`label`, `url_prefix`, optional `notes`). Uses `[project].key` from `.spikes/config.toml`.
+
+#### list_questions / ask_question / get_question_answers
+Ask reviewers questions (`title`, optional `body`), list them (`status`: `open` or `closed`), and read the answers (`question_id`).
+
+**Turn-start pattern:** call `get_spikes` with `unresolved_only: true` and `since` set to your last session before doing anything else; after acting, call `reply_to_spike` with the outcome. `get_spikes` also accepts `url_prefix` and `since`.
 
 ## Rate Limits
 

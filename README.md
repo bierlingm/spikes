@@ -136,13 +136,13 @@ npx spikes-mcp            # Zero-install MCP server — just works
 # or: spikes mcp serve    # If you have the CLI installed
 ```
 
-### MCP Server — 9 Tools
+### MCP Server — 16 Tools
 
-`spikes mcp serve` starts a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes 9 tools:
+`spikes mcp serve` starts a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes 16 tools:
 
 | Tool | Purpose |
 |------|---------|
-| `get_spikes` | List feedback with filters (page, rating, unresolved) |
+| `get_spikes` | List feedback with filters (page, rating, unresolved, url_prefix, since) |
 | `get_element_feedback` | Get feedback for a specific CSS selector |
 | `get_hotspots` | Find elements with the most feedback |
 | `submit_spike` | Create feedback programmatically |
@@ -151,6 +151,10 @@ npx spikes-mcp            # Zero-install MCP server — just works
 | `create_share` | Upload files, get a shareable URL |
 | `list_shares` | See your active shares |
 | `get_usage` | Check usage stats, limits, and spend |
+| `reply_to_spike` | Answer a reviewer on the page, optionally with a status and version (hosted) |
+| `set_spike_status` | Mark a spike open, addressed, or won't do (hosted) |
+| `list_versions` / `add_version` | Declare review versions and see counts per version (hosted) |
+| `list_questions` / `ask_question` / `get_question_answers` | Ask reviewers questions and read answers (hosted) |
 
 Supports **stdio** and **HTTP** transports, **local** and **remote** data modes:
 

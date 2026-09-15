@@ -19,7 +19,7 @@ spikes-mcp
 
 ## What It Does
 
-This wrapper downloads the appropriate platform binary and starts the Spikes MCP server on stdio. The server exposes 9 tools for AI agents to read, write, and manage structured feedback:
+This wrapper downloads the appropriate platform binary and starts the Spikes MCP server on stdio. The server exposes 16 tools for AI agents to read, write, and manage structured feedback:
 
 - `get_spikes` — List feedback with filters
 - `get_element_feedback` — Get feedback for specific elements
@@ -30,10 +30,14 @@ This wrapper downloads the appropriate platform binary and starts the Spikes MCP
 - `create_share` — Upload files for sharing
 - `list_shares` — See active shares
 - `get_usage` — Check usage stats and limits
+- `reply_to_spike` — Answer a reviewer on the page, with optional status and version (hosted)
+- `set_spike_status` — Mark a spike open, addressed, or won't do (hosted)
+- `list_versions`, `add_version` — Review versions per project (hosted)
+- `list_questions`, `ask_question`, `get_question_answers` — Questions for reviewers (hosted)
 
 ## Environment Variables
 
-- `SPIKES_TOKEN` — Bearer token for hosted API (optional, only needed for remote mode)
+- `SPIKES_TOKEN` — Bearer token or `sk_spikes_` key for the hosted API (remote mode). A project-scoped key limits the agent to one project.
 - `SPIKES_API_URL` — Override the API base URL (defaults to https://spikes.sh/api)
 
 ## More Information

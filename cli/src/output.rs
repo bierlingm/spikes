@@ -12,7 +12,9 @@ pub fn print_spikes_table(spikes: &[Spike]) {
     table
         .load_preset(UTF8_FULL_CONDENSED)
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["ID", "Type", "Page", "Reviewer", "Rating", "Resolved", "Comments"]);
+        .set_header(vec![
+            "ID", "Type", "Page", "Reviewer", "Rating", "Resolved", "Comments",
+        ]);
 
     for spike in spikes {
         let rating_cell = match &spike.rating {
@@ -55,13 +57,35 @@ pub fn print_spike_detail(spike: &Spike) {
     println!("Project:    {}", spike.project_key);
     println!("Page:       {}", spike.page);
     println!("URL:        {}", spike.url);
-    println!("Reviewer:   {} ({})", spike.reviewer.name, spike.reviewer.id);
+    println!(
+        "Reviewer:   {} ({})",
+        spike.reviewer.name, spike.reviewer.id
+    );
     println!("Rating:     {}", spike.rating_str());
     println!("Timestamp:  {}", spike.timestamp);
+    println!("Status:     {}", spike.status_str());
     if spike.is_resolved() {
-        println!("Resolved:   {}", spike.resolved_at.as_deref().unwrap_or("unknown"));
+        println!(
+            "Resolved:   {}",
+            spike.resolved_at.as_deref().unwrap_or("unknown")
+        );
     } else {
         println!("Resolved:   No");
+    }
+    if let Some(ref v) = spike.addressed_in {
+        println!("Addressed:  in {}", v);
+    }
+    if let Some(ref v) = spike.version {
+        println!("Version:    {}", v);
+    }
+    if let Some(count) = spike.reply_count {
+        println!("Replies:    {}", count);
+    }
+    if let Some(ref reply) = spike.last_reply {
+        println!(
+            "Last reply: {} ({}): {}",
+            reply.author_name, reply.created_at, reply.body
+        );
     }
     if let Some(ref vp) = spike.viewport {
         println!("Viewport:   {}x{}", vp.width, vp.height);
