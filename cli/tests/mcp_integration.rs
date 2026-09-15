@@ -40,9 +40,12 @@ fn test_mcp_tools_list_request() {
 fn test_mcp_sequential_requests() {
     // Initialize and then call tools/list
     let input = concat!(
-        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#, "\n",
-        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#, "\n",
-        r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#, "\n"
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#,
+        "\n",
+        r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        "\n",
+        r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#,
+        "\n"
     );
 
     Command::cargo_bin("spikes")
@@ -63,7 +66,14 @@ fn start_http_server(port: u16) -> Child {
     let binary = assert_cmd::cargo::cargo_bin("spikes");
 
     std::process::Command::new(binary)
-        .args(["mcp", "serve", "--transport", "http", "--port", &port.to_string()])
+        .args([
+            "mcp",
+            "serve",
+            "--transport",
+            "http",
+            "--port",
+            &port.to_string(),
+        ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -174,8 +184,8 @@ fn test_mcp_http_initialize() {
     // Read response body using bytes() to avoid blocking on SSE streams
     let body_bytes = response.bytes().expect("Failed to read response");
     let body = String::from_utf8_lossy(&body_bytes);
-    let json = extract_json_from_sse(&body)
-        .expect("Response should contain valid JSON in SSE format");
+    let json =
+        extract_json_from_sse(&body).expect("Response should contain valid JSON in SSE format");
 
     // Response should contain server info
     assert_eq!(json["jsonrpc"], "2.0");
@@ -282,19 +292,48 @@ fn test_mcp_http_tools_list() {
         .or_else(|| serde_json::from_str(&body).ok())
         .expect("Response should contain valid JSON");
 
-    // Should list 9 tools - UNCONDITIONAL assertion (test must fail if tools not present)
+    // Should list 16 tools - UNCONDITIONAL assertion (test must fail if tools not present)
     assert!(
         json["result"]["tools"].is_array(),
         "Response must contain tools array"
     );
     let tools = json["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 9, "Should have 9 MCP tools");
+    assert_eq!(tools.len(), 16, "Should have 16 MCP tools");
 
     // Verify tool names
     let tool_names: Vec<&str> = tools.iter().filter_map(|t| t["name"].as_str()).collect();
-    assert!(tool_names.contains(&"get_spikes"), "Must have get_spikes tool");
-    assert!(tool_names.contains(&"submit_spike"), "Must have submit_spike tool");
-    assert!(tool_names.contains(&"get_usage"), "Must have get_usage tool");
+    assert!(
+        tool_names.contains(&"get_spikes"),
+        "Must have get_spikes tool"
+    );
+    assert!(
+        tool_names.contains(&"submit_spike"),
+        "Must have submit_spike tool"
+    );
+    assert!(
+        tool_names.contains(&"get_usage"),
+        "Must have get_usage tool"
+    );
+    for v2 in [
+        "reply_to_spike",
+        "set_spike_status",
+        "list_versions",
+        "add_version",
+        "list_questions",
+        "ask_question",
+        "get_question_answers",
+    ] {
+        assert!(tool_names.contains(&v2), "Must have {} tool", v2);
+    }
+
+    // get_spikes exposes the v2 filters
+    let get_spikes = tools.iter().find(|t| t["name"] == "get_spikes").unwrap();
+    let props = &get_spikes["inputSchema"]["properties"];
+    assert!(
+        props.get("url_prefix").is_some(),
+        "get_spikes must accept url_prefix"
+    );
+    assert!(props.get("since").is_some(), "get_spikes must accept since");
 }
 
 #[test]

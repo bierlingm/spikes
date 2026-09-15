@@ -9,11 +9,10 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use rmcp::{
-    ErrorData as McpError, ServerHandler, ServiceExt,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     model::*,
     schemars::JsonSchema,
-    tool, tool_handler, tool_router,
+    tool, tool_handler, tool_router, ErrorData as McpError, ServerHandler, ServiceExt,
 };
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
@@ -43,10 +42,10 @@ pub enum DataSource {
 
 impl DataSource {
     /// Create a data source based on the --remote flag.
-    /// 
+    ///
     /// # Arguments
     /// * `remote` - Whether to use remote API
-    /// 
+    ///
     /// # Returns
     /// - `DataSource::Local` if remote is false
     /// - `DataSource::Remote` if remote is true and token is available
@@ -88,6 +87,14 @@ pub struct GetSpikesArgs {
     /// Only return unresolved spikes
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unresolved_only: Option<bool>,
+
+    /// Only spikes whose URL starts with this prefix (e.g. '/versions/v0-5/')
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url_prefix: Option<String>,
+
+    /// Only spikes created or updated after this ISO 8601 timestamp
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub since: Option<String>,
 }
 
 /// Arguments for the get_element_feedback tool
@@ -180,6 +187,86 @@ pub struct ListSharesArgs {}
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GetUsageArgs {}
 
+/// Arguments for the reply_to_spike tool
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ReplyToSpikeArgs {
+    /// Spike ID (full ID as returned by get_spikes)
+    pub spike_id: String,
+
+    /// Reply text shown to the reviewer
+    pub body: String,
+
+    /// Version label this reply refers to (e.g. 'v0.5')
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+
+    /// Set the spike status in the same request: open, addressed, or wont_do
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+
+    /// Version label to record as addressed_in
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addressed_in: Option<String>,
+}
+
+/// Arguments for the set_spike_status tool
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct SetSpikeStatusArgs {
+    /// Spike ID (full ID as returned by get_spikes)
+    pub spike_id: String,
+
+    /// New status: open, addressed, or wont_do
+    pub status: String,
+
+    /// Version label to record as addressed_in
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addressed_in: Option<String>,
+}
+
+/// Arguments for the list_versions tool (no parameters required)
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ListVersionsArgs {}
+
+/// Arguments for the add_version tool
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AddVersionArgs {
+    /// Version label, e.g. 'v0.5'
+    pub label: String,
+
+    /// URL prefix that identifies pages of this version, e.g. '/versions/v0-5/'
+    pub url_prefix: String,
+
+    /// Notes shown to reviewers (what changed in this version)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
+}
+
+/// Arguments for the list_questions tool
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ListQuestionsArgs {
+    /// Filter by status: open (default) or closed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+/// Arguments for the ask_question tool
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct AskQuestionArgs {
+    /// Short question title
+    pub title: String,
+
+    /// Longer question body
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+}
+
+/// Arguments for the get_question_answers tool
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GetQuestionAnswersArgs {
+    /// Question ID (from list_questions)
+    pub question_id: String,
+}
+
 // ============================================================================
 // SpikesService - MCP Server Implementation
 // ============================================================================
@@ -205,6 +292,10 @@ struct CachedScope {
 /// - `create_share`: Upload directory and get shareable URL
 /// - `list_shares`: List all shares
 /// - `get_usage`: Get usage statistics
+/// - `reply_to_spike`: Answer a reviewer (hosted only)
+/// - `set_spike_status`: open / addressed / wont_do (hosted only)
+/// - `list_versions`, `add_version`: review versions (hosted only)
+/// - `list_questions`, `ask_question`, `get_question_answers`: questions for reviewers (hosted only)
 #[derive(Clone, Debug)]
 pub struct SpikesService {
     tool_router: ToolRouter<SpikesService>,
@@ -218,7 +309,7 @@ impl SpikesService {
     /// Create a new SpikesService instance with the given data source
     pub fn new(data_source: DataSource) -> Self {
         Self {
-            tool_router: Self::tool_router(),
+            tool_router: Self::tool_router() + Self::v2_tool_router(),
             data_source,
             cached_scope: std::sync::Arc::new(Mutex::new(CachedScope::default())),
         }
@@ -237,19 +328,27 @@ impl SpikesService {
         Parameters(args): Parameters<GetSpikesArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
         let spikes = match &self.data_source {
-            DataSource::Local => {
-                match load_spikes() {
-                    Ok(s) => s,
-                    Err(e) => {
-                        return Err(McpError::internal_error(
-                            format!("Could not load spikes: {}", e),
-                            None,
-                        ));
-                    }
+            DataSource::Local => match load_spikes() {
+                Ok(s) => s,
+                Err(e) => {
+                    return Err(McpError::internal_error(
+                        format!("Could not load spikes: {}", e),
+                        None,
+                    ));
                 }
-            }
+            },
             DataSource::Remote { token, api_base } => {
-                match fetch_remote_spikes(token, api_base, args.page.as_deref(), args.rating.as_deref(), args.unresolved_only.unwrap_or(false)) {
+                match fetch_remote_spikes(
+                    token,
+                    api_base,
+                    &RemoteSpikeFilters {
+                        page: args.page.as_deref(),
+                        rating: args.rating.as_deref(),
+                        unresolved_only: args.unresolved_only.unwrap_or(false),
+                        url_prefix: args.url_prefix.as_deref(),
+                        since: args.since.as_deref(),
+                    },
+                ) {
                     Ok(s) => s,
                     Err(e) => {
                         return Err(McpError::internal_error(e.to_string(), None));
@@ -261,6 +360,8 @@ impl SpikesService {
         let page_filter = args.page.as_deref();
         let rating_filter = args.rating.as_deref();
         let unresolved_only = args.unresolved_only.unwrap_or(false);
+        let url_prefix = args.url_prefix.as_deref();
+        let since = args.since.as_deref();
 
         let filtered: Vec<&Spike> = spikes
             .iter()
@@ -268,6 +369,23 @@ impl SpikesService {
                 // Page filter
                 if let Some(page) = page_filter {
                     if s.page != page {
+                        return false;
+                    }
+                }
+                // URL prefix filter
+                if let Some(prefix) = url_prefix {
+                    if !s.url.starts_with(prefix) {
+                        return false;
+                    }
+                }
+                // Since filter (updated_at, then created_at, then timestamp)
+                if let Some(since) = since {
+                    let marker = s
+                        .updated_at
+                        .as_deref()
+                        .or(s.created_at.as_deref())
+                        .unwrap_or(&s.timestamp);
+                    if !timestamp_after(marker, since) {
                         return false;
                     }
                 }
@@ -316,19 +434,17 @@ impl SpikesService {
         Parameters(args): Parameters<GetElementFeedbackArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
         let spikes = match &self.data_source {
-            DataSource::Local => {
-                match load_spikes() {
-                    Ok(s) => s,
-                    Err(e) => {
-                        return Err(McpError::internal_error(
-                            format!("Could not load spikes: {}", e),
-                            None,
-                        ));
-                    }
+            DataSource::Local => match load_spikes() {
+                Ok(s) => s,
+                Err(e) => {
+                    return Err(McpError::internal_error(
+                        format!("Could not load spikes: {}", e),
+                        None,
+                    ));
                 }
-            }
+            },
             DataSource::Remote { token, api_base } => {
-                match fetch_remote_spikes(token, api_base, None, None, false) {
+                match fetch_remote_spikes(token, api_base, &RemoteSpikeFilters::default()) {
                     Ok(s) => s,
                     Err(e) => {
                         return Err(McpError::internal_error(e.to_string(), None));
@@ -389,19 +505,17 @@ impl SpikesService {
         Parameters(args): Parameters<GetHotspotsArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
         let spikes = match &self.data_source {
-            DataSource::Local => {
-                match load_spikes() {
-                    Ok(s) => s,
-                    Err(e) => {
-                        return Err(McpError::internal_error(
-                            format!("Could not load spikes: {}", e),
-                            None,
-                        ));
-                    }
+            DataSource::Local => match load_spikes() {
+                Ok(s) => s,
+                Err(e) => {
+                    return Err(McpError::internal_error(
+                        format!("Could not load spikes: {}", e),
+                        None,
+                    ));
                 }
-            }
+            },
             DataSource::Remote { token, api_base } => {
-                match fetch_remote_spikes(token, api_base, None, None, false) {
+                match fetch_remote_spikes(token, api_base, &RemoteSpikeFilters::default()) {
                     Ok(s) => s,
                     Err(e) => {
                         return Err(McpError::internal_error(e.to_string(), None));
@@ -460,9 +574,7 @@ impl SpikesService {
         Parameters(args): Parameters<SubmitSpikeArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
         match &self.data_source {
-            DataSource::Local => {
-                submit_spike_local(args).await
-            }
+            DataSource::Local => submit_spike_local(args).await,
             DataSource::Remote { token, api_base } => {
                 // Enforce scope: read-only API keys cannot write
                 check_write_scope(token, api_base, &self.cached_scope)?;
@@ -483,9 +595,7 @@ impl SpikesService {
         Parameters(args): Parameters<ResolveSpikeArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
         match &self.data_source {
-            DataSource::Local => {
-                resolve_spike_local(args).await
-            }
+            DataSource::Local => resolve_spike_local(args).await,
             DataSource::Remote { token, api_base } => {
                 resolve_spike_remote(args, token, api_base).await
             }
@@ -504,9 +614,7 @@ impl SpikesService {
         Parameters(args): Parameters<DeleteSpikeArgs>,
     ) -> std::result::Result<CallToolResult, McpError> {
         match &self.data_source {
-            DataSource::Local => {
-                delete_spike_local(args).await
-            }
+            DataSource::Local => delete_spike_local(args).await,
             DataSource::Remote { token, api_base } => {
                 delete_spike_remote(args, token, api_base).await
             }
@@ -532,22 +640,20 @@ impl SpikesService {
         // Get token from data source or check auth
         let token = match &self.data_source {
             DataSource::Remote { token, .. } => token.clone(),
-            DataSource::Local => {
-                match AuthConfig::token() {
-                    Ok(Some(t)) => t,
-                    Ok(None) => {
-                        return Ok(CallToolResult::success(vec![Content::text(
+            DataSource::Local => match AuthConfig::token() {
+                Ok(Some(t)) => t,
+                Ok(None) => {
+                    return Ok(CallToolResult::success(vec![Content::text(
                             "ERROR: Not logged in. Run 'spikes login' first or set SPIKES_TOKEN env var.",
                         )]));
-                    }
-                    Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: Could not check auth: {}",
-                            e
-                        ))]));
-                    }
                 }
-            }
+                Err(e) => {
+                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                        "ERROR: Could not check auth: {}",
+                        e
+                    ))]));
+                }
+            },
         };
 
         // Get API base from data source or env
@@ -589,16 +695,23 @@ impl SpikesService {
                 .to_string()
         });
 
-        let result = upload_share(&token, dir_path, &files, &slug, args.password.as_deref(), &api_base);
+        let result = upload_share(
+            &token,
+            dir_path,
+            &files,
+            &slug,
+            args.password.as_deref(),
+            &api_base,
+        );
 
         match result {
             Ok(share_result) => Ok(CallToolResult::success(vec![Content::text(format!(
                 "Share created!\n  URL: {}\n  Slug: {}\n  Files: {}",
                 share_result.url, share_result.slug, share_result.file_count
             ))])),
-            Err(ref e @ Error::BudgetExceeded) | Err(ref e @ Error::ScopeDenied) | Err(ref e @ Error::AuthFailed) => {
-                Err(map_error_to_mcp(e))
-            }
+            Err(ref e @ Error::BudgetExceeded)
+            | Err(ref e @ Error::ScopeDenied)
+            | Err(ref e @ Error::AuthFailed) => Err(map_error_to_mcp(e)),
             Err(e) => Ok(CallToolResult::success(vec![Content::text(format!(
                 "ERROR: {}",
                 e
@@ -620,22 +733,20 @@ impl SpikesService {
         // Get token from data source or check auth
         let token = match &self.data_source {
             DataSource::Remote { token, .. } => token.clone(),
-            DataSource::Local => {
-                match AuthConfig::token() {
-                    Ok(Some(t)) => t,
-                    Ok(None) => {
-                        return Ok(CallToolResult::success(vec![Content::text(
+            DataSource::Local => match AuthConfig::token() {
+                Ok(Some(t)) => t,
+                Ok(None) => {
+                    return Ok(CallToolResult::success(vec![Content::text(
                             "ERROR: Not logged in. Run 'spikes login' first or set SPIKES_TOKEN env var.",
                         )]));
-                    }
-                    Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: Could not check auth: {}",
-                            e
-                        ))]));
-                    }
                 }
-            }
+                Err(e) => {
+                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                        "ERROR: Could not check auth: {}",
+                        e
+                    ))]));
+                }
+            },
         };
 
         // Get API base from data source or env
@@ -658,7 +769,11 @@ impl SpikesService {
                 for share in share_list {
                     output.push_str(&format!(
                         "[{}] {}\n  URL: {}\n  Spikes: {}\n  Created: {}\n\n",
-                        share.slug, share.name.unwrap_or_default(), share.url, share.spike_count, share.created_at
+                        share.slug,
+                        share.name.unwrap_or_default(),
+                        share.url,
+                        share.spike_count,
+                        share.created_at
                     ));
                 }
 
@@ -685,22 +800,20 @@ impl SpikesService {
         // Get token from data source or check auth
         let token = match &self.data_source {
             DataSource::Remote { token, .. } => token.clone(),
-            DataSource::Local => {
-                match AuthConfig::token() {
-                    Ok(Some(t)) => t,
-                    Ok(None) => {
-                        return Ok(CallToolResult::success(vec![Content::text(
+            DataSource::Local => match AuthConfig::token() {
+                Ok(Some(t)) => t,
+                Ok(None) => {
+                    return Ok(CallToolResult::success(vec![Content::text(
                             "ERROR: Not logged in. Run 'spikes login' first or set SPIKES_TOKEN env var.",
                         )]));
-                    }
-                    Err(e) => {
-                        return Ok(CallToolResult::success(vec![Content::text(format!(
-                            "ERROR: Could not check auth: {}",
-                            e
-                        ))]));
-                    }
                 }
-            }
+                Err(e) => {
+                    return Ok(CallToolResult::success(vec![Content::text(format!(
+                        "ERROR: Could not check auth: {}",
+                        e
+                    ))]));
+                }
+            },
         };
 
         // Get API base from data source or env
@@ -733,13 +846,19 @@ impl SpikesService {
                     if let Some(cost_cents) = usage_data.cost_this_period_cents {
                         let dollars = cost_cents / 100;
                         let remainder = cost_cents % 100;
-                        output.push_str(&format!("  Cost this period: ${}.{:02}\n", dollars, remainder));
+                        output.push_str(&format!(
+                            "  Cost this period: ${}.{:02}\n",
+                            dollars, remainder
+                        ));
                     }
                     match usage_data.monthly_cap_cents {
                         Some(cap) => {
                             let dollars = cap / 100;
                             let remainder = cap % 100;
-                            output.push_str(&format!("  Budget cap: ${}.{:02}\n", dollars, remainder));
+                            output.push_str(&format!(
+                                "  Budget cap: ${}.{:02}\n",
+                                dollars, remainder
+                            ));
                         }
                         None => output.push_str("  Budget cap: None\n"),
                     }
@@ -755,6 +874,360 @@ impl SpikesService {
                 e
             ))])),
         }
+    }
+}
+
+#[tool_router(router = v2_tool_router, vis = "pub")]
+impl SpikesService {
+    /// Reply to a spike (hosted only).
+    #[tool(
+        name = "reply_to_spike",
+        description = "Talk back: reply to a reviewer's spike so they see it on the page. Optionally set status (open, addressed, wont_do) and a version label in the same call. Hosted mode only (spikes mcp serve --remote)."
+    )]
+    async fn reply_to_spike(
+        &self,
+        Parameters(args): Parameters<ReplyToSpikeArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("reply_to_spike")?;
+        check_write_scope(&token, &api_base, &self.cached_scope)?;
+        if let Some(ref st) = args.status {
+            validate_status_arg(st)?;
+        }
+
+        let mut body = serde_json::json!({ "body": args.body });
+        if let Some(ref v) = args.version_label {
+            body["version_label"] = serde_json::Value::String(v.clone());
+        }
+        if let Some(ref st) = args.status {
+            body["status"] = serde_json::Value::String(st.clone());
+        }
+        if let Some(ref a) = args.addressed_in {
+            body["addressed_in"] = serde_json::Value::String(a.clone());
+        }
+
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        let path = format!("/spikes/{}/replies", crate::api::encode(&args.spike_id));
+        let response = client
+            .post(&path, &body)
+            .map_err(|e| map_error_to_mcp(&e))?;
+        let reply_id = response.get("id").and_then(|v| v.as_str()).unwrap_or("?");
+
+        let mut out = format!(
+            "Reply posted to spike [{}] (reply {}).",
+            args.spike_id, reply_id
+        );
+        if let Some(ref st) = args.status {
+            out.push_str(&format!("\n  Status: {}", st));
+        }
+        if let Some(ref v) = args.version_label {
+            out.push_str(&format!("\n  Version: {}", v));
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Set a spike's status (hosted only).
+    #[tool(
+        name = "set_spike_status",
+        description = "Set the outcome: mark a spike open, addressed, or wont_do, with an optional addressed_in version label. Hosted mode only."
+    )]
+    async fn set_spike_status(
+        &self,
+        Parameters(args): Parameters<SetSpikeStatusArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("set_spike_status")?;
+        check_write_scope(&token, &api_base, &self.cached_scope)?;
+        validate_status_arg(&args.status)?;
+
+        let mut body = serde_json::json!({ "status": args.status });
+        if let Some(ref a) = args.addressed_in {
+            body["addressed_in"] = serde_json::Value::String(a.clone());
+        }
+
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        let path = format!("/spikes/{}", crate::api::encode(&args.spike_id));
+        let response = client
+            .patch(&path, &body)
+            .map_err(|e| map_error_to_mcp(&e))?;
+        let status = response
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&args.status);
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Spike [{}] status: {}{}",
+            args.spike_id,
+            status,
+            args.addressed_in
+                .as_deref()
+                .map(|a| format!(" (addressed in {})", a))
+                .unwrap_or_default()
+        ))]))
+    }
+
+    /// List versions of the configured project (hosted only).
+    #[tool(
+        name = "list_versions",
+        description = "Timeline: list the review versions of the configured project with spike counts. Needs [project].key in .spikes/config.toml. Hosted mode only."
+    )]
+    async fn list_versions(
+        &self,
+        Parameters(_args): Parameters<ListVersionsArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("list_versions")?;
+        let project = require_project_key_mcp()?;
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        let response = client
+            .get(&format!(
+                "/me/projects/{}/versions",
+                crate::api::encode(&project)
+            ))
+            .map_err(|e| map_error_to_mcp(&e))?;
+        let versions = crate::api::data_array(&response);
+
+        if versions.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No versions for project '{}'. Add one with add_version.",
+                project
+            ))]));
+        }
+
+        let mut out = format!("{} version(s) for '{}':\n\n", versions.len(), project);
+        for v in &versions {
+            let label = v.get("label").and_then(|x| x.as_str()).unwrap_or("?");
+            let prefix = v
+                .get("urlPrefix")
+                .or_else(|| v.get("url_prefix"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("?");
+            let spikes = v
+                .get("spikeCount")
+                .or_else(|| v.get("spike_count"))
+                .map(|x| x.to_string())
+                .unwrap_or_else(|| "?".to_string());
+            let open = v
+                .get("openCount")
+                .or_else(|| v.get("open_count"))
+                .map(|x| x.to_string())
+                .unwrap_or_else(|| "?".to_string());
+            out.push_str(&format!(
+                "[{}] prefix {} — {} spike(s), {} open\n",
+                label, prefix, spikes, open
+            ));
+            if let Some(notes) = v.get("notes").and_then(|x| x.as_str()) {
+                if !notes.is_empty() {
+                    out.push_str(&format!("  Notes: {}\n", notes));
+                }
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Add a version to the configured project (hosted only).
+    #[tool(
+        name = "add_version",
+        description = "Ship it: declare a review version (label + URL prefix, optional notes on what changed) for the configured project. Hosted mode only."
+    )]
+    async fn add_version(
+        &self,
+        Parameters(args): Parameters<AddVersionArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("add_version")?;
+        check_write_scope(&token, &api_base, &self.cached_scope)?;
+        let project = require_project_key_mcp()?;
+
+        let mut body = serde_json::json!({ "label": args.label, "url_prefix": args.url_prefix });
+        if let Some(ref n) = args.notes {
+            body["notes"] = serde_json::Value::String(n.clone());
+        }
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        client
+            .post(
+                &format!("/me/projects/{}/versions", crate::api::encode(&project)),
+                &body,
+            )
+            .map_err(|e| map_error_to_mcp(&e))?;
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Version [{}] added to '{}' (prefix {}).",
+            args.label, project, args.url_prefix
+        ))]))
+    }
+
+    /// List questions of the configured project (hosted only).
+    #[tool(
+        name = "list_questions",
+        description = "Open loops: list questions asked of reviewers (open by default) with answer counts and the latest answer. Hosted mode only."
+    )]
+    async fn list_questions(
+        &self,
+        Parameters(args): Parameters<ListQuestionsArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("list_questions")?;
+        let project = require_project_key_mcp()?;
+        let status = args.status.unwrap_or_else(|| "open".to_string());
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        let path = crate::api::with_query(
+            &format!("/me/projects/{}/questions", crate::api::encode(&project)),
+            &[("status", Some(status.as_str()))],
+        );
+        let response = client.get(&path).map_err(|e| map_error_to_mcp(&e))?;
+        let questions = crate::api::data_array(&response);
+
+        if questions.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No {} questions for '{}'.",
+                status, project
+            ))]));
+        }
+
+        let mut out = format!(
+            "{} {} question(s) for '{}':\n\n",
+            questions.len(),
+            status,
+            project
+        );
+        for q in &questions {
+            let id = q.get("id").and_then(|x| x.as_str()).unwrap_or("?");
+            let title = q.get("title").and_then(|x| x.as_str()).unwrap_or("?");
+            let answers = q
+                .get("answerCount")
+                .or_else(|| q.get("answer_count"))
+                .map(|x| x.to_string())
+                .unwrap_or_else(|| "0".to_string());
+            out.push_str(&format!("[{}] {} — {} answer(s)\n", id, title, answers));
+            if let Some(last) = q.get("lastAnswer").or_else(|| q.get("last_answer")) {
+                let who = last
+                    .get("reviewerName")
+                    .or_else(|| last.get("reviewer_name"))
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("?");
+                let body = last.get("body").and_then(|x| x.as_str()).unwrap_or("");
+                out.push_str(&format!("  Latest: {}: {}\n", who, body));
+            }
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+
+    /// Ask reviewers a question (hosted only).
+    #[tool(
+        name = "ask_question",
+        description = "Ask the room: post a question that reviewers see in the widget and can answer. Hosted mode only."
+    )]
+    async fn ask_question(
+        &self,
+        Parameters(args): Parameters<AskQuestionArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("ask_question")?;
+        check_write_scope(&token, &api_base, &self.cached_scope)?;
+        let project = require_project_key_mcp()?;
+
+        let mut body = serde_json::json!({ "title": args.title });
+        if let Some(ref b) = args.body {
+            body["body"] = serde_json::Value::String(b.clone());
+        }
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        let response = client
+            .post(
+                &format!("/me/projects/{}/questions", crate::api::encode(&project)),
+                &body,
+            )
+            .map_err(|e| map_error_to_mcp(&e))?;
+        let id = response.get("id").and_then(|v| v.as_str()).unwrap_or("?");
+
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Question [{}] posted to '{}': {}",
+            id, project, args.title
+        ))]))
+    }
+
+    /// Read the answers to a question (hosted only).
+    #[tool(
+        name = "get_question_answers",
+        description = "Read the replies: list every answer reviewers gave to a question. Hosted mode only."
+    )]
+    async fn get_question_answers(
+        &self,
+        Parameters(args): Parameters<GetQuestionAnswersArgs>,
+    ) -> std::result::Result<CallToolResult, McpError> {
+        let (token, api_base) = self.require_remote("get_question_answers")?;
+        let project = require_project_key_mcp()?;
+        let client = crate::api::ApiClient::new(&api_base, &token);
+        let response = client
+            .get(&format!(
+                "/me/projects/{}/questions/{}/answers",
+                crate::api::encode(&project),
+                crate::api::encode(&args.question_id)
+            ))
+            .map_err(|e| map_error_to_mcp(&e))?;
+        let answers = crate::api::data_array(&response);
+
+        if answers.is_empty() {
+            return Ok(CallToolResult::success(vec![Content::text(format!(
+                "No answers yet for question [{}].",
+                args.question_id
+            ))]));
+        }
+
+        let mut out = format!(
+            "{} answer(s) to question [{}]:\n\n",
+            answers.len(),
+            args.question_id
+        );
+        for a in &answers {
+            let who = a
+                .get("reviewer")
+                .and_then(|r| r.get("name"))
+                .or_else(|| a.get("reviewerName"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("Anonymous");
+            let when = a
+                .get("createdAt")
+                .or_else(|| a.get("created_at"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
+            let body = a.get("body").and_then(|x| x.as_str()).unwrap_or("");
+            out.push_str(&format!("- {} ({}): {}\n", who, when, body));
+        }
+        Ok(CallToolResult::success(vec![Content::text(out)]))
+    }
+}
+
+impl SpikesService {
+    /// Token and API base for hosted-only tools, or a clear error in local mode.
+    fn require_remote(&self, tool: &str) -> std::result::Result<(String, String), McpError> {
+        match &self.data_source {
+            DataSource::Remote { token, api_base } => Ok((token.clone(), api_base.clone())),
+            DataSource::Local => Err(McpError::invalid_request(
+                format!(
+                    "{} is hosted only: start the server with `spikes mcp serve --remote` (needs SPIKES_TOKEN or `spikes login`).",
+                    tool
+                ),
+                None,
+            )),
+        }
+    }
+}
+
+/// Project key from `.spikes/config.toml`, as an MCP error when missing.
+fn require_project_key_mcp() -> std::result::Result<String, McpError> {
+    crate::api::require_project_key().map_err(|e| McpError::invalid_request(e.to_string(), None))
+}
+
+/// Validate a status argument for reply_to_spike / set_spike_status.
+fn validate_status_arg(status: &str) -> std::result::Result<(), McpError> {
+    crate::commands::reply::validate_status(status)
+        .map(|_| ())
+        .map_err(|e| McpError::invalid_params(e.to_string(), None))
+}
+
+/// True when `ts` is strictly after `since` (RFC 3339; falls back to string order).
+fn timestamp_after(ts: &str, since: &str) -> bool {
+    match (
+        chrono::DateTime::parse_from_rfc3339(ts),
+        chrono::DateTime::parse_from_rfc3339(since),
+    ) {
+        (Ok(a), Ok(b)) => a > b,
+        _ => ts > since,
     }
 }
 
@@ -866,9 +1339,7 @@ impl ServerHandler for SpikesService {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             protocol_version: ProtocolVersion::V_2024_11_05,
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
+            capabilities: ServerCapabilities::builder().enable_tools().build(),
             server_info: Implementation {
                 name: "spikes-mcp".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
@@ -877,10 +1348,13 @@ impl ServerHandler for SpikesService {
                 icons: None,
                 website_url: None,
             },
-            instructions: None,
+            instructions: Some(TURN_START_INSTRUCTIONS.to_string()),
         }
     }
 }
+
+/// Guidance sent to MCP clients: check for feedback before doing anything else.
+pub const TURN_START_INSTRUCTIONS: &str = "Spikes holds reviewer feedback on the pages you build. At the start of every session, before other work, call get_spikes with unresolved_only=true and since set to the time of your last session (omit since on the first run) so new comments land in your context. After acting on a spike, call reply_to_spike (with status addressed or wont_do and the version label) so the reviewer sees the outcome on the page.";
 
 // ============================================================================
 // Formatting Functions
@@ -920,6 +1394,21 @@ fn format_spike(spike: &Spike) -> String {
         }
     } else {
         output.push_str("  Status: Unresolved\n");
+    }
+    if let Some(status) = &spike.status {
+        output.push_str(&format!("  Outcome: {}\n", status));
+    }
+    if let Some(v) = &spike.addressed_in {
+        output.push_str(&format!("  Addressed in: {}\n", v));
+    }
+    if let Some(v) = &spike.version {
+        output.push_str(&format!("  Version: {}\n", v));
+    }
+    if let Some(n) = spike.reply_count {
+        output.push_str(&format!("  Replies: {}\n", n));
+    }
+    if let Some(r) = &spike.last_reply {
+        output.push_str(&format!("  Last reply ({}): {}\n", r.author_name, r.body));
     }
 
     output
@@ -1224,31 +1713,45 @@ fn map_error_to_mcp(err: &Error) -> McpError {
 // Remote Mode Helper Functions
 // ============================================================================
 
+/// Filters for the remote spike listing
+#[derive(Debug, Default, Clone, Copy)]
+struct RemoteSpikeFilters<'a> {
+    page: Option<&'a str>,
+    rating: Option<&'a str>,
+    unresolved_only: bool,
+    url_prefix: Option<&'a str>,
+    since: Option<&'a str>,
+}
+
+/// Build the query string for the remote spike listing
+fn remote_spikes_url(api_base: &str, filters: &RemoteSpikeFilters<'_>) -> String {
+    let base = format!("{}/spikes", api_base.trim_end_matches('/'));
+    crate::api::with_query(
+        &base,
+        &[
+            ("page", filters.page),
+            ("rating", filters.rating),
+            (
+                "resolved",
+                if filters.unresolved_only {
+                    Some("false")
+                } else {
+                    None
+                },
+            ),
+            ("url_prefix", filters.url_prefix),
+            ("since", filters.since),
+        ],
+    )
+}
+
 /// Fetch spikes from the remote API with optional filters
 fn fetch_remote_spikes(
     token: &str,
     api_base: &str,
-    page: Option<&str>,
-    rating: Option<&str>,
-    unresolved_only: bool,
+    filters: &RemoteSpikeFilters<'_>,
 ) -> crate::error::Result<Vec<Spike>> {
-    let mut url = format!("{}/spikes", api_base.trim_end_matches('/'));
-    let mut params = Vec::new();
-
-    if let Some(p) = page {
-        params.push(format!("page={}", urlencoding::encode(p)));
-    }
-    if let Some(r) = rating {
-        params.push(format!("rating={}", urlencoding::encode(r)));
-    }
-    if unresolved_only {
-        params.push("resolved=false".to_string());
-    }
-
-    if !params.is_empty() {
-        url.push('?');
-        url.push_str(&params.join("&"));
-    }
+    let url = remote_spikes_url(api_base, filters);
 
     let response = match ureq::get(&url)
         .set("Authorization", &format!("Bearer {}", token))
@@ -1298,7 +1801,9 @@ fn fetch_remote_spikes(
 }
 
 /// Local implementation of submit_spike
-async fn submit_spike_local(args: SubmitSpikeArgs) -> std::result::Result<CallToolResult, McpError> {
+async fn submit_spike_local(
+    args: SubmitSpikeArgs,
+) -> std::result::Result<CallToolResult, McpError> {
     // Determine spike type based on whether selector is provided
     let spike_type = if args.selector.is_some() {
         SpikeType::Element
@@ -1321,7 +1826,9 @@ async fn submit_spike_local(args: SubmitSpikeArgs) -> std::result::Result<CallTo
         url: args.url.unwrap_or_default(),
         reviewer: Reviewer {
             id: nanoid::nanoid!(8),
-            name: args.reviewer_name.unwrap_or_else(|| "MCP Agent".to_string()),
+            name: args
+                .reviewer_name
+                .unwrap_or_else(|| "MCP Agent".to_string()),
         },
         selector: args.selector,
         element_text: args.element_text,
@@ -1332,6 +1839,7 @@ async fn submit_spike_local(args: SubmitSpikeArgs) -> std::result::Result<CallTo
         viewport: None,
         resolved: None,
         resolved_at: None,
+        ..Default::default()
     };
 
     // Load existing spikes and append the new one
@@ -1404,7 +1912,9 @@ async fn submit_spike_remote(
     // Always include projectKey - worker schema requires at least one of project or projectKey
     // Use "default" if not provided (matching local submit_spike_local pattern)
     body["projectKey"] = serde_json::Value::String(
-        args.project_key.clone().unwrap_or_else(|| "default".to_string())
+        args.project_key
+            .clone()
+            .unwrap_or_else(|| "default".to_string()),
     );
 
     let response = match ureq::post(&url)
@@ -1447,7 +1957,9 @@ async fn submit_spike_remote(
 }
 
 /// Local implementation of resolve_spike
-async fn resolve_spike_local(args: ResolveSpikeArgs) -> std::result::Result<CallToolResult, McpError> {
+async fn resolve_spike_local(
+    args: ResolveSpikeArgs,
+) -> std::result::Result<CallToolResult, McpError> {
     let resolved_at = chrono::Utc::now().to_rfc3339();
 
     let result = update_spike(&args.spike_id, |spike| {
@@ -1483,7 +1995,11 @@ async fn resolve_spike_remote(
     token: &str,
     api_base: &str,
 ) -> std::result::Result<CallToolResult, McpError> {
-    let url = format!("{}/spikes/{}", api_base.trim_end_matches('/'), urlencoding::encode(&args.spike_id));
+    let url = format!(
+        "{}/spikes/{}",
+        api_base.trim_end_matches('/'),
+        urlencoding::encode(&args.spike_id)
+    );
 
     let body = serde_json::json!({ "resolved": true });
 
@@ -1520,7 +2036,9 @@ async fn resolve_spike_remote(
 }
 
 /// Local implementation of delete_spike
-async fn delete_spike_local(args: DeleteSpikeArgs) -> std::result::Result<CallToolResult, McpError> {
+async fn delete_spike_local(
+    args: DeleteSpikeArgs,
+) -> std::result::Result<CallToolResult, McpError> {
     let result = remove_spike(&args.spike_id);
 
     match result {
@@ -1551,7 +2069,11 @@ async fn delete_spike_remote(
     token: &str,
     api_base: &str,
 ) -> std::result::Result<CallToolResult, McpError> {
-    let url = format!("{}/spikes/{}", api_base.trim_end_matches('/'), urlencoding::encode(&args.spike_id));
+    let url = format!(
+        "{}/spikes/{}",
+        api_base.trim_end_matches('/'),
+        urlencoding::encode(&args.spike_id)
+    );
 
     let response = match ureq::request("DELETE", &url)
         .set("Authorization", &format!("Bearer {}", token))
@@ -1620,8 +2142,9 @@ pub enum TransportMode {
 /// All logging goes to stderr; stdout is reserved for JSON-RPC (stdio mode).
 pub fn run(remote: bool, transport: TransportMode) -> crate::error::Result<()> {
     // Use tokio runtime for async operations
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| crate::error::Error::RequestFailed(format!("Failed to create tokio runtime: {}", e)))?;
+    let rt = tokio::runtime::Runtime::new().map_err(|e| {
+        crate::error::Error::RequestFailed(format!("Failed to create tokio runtime: {}", e))
+    })?;
 
     rt.block_on(async_run(remote, transport))
 }
@@ -1674,10 +2197,15 @@ async fn run_stdio(data_source: DataSource, remote: bool) -> crate::error::Resul
 }
 
 /// Run MCP server using HTTP transport
-async fn run_http(data_source: DataSource, remote: bool, port: u16, bind: String) -> crate::error::Result<()> {
+async fn run_http(
+    data_source: DataSource,
+    remote: bool,
+    port: u16,
+    bind: String,
+) -> crate::error::Result<()> {
     use axum::Router;
-    use rmcp::transport::streamable_http_server::tower::StreamableHttpService;
     use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+    use rmcp::transport::streamable_http_server::tower::StreamableHttpService;
     use std::net::SocketAddr;
     use std::sync::Arc;
     use tokio::net::TcpListener;
@@ -1707,15 +2235,15 @@ async fn run_http(data_source: DataSource, remote: bool, port: u16, bind: String
     );
 
     // Create axum router with the HTTP service at the root path
-    let app = Router::new()
-        .route("/", axum::routing::any(|req| async move {
-            http_service.clone().handle(req).await
-        }));
+    let app = Router::new().route(
+        "/",
+        axum::routing::any(|req| async move { http_service.clone().handle(req).await }),
+    );
 
     // Bind to the address
-    let listener = TcpListener::bind(addr)
-        .await
-        .map_err(|e| crate::error::Error::RequestFailed(format!("Failed to bind to {}: {}", addr, e)))?;
+    let listener = TcpListener::bind(addr).await.map_err(|e| {
+        crate::error::Error::RequestFailed(format!("Failed to bind to {}: {}", addr, e))
+    })?;
 
     eprintln!("[spikes-mcp] HTTP server listening on http://{}", addr);
 
@@ -1775,7 +2303,8 @@ fn detect_claude_desktop() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = dirs::home_dir() {
-            let config_path = home.join("Library/Application Support/Claude/claude_desktop_config.json");
+            let config_path =
+                home.join("Library/Application Support/Claude/claude_desktop_config.json");
             let config_dir = home.join("Library/Application Support/Claude");
             if config_dir.exists() {
                 return Some(config_path.to_string_lossy().to_string());
@@ -1848,7 +2377,8 @@ pub fn install(json: bool) -> crate::error::Result<()> {
             vec![
                 DetectedClient {
                     name: "Claude Desktop".to_string(),
-                    config_path: "~/Library/Application Support/Claude/claude_desktop_config.json".to_string(),
+                    config_path: "~/Library/Application Support/Claude/claude_desktop_config.json"
+                        .to_string(),
                     config: spikes_mcp_config(),
                 },
                 DetectedClient {
@@ -1874,12 +2404,17 @@ pub fn install(json: bool) -> crate::error::Result<()> {
     if detected.is_empty() {
         println!("🔍 No MCP clients detected.\n");
         println!("Add this config block to connect Spikes to your MCP client:\n");
-        println!("📎 Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)");
+        println!(
+            "📎 Claude Desktop (~/Library/Application Support/Claude/claude_desktop_config.json)"
+        );
         println!("{}\n", serde_json::to_string_pretty(&spikes_mcp_config())?);
         println!("📎 Cursor (.cursor/mcp.json)");
         println!("{}\n", serde_json::to_string_pretty(&spikes_mcp_config())?);
         println!("💡 Or use npx (no install needed):");
-        println!("{}", serde_json::to_string_pretty(&spikes_mcp_config_npx())?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&spikes_mcp_config_npx())?
+        );
     } else {
         for client in &detected {
             println!("✅ {} detected", client.name);
@@ -1888,7 +2423,10 @@ pub fn install(json: bool) -> crate::error::Result<()> {
             println!("{}\n", serde_json::to_string_pretty(&client.config)?);
         }
         println!("💡 Or use npx (no install needed):");
-        println!("{}", serde_json::to_string_pretty(&spikes_mcp_config_npx())?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&spikes_mcp_config_npx())?
+        );
     }
 
     Ok(())
@@ -1925,6 +2463,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
             Spike {
                 id: "spike002def".to_string(),
@@ -1945,6 +2484,7 @@ mod tests {
                 viewport: None,
                 resolved: Some(true),
                 resolved_at: Some("2024-01-16T09:00:00Z".to_string()),
+                ..Default::default()
             },
             Spike {
                 id: "spike003ghi".to_string(),
@@ -1965,6 +2505,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
             Spike {
                 id: "spike004jkl".to_string(),
@@ -1985,6 +2526,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
         ]
     }
@@ -1992,6 +2534,161 @@ mod tests {
     // ========================================
     // Unit Tests for Tool Logic
     // ========================================
+
+    #[test]
+    fn test_tool_router_lists_16_tools() {
+        let service = SpikesService::new(DataSource::Local);
+        let tools = service.tool_router.list_all();
+        let names: Vec<String> = tools.iter().map(|t| t.name.to_string()).collect();
+        assert_eq!(tools.len(), 16, "tools: {:?}", names);
+        for expected in [
+            "get_spikes",
+            "get_element_feedback",
+            "get_hotspots",
+            "submit_spike",
+            "resolve_spike",
+            "delete_spike",
+            "create_share",
+            "list_shares",
+            "get_usage",
+            "reply_to_spike",
+            "set_spike_status",
+            "list_versions",
+            "add_version",
+            "list_questions",
+            "ask_question",
+            "get_question_answers",
+        ] {
+            assert!(
+                names.iter().any(|n| n == expected),
+                "missing tool {}",
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn test_get_spikes_schema_has_v2_filters() {
+        let service = SpikesService::new(DataSource::Local);
+        let tools = service.tool_router.list_all();
+        let get_spikes = tools.iter().find(|t| t.name == "get_spikes").unwrap();
+        let schema = serde_json::to_value(&get_spikes.input_schema).unwrap();
+        let props = &schema["properties"];
+        assert!(props.get("url_prefix").is_some());
+        assert!(props.get("since").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_v2_tools_are_hosted_only_in_local_mode() {
+        let service = SpikesService::new(DataSource::Local);
+        let err = service
+            .reply_to_spike(Parameters(ReplyToSpikeArgs {
+                spike_id: "x".to_string(),
+                body: "hi".to_string(),
+                version_label: None,
+                status: None,
+                addressed_in: None,
+            }))
+            .await
+            .unwrap_err();
+        assert!(err.message.contains("hosted only"), "{}", err.message);
+        assert!(err.message.contains("--remote"));
+
+        let err = service
+            .list_versions(Parameters(ListVersionsArgs {}))
+            .await
+            .unwrap_err();
+        assert!(err.message.contains("hosted only"));
+    }
+
+    #[tokio::test]
+    async fn test_set_spike_status_rejects_bad_status_before_network() {
+        let service = SpikesService::new(DataSource::Remote {
+            token: "user-token".to_string(),
+            api_base: "http://127.0.0.1:9".to_string(),
+        });
+        let err = service
+            .set_spike_status(Parameters(SetSpikeStatusArgs {
+                spike_id: "x".to_string(),
+                status: "done".to_string(),
+                addressed_in: None,
+            }))
+            .await
+            .unwrap_err();
+        assert!(
+            err.message.contains("Invalid status 'done'"),
+            "{}",
+            err.message
+        );
+    }
+
+    #[test]
+    fn test_remote_spikes_url_builds_v2_filters() {
+        let url = remote_spikes_url(
+            "https://spikes.sh/",
+            &RemoteSpikeFilters {
+                page: Some("index.html"),
+                rating: None,
+                unresolved_only: true,
+                url_prefix: Some("https://x/v0-5/"),
+                since: Some("2026-09-14T00:00:00Z"),
+            },
+        );
+        assert_eq!(
+            url,
+            "https://spikes.sh/spikes?page=index.html&resolved=false&url_prefix=https%3A%2F%2Fx%2Fv0-5%2F&since=2026-09-14T00%3A00%3A00Z"
+        );
+        assert_eq!(
+            remote_spikes_url("https://spikes.sh", &RemoteSpikeFilters::default()),
+            "https://spikes.sh/spikes"
+        );
+    }
+
+    #[test]
+    fn test_timestamp_after() {
+        assert!(timestamp_after(
+            "2026-09-14T10:00:00Z",
+            "2026-09-14T09:00:00Z"
+        ));
+        assert!(!timestamp_after(
+            "2026-09-14T09:00:00Z",
+            "2026-09-14T09:00:00Z"
+        ));
+        assert!(!timestamp_after(
+            "2026-09-13T09:00:00Z",
+            "2026-09-14T09:00:00Z"
+        ));
+    }
+
+    #[test]
+    fn test_format_spike_shows_v2_fields() {
+        let spike = Spike {
+            id: "spike009xyz".to_string(),
+            page: "index.html".to_string(),
+            comments: "Too big".to_string(),
+            status: Some("addressed".to_string()),
+            addressed_in: Some("v0.5".to_string()),
+            version: Some("v0-3".to_string()),
+            reply_count: Some(1),
+            last_reply: Some(crate::spike::Reply {
+                id: "r1".to_string(),
+                spike_id: None,
+                author_type: "agent".to_string(),
+                author_name: "Builder".to_string(),
+                body: "Done in v0.5".to_string(),
+                version_label: Some("v0.5".to_string()),
+                created_at: "2026-09-14T12:00:00Z".to_string(),
+            }),
+            ..Default::default()
+        };
+        let out = format_spike(&spike);
+        assert!(out.contains("Status: Resolved"));
+        assert!(out.contains("Outcome: addressed"));
+        assert!(out.contains("Addressed in: v0.5"));
+        assert!(out.contains("Version: v0-3"));
+        assert!(out.contains("Replies: 1"));
+        assert!(out.contains("Last reply (Builder): Done in v0.5"));
+    }
 
     #[test]
     fn test_format_spike_page() {
@@ -2014,6 +2711,7 @@ mod tests {
             viewport: None,
             resolved: None,
             resolved_at: None,
+            ..Default::default()
         };
 
         let formatted = format_spike(&spike);
@@ -2047,6 +2745,7 @@ mod tests {
             viewport: None,
             resolved: Some(true),
             resolved_at: Some("2024-01-02T00:00:00Z".to_string()),
+            ..Default::default()
         };
 
         let formatted = format_spike(&spike);
@@ -2062,10 +2761,7 @@ mod tests {
     fn test_get_spikes_filter_page() {
         let spikes = create_test_spikes();
 
-        let filtered: Vec<&Spike> = spikes
-            .iter()
-            .filter(|s| s.page == "index.html")
-            .collect();
+        let filtered: Vec<&Spike> = spikes.iter().filter(|s| s.page == "index.html").collect();
 
         assert_eq!(filtered.len(), 3);
         for spike in &filtered {
@@ -2090,10 +2786,7 @@ mod tests {
     fn test_get_spikes_filter_unresolved() {
         let spikes = create_test_spikes();
 
-        let filtered: Vec<&Spike> = spikes
-            .iter()
-            .filter(|s| !s.is_resolved())
-            .collect();
+        let filtered: Vec<&Spike> = spikes.iter().filter(|s| !s.is_resolved()).collect();
 
         assert_eq!(filtered.len(), 3);
         for spike in &filtered {
@@ -2107,11 +2800,7 @@ mod tests {
 
         let filtered: Vec<&Spike> = spikes
             .iter()
-            .filter(|s| {
-                s.page == "index.html"
-                    && s.rating == Some(Rating::No)
-                    && !s.is_resolved()
-            })
+            .filter(|s| s.page == "index.html" && s.rating == Some(Rating::No) && !s.is_resolved())
             .collect();
 
         // spike002def has rating No but is resolved
@@ -2134,8 +2823,7 @@ mod tests {
         let matching: Vec<&Spike> = spikes
             .iter()
             .filter(|s| {
-                s.spike_type == SpikeType::Element
-                    && s.selector.as_deref() == Some(".hero-title")
+                s.spike_type == SpikeType::Element && s.selector.as_deref() == Some(".hero-title")
             })
             .collect();
 
@@ -2245,6 +2933,8 @@ mod tests {
             page: Some("index.html".to_string()),
             rating: Some("love".to_string()),
             unresolved_only: Some(true),
+            url_prefix: None,
+            since: None,
         };
         let json = serde_json::to_string(&args).unwrap();
         assert!(json.contains("index.html"));
@@ -2290,7 +2980,9 @@ mod tests {
         let id = nanoid::nanoid!(11);
         assert_eq!(id.len(), 11);
         // Verify URL-safe characters (alphanumeric + underscore + hyphen)
-        assert!(id.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-'));
+        assert!(id
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-'));
     }
 
     #[test]
@@ -2638,10 +3330,10 @@ mod tests {
 
         // Save original env var
         let original = std::env::var("SPIKES_TOKEN").ok();
-        
+
         // Set token
         std::env::set_var("SPIKES_TOKEN", "test-token-123");
-        
+
         let ds = DataSource::new(true).unwrap();
         match ds {
             DataSource::Remote { token, api_base } => {
@@ -2650,7 +3342,7 @@ mod tests {
             }
             DataSource::Local => panic!("Expected Remote, got Local"),
         }
-        
+
         // Restore original
         if let Some(val) = original {
             std::env::set_var("SPIKES_TOKEN", val);
@@ -2681,14 +3373,14 @@ mod tests {
 
         // Save original env var
         let original = std::env::var("SPIKES_TOKEN").ok();
-        
+
         // Remove token — with HOME and XDG_CONFIG_HOME pointing to empty temp dir,
         // AuthConfig::load() won't find auth.toml either
         std::env::remove_var("SPIKES_TOKEN");
-        
+
         let result = DataSource::new(true);
         assert!(result.is_err());
-        
+
         // Restore original
         if let Some(val) = original {
             std::env::set_var("SPIKES_TOKEN", val);
@@ -2718,11 +3410,11 @@ mod tests {
         // Save original env vars
         let original_token = std::env::var("SPIKES_TOKEN").ok();
         let original_api = std::env::var("SPIKES_API_URL").ok();
-        
+
         // Set env vars
         std::env::set_var("SPIKES_TOKEN", "test-token");
         std::env::set_var("SPIKES_API_URL", "http://localhost:8787");
-        
+
         let ds = DataSource::new(true).unwrap();
         match ds {
             DataSource::Remote { api_base, .. } => {
@@ -2730,7 +3422,7 @@ mod tests {
             }
             DataSource::Local => panic!("Expected Remote, got Local"),
         }
-        
+
         // Restore original
         if let Some(val) = original_token {
             std::env::set_var("SPIKES_TOKEN", val);
@@ -2758,7 +3450,10 @@ mod tests {
     fn test_urlencoding_encode() {
         assert_eq!(urlencoding::encode("index.html"), "index.html");
         assert_eq!(urlencoding::encode("page name"), "page%20name");
-        assert_eq!(urlencoding::encode("test@example.com"), "test%40example.com");
+        assert_eq!(
+            urlencoding::encode("test@example.com"),
+            "test%40example.com"
+        );
     }
 
     // ========================================
@@ -2849,12 +3544,18 @@ mod tests {
         let result = resolve_spike_local(args).await;
 
         // Should return an error, not success with error text
-        assert!(result.is_err(), "resolve_spike_local should return Err for nonexistent spike");
+        assert!(
+            result.is_err(),
+            "resolve_spike_local should return Err for nonexistent spike"
+        );
         let err = result.unwrap_err();
 
         // Verify it's an invalid_params error
-        assert!(format!("{:?}", err).contains("invalid_params") || format!("{}", err).contains("not found"),
-            "Error should indicate spike not found via MCP error");
+        assert!(
+            format!("{:?}", err).contains("invalid_params")
+                || format!("{}", err).contains("not found"),
+            "Error should indicate spike not found via MCP error"
+        );
     }
 
     #[tokio::test]
@@ -2867,12 +3568,18 @@ mod tests {
         let result = delete_spike_local(args).await;
 
         // Should return an error, not success with error text
-        assert!(result.is_err(), "delete_spike_local should return Err for nonexistent spike");
+        assert!(
+            result.is_err(),
+            "delete_spike_local should return Err for nonexistent spike"
+        );
         let err = result.unwrap_err();
 
         // Verify it's an invalid_params error
-        assert!(format!("{:?}", err).contains("invalid_params") || format!("{}", err).contains("not found"),
-            "Error should indicate spike not found via MCP error");
+        assert!(
+            format!("{:?}", err).contains("invalid_params")
+                || format!("{}", err).contains("not found"),
+            "Error should indicate spike not found via MCP error"
+        );
     }
 
     // ========================================
@@ -2921,7 +3628,10 @@ mod tests {
             .or_else(|| parsed.get("spikes"))
             .and_then(|s| s.as_array());
 
-        assert!(spikes_arr.is_some(), "Should find spikes in 'spikes' field as fallback");
+        assert!(
+            spikes_arr.is_some(),
+            "Should find spikes in 'spikes' field as fallback"
+        );
         assert_eq!(spikes_arr.unwrap().len(), 1);
     }
 
@@ -2953,7 +3663,10 @@ mod tests {
 
         // Without a real server, this should return a connection error (not "unsupported")
         let result = resolve_spike_remote(args, "test-token", "http://127.0.0.1:1").await;
-        assert!(result.is_err(), "resolve_spike_remote should error without a server");
+        assert!(
+            result.is_err(),
+            "resolve_spike_remote should error without a server"
+        );
     }
 
     #[tokio::test]
@@ -2964,7 +3677,10 @@ mod tests {
 
         // Without a real server, this should return a connection error (not "unsupported")
         let result = delete_spike_remote(args, "test-token", "http://127.0.0.1:1").await;
-        assert!(result.is_err(), "delete_spike_remote should error without a server");
+        assert!(
+            result.is_err(),
+            "delete_spike_remote should error without a server"
+        );
     }
 
     // ========================================
@@ -2982,7 +3698,10 @@ mod tests {
 
     #[test]
     fn test_submit_spike_remote_uses_provided_project_key() {
-        assert_eq!(resolve_project_key(Some("my-project".to_string())), "my-project");
+        assert_eq!(
+            resolve_project_key(Some("my-project".to_string())),
+            "my-project"
+        );
     }
 
     // ========================================
@@ -3079,8 +3798,11 @@ mod tests {
 
         let err_str = format!("{:?}", mcp_err);
         // Verify it's an invalid_request error
-        assert!(err_str.to_lowercase().contains("budget"),
-            "MCP error for BUDGET_EXCEEDED should mention 'budget', got: {}", err_str);
+        assert!(
+            err_str.to_lowercase().contains("budget"),
+            "MCP error for BUDGET_EXCEEDED should mention 'budget', got: {}",
+            err_str
+        );
     }
 
     #[test]
@@ -3092,8 +3814,10 @@ mod tests {
 
         let mcp_err = map_error_to_mcp(&err);
         let err_str = format!("{:?}", mcp_err);
-        assert!(err_str.to_lowercase().contains("budget"),
-            "MCP error should mention 'budget' for BUDGET_EXCEEDED 429");
+        assert!(
+            err_str.to_lowercase().contains("budget"),
+            "MCP error should mention 'budget' for BUDGET_EXCEEDED 429"
+        );
     }
 
     #[test]
@@ -3101,8 +3825,11 @@ mod tests {
         // A generic 429 (no BUDGET_EXCEEDED code) should still say "rate limit"
         let err = map_http_error(429, None);
         let err_str = err.to_string();
-        assert!(err_str.to_lowercase().contains("rate limit"),
-            "Generic 429 should mention 'rate limit', got: {}", err_str);
+        assert!(
+            err_str.to_lowercase().contains("rate limit"),
+            "Generic 429 should mention 'rate limit', got: {}",
+            err_str
+        );
     }
 
     // ========================================
@@ -3117,8 +3844,11 @@ mod tests {
 
         let err_str = format!("{:?}", mcp_err);
         let err_lower = err_str.to_lowercase();
-        assert!(err_lower.contains("scope") || err_lower.contains("permission"),
-            "MCP error for SCOPE_DENIED should mention 'scope' or 'permission', got: {}", err_str);
+        assert!(
+            err_lower.contains("scope") || err_lower.contains("permission"),
+            "MCP error for SCOPE_DENIED should mention 'scope' or 'permission', got: {}",
+            err_str
+        );
     }
 
     #[test]
@@ -3131,8 +3861,10 @@ mod tests {
         let mcp_err = map_error_to_mcp(&err);
         let err_str = format!("{:?}", mcp_err);
         let err_lower = err_str.to_lowercase();
-        assert!(err_lower.contains("scope") || err_lower.contains("permission"),
-            "MCP error should mention 'scope' or 'permission' for SCOPE_DENIED 403");
+        assert!(
+            err_lower.contains("scope") || err_lower.contains("permission"),
+            "MCP error should mention 'scope' or 'permission' for SCOPE_DENIED 403"
+        );
     }
 
     #[test]
@@ -3142,8 +3874,11 @@ mod tests {
         let mcp_err = map_error_to_mcp(&err);
 
         let err_str = format!("{:?}", mcp_err);
-        assert!(err_str.to_lowercase().contains("auth"),
-            "MCP error for AuthFailed should mention 'auth', got: {}", err_str);
+        assert!(
+            err_str.to_lowercase().contains("auth"),
+            "MCP error for AuthFailed should mention 'auth', got: {}",
+            err_str
+        );
     }
 
     #[test]
@@ -3153,8 +3888,11 @@ mod tests {
         let mcp_err = map_error_to_mcp(&err);
 
         let err_str = format!("{:?}", mcp_err);
-        assert!(err_str.contains("internal_error") || err_str.contains("Server error"),
-            "Generic errors should map to internal_error, got: {}", err_str);
+        assert!(
+            err_str.contains("internal_error") || err_str.contains("Server error"),
+            "Generic errors should map to internal_error, got: {}",
+            err_str
+        );
     }
 
     // ========================================
@@ -3166,7 +3904,10 @@ mod tests {
         // Regular bearer tokens (not sk_spikes_*) should always be allowed
         let cache = std::sync::Arc::new(Mutex::new(CachedScope::default()));
         let result = check_write_scope("regular-bearer-token-xyz", "http://localhost:8787", &cache);
-        assert!(result.is_ok(), "Non-API-key tokens should always pass scope check");
+        assert!(
+            result.is_ok(),
+            "Non-API-key tokens should always pass scope check"
+        );
     }
 
     #[test]
@@ -3177,13 +3918,19 @@ mod tests {
         }));
 
         let result = check_write_scope("sk_spikes_testkey123", "http://localhost:8787", &cache);
-        assert!(result.is_err(), "Read-scoped API key should be denied write access");
+        assert!(
+            result.is_err(),
+            "Read-scoped API key should be denied write access"
+        );
 
         let err = result.unwrap_err();
         let err_str = format!("{:?}", err);
         let err_lower = err_str.to_lowercase();
-        assert!(err_lower.contains("permission denied") || err_lower.contains("read-only"),
-            "Error should mention 'permission denied' or 'read-only', got: {}", err_str);
+        assert!(
+            err_lower.contains("permission denied") || err_lower.contains("read-only"),
+            "Error should mention 'permission denied' or 'read-only', got: {}",
+            err_str
+        );
     }
 
     #[test]
@@ -3194,7 +3941,10 @@ mod tests {
         }));
 
         let result = check_write_scope("sk_spikes_fullkey456", "http://localhost:8787", &cache);
-        assert!(result.is_ok(), "Full-scoped API key should be allowed write access");
+        assert!(
+            result.is_ok(),
+            "Full-scoped API key should be allowed write access"
+        );
     }
 
     #[test]
@@ -3205,7 +3955,10 @@ mod tests {
         }));
 
         let result = check_write_scope("sk_spikes_writekey789", "http://localhost:8787", &cache);
-        assert!(result.is_ok(), "Write-scoped API key should be allowed write access");
+        assert!(
+            result.is_ok(),
+            "Write-scoped API key should be allowed write access"
+        );
     }
 
     #[test]
@@ -3217,11 +3970,17 @@ mod tests {
 
         // First check should fail
         let result1 = check_write_scope("sk_spikes_key1", "http://unreachable:9999", &cache);
-        assert!(result1.is_err(), "First check with cached 'read' scope should fail");
+        assert!(
+            result1.is_err(),
+            "First check with cached 'read' scope should fail"
+        );
 
         // Second check should also fail (same cache, no HTTP call needed)
         let result2 = check_write_scope("sk_spikes_key1", "http://unreachable:9999", &cache);
-        assert!(result2.is_err(), "Second check with cached 'read' scope should still fail");
+        assert!(
+            result2.is_err(),
+            "Second check with cached 'read' scope should still fail"
+        );
     }
 
     #[tokio::test]
@@ -3251,14 +4010,20 @@ mod tests {
         };
 
         let result = service.submit_spike(Parameters(args)).await;
-        assert!(result.is_err(), "submit_spike should return error for read-scoped key");
+        assert!(
+            result.is_err(),
+            "submit_spike should return error for read-scoped key"
+        );
 
         let err = result.unwrap_err();
         let err_str = format!("{:?}", err);
         let err_lower = err_str.to_lowercase();
         assert!(
-            err_lower.contains("permission") || err_lower.contains("scope") || err_lower.contains("read-only"),
-            "Error should mention scope/permission, got: {}", err_str
+            err_lower.contains("permission")
+                || err_lower.contains("scope")
+                || err_lower.contains("read-only"),
+            "Error should mention scope/permission, got: {}",
+            err_str
         );
     }
 
@@ -3296,7 +4061,8 @@ mod tests {
             let err_lower = err_str.to_lowercase();
             assert!(
                 !err_lower.contains("permission denied") && !err_lower.contains("read-only"),
-                "Full-scoped key should not get scope error, got: {}", err_str
+                "Full-scoped key should not get scope error, got: {}",
+                err_str
             );
         }
     }
@@ -3327,7 +4093,8 @@ mod tests {
             let err_lower = err_str.to_lowercase();
             assert!(
                 !err_lower.contains("permission denied") && !err_lower.contains("read-only"),
-                "Regular bearer token should not get scope error, got: {}", err_str
+                "Regular bearer token should not get scope error, got: {}",
+                err_str
             );
         }
     }
@@ -3353,14 +4120,20 @@ mod tests {
         };
 
         let result = service.create_share(Parameters(args)).await;
-        assert!(result.is_err(), "create_share should return error for read-scoped key");
+        assert!(
+            result.is_err(),
+            "create_share should return error for read-scoped key"
+        );
 
         let err = result.unwrap_err();
         let err_str = format!("{:?}", err);
         let err_lower = err_str.to_lowercase();
         assert!(
-            err_lower.contains("permission") || err_lower.contains("scope") || err_lower.contains("read-only"),
-            "Error should mention scope/permission, got: {}", err_str
+            err_lower.contains("permission")
+                || err_lower.contains("scope")
+                || err_lower.contains("read-only"),
+            "Error should mention scope/permission, got: {}",
+            err_str
         );
     }
 }

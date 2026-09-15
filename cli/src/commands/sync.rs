@@ -42,6 +42,8 @@ pub fn run(json: bool) -> Result<()> {
         endpoint: config.remote.endpoint.clone(),
         token: config.remote.token.clone(),
         from: None,
+        since: None,
+        url_prefix: None,
         json,
     });
 

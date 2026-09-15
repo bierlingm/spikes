@@ -95,6 +95,77 @@ pub struct Spike {
     /// ISO 8601 timestamp when spike was resolved
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolved_at: Option<String>,
+    /// Status: "open", "addressed", or "wont_do" (hosted API v2)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// Version label the spike was addressed in
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub addressed_in: Option<String>,
+    /// Version label derived from the spike URL (hosted API v2)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Number of replies (hosted API v2)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_count: Option<u64>,
+    /// Most recent reply (hosted API v2)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_reply: Option<Reply>,
+    /// Server-side creation time (hosted API v2)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    /// Server-side last update time (hosted API v2)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+}
+
+/// A reply left by the builder or an agent on a spike (hosted API v2)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Reply {
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spike_id: Option<String>,
+    #[serde(default)]
+    pub author_type: String,
+    #[serde(default)]
+    pub author_name: String,
+    pub body: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version_label: Option<String>,
+    #[serde(default)]
+    pub created_at: String,
+}
+
+impl Default for Spike {
+    fn default() -> Self {
+        Spike {
+            id: String::new(),
+            spike_type: SpikeType::Page,
+            project_key: String::new(),
+            page: String::new(),
+            url: String::new(),
+            reviewer: Reviewer {
+                id: String::new(),
+                name: String::new(),
+            },
+            selector: None,
+            element_text: None,
+            bounding_box: None,
+            rating: None,
+            comments: String::new(),
+            timestamp: String::new(),
+            viewport: None,
+            resolved: None,
+            resolved_at: None,
+            status: None,
+            addressed_in: None,
+            version: None,
+            reply_count: None,
+            last_reply: None,
+            created_at: None,
+            updated_at: None,
+        }
+    }
 }
 
 impl Spike {
@@ -117,9 +188,30 @@ impl Spike {
         }
     }
 
-    /// Check if this spike is resolved
+    /// Check if this spike is resolved.
+    ///
+    /// A spike counts as resolved when `resolved` is true or when the
+    /// hosted status is anything other than "open".
     pub fn is_resolved(&self) -> bool {
+        if let Some(ref status) = self.status {
+            return status != "open";
+        }
         self.resolved.unwrap_or(false)
+    }
+
+    /// Human-readable status: the hosted `status` when present, otherwise
+    /// derived from the `resolved` flag.
+    pub fn status_str(&self) -> &str {
+        match self.status.as_deref() {
+            Some(s) => s,
+            None => {
+                if self.resolved.unwrap_or(false) {
+                    "addressed"
+                } else {
+                    "open"
+                }
+            }
+        }
     }
 }
 
@@ -271,6 +363,7 @@ mod tests {
             }),
             resolved: None,
             resolved_at: None,
+            ..Default::default()
         };
 
         let json = serde_json::to_string(&spike).unwrap();
@@ -290,7 +383,10 @@ mod tests {
             project_key: "p".to_string(),
             page: "page".to_string(),
             url: "url".to_string(),
-            reviewer: Reviewer { id: "r".to_string(), name: "R".to_string() },
+            reviewer: Reviewer {
+                id: "r".to_string(),
+                name: "R".to_string(),
+            },
             selector: None,
             element_text: None,
             bounding_box: None,
@@ -300,6 +396,7 @@ mod tests {
             viewport: None,
             resolved: None,
             resolved_at: None,
+            ..Default::default()
         };
 
         assert_eq!(spike.rating_str(), "love");
@@ -317,7 +414,10 @@ mod tests {
             project_key: "p".to_string(),
             page: "page".to_string(),
             url: "url".to_string(),
-            reviewer: Reviewer { id: "r".to_string(), name: "R".to_string() },
+            reviewer: Reviewer {
+                id: "r".to_string(),
+                name: "R".to_string(),
+            },
             selector: None,
             element_text: None,
             bounding_box: None,
@@ -327,6 +427,7 @@ mod tests {
             viewport: None,
             resolved: None,
             resolved_at: None,
+            ..Default::default()
         };
 
         assert_eq!(spike.type_str(), "page");
@@ -452,7 +553,10 @@ mod tests {
         assert_eq!(response.data.len(), 2);
         assert_eq!(response.data[0].id, "spike-1");
         assert_eq!(response.data[1].id, "spike-2");
-        assert_eq!(response.next_cursor, Some("2024-01-15T11:00:00Z".to_string()));
+        assert_eq!(
+            response.next_cursor,
+            Some("2024-01-15T11:00:00Z".to_string())
+        );
     }
 
     #[test]

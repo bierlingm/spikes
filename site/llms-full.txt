@@ -203,6 +203,28 @@ View your usage statistics. Shows spike/share counts and limits. Requires authen
 
 **Returns:** Usage data including tier, spike/share counts and limits. Agent tier includes cost_this_period_cents, monthly_cap_cents, and period_ends.
 
+### reply_to_spike
+Answer a reviewer's spike; the reply is shown on the page where the comment was left. Hosted mode only (`spikes mcp serve --remote`).
+
+**Parameters:** `spike_id` (required), `body` (required), `version_label`, `status` (`open`, `addressed`, `wont_do`), `addressed_in`.
+
+### set_spike_status
+Mark a spike `open`, `addressed`, or `wont_do`. Hosted mode only.
+
+**Parameters:** `spike_id` (required), `status` (required), `addressed_in`.
+
+### list_versions / add_version
+Review versions of the configured project (`[project].key` in `.spikes/config.toml`). Hosted mode only.
+
+**Parameters (add_version):** `label` (required), `url_prefix` (required), `notes`.
+
+### list_questions / ask_question / get_question_answers
+Questions for reviewers. Hosted mode only.
+
+**Parameters:** `list_questions`: `status` (`open` default, `closed`); `ask_question`: `title` (required), `body`; `get_question_answers`: `question_id` (required).
+
+**Turn-start pattern:** call `get_spikes` with `unresolved_only: true` and `since` set to the last session's time before other work (`get_spikes` also accepts `url_prefix`), then `reply_to_spike` with the outcome after acting.
+
 ---
 
 ## CLI Commands Reference

@@ -74,6 +74,8 @@ Dig into the feedback pile. Returns all spikes with optional filters.
 | `page` | `string?` | Filter by page (e.g., `"index.html"`) |
 | `rating` | `string?` | Filter by rating: `love`, `like`, `meh`, `no` |
 | `unresolved_only` | `boolean?` | Only return unresolved spikes |
+| `url_prefix` | `string?` | Only spikes whose URL starts with this prefix (e.g. `"/versions/v0-5/"`) |
+| `since` | `string?` | Only spikes created or updated after this ISO 8601 timestamp |
 
 **Example:**
 ```json
@@ -84,7 +86,7 @@ Dig into the feedback pile. Returns all spikes with optional filters.
 }
 ```
 
-Returns formatted text with spike IDs, ratings, selectors, comments, reviewer names, and resolution status.
+Returns formatted text with spike IDs, ratings, selectors, comments, reviewer names, and resolution status. Hosted spikes also carry `Outcome` (open / addressed / wont_do), `Addressed in`, `Version`, `Replies`, and the last reply.
 
 ---
 
@@ -127,6 +129,69 @@ Heat map mode. Find elements with the most feedback.
 Returns ranked list: selector + count.
 
 ---
+
+### `submit_spike`, `resolve_spike`, `delete_spike`, `create_share`, `list_shares`, `get_usage`
+
+Write and account tools; see the [README](../README.md#mcp-server--16-tools) table for a one-line summary of each.
+
+---
+
+## Feedback-loop tools (hosted mode)
+
+These tools need `spikes mcp serve --remote` (a `SPIKES_TOKEN`, a `spikes login`, or a project key in `.spikes/config.toml`). In local mode they return a clear "hosted only" error. Tools that act on the project read `[project].key` from `.spikes/config.toml`.
+
+### `reply_to_spike`
+
+Answer a reviewer; the reply appears on the page where the comment was left.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `spike_id` | `string` | **Required.** Full spike ID |
+| `body` | `string` | **Required.** Reply text |
+| `version_label` | `string?` | Version the reply refers to, e.g. `"v0.5"` |
+| `status` | `string?` | Set the spike status in the same call: `open`, `addressed`, `wont_do` |
+| `addressed_in` | `string?` | Version label recorded as `addressed_in` |
+
+### `set_spike_status`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `spike_id` | `string` | **Required.** Full spike ID |
+| `status` | `string` | **Required.** `open`, `addressed`, or `wont_do` |
+| `addressed_in` | `string?` | Version label |
+
+### `list_versions` / `add_version`
+
+`list_versions` takes no parameters and returns each version's label, URL prefix, spike count, open count, and notes.
+
+`add_version`:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `label` | `string` | **Required.** e.g. `"v0.5"` |
+| `url_prefix` | `string` | **Required.** URL prefix of this version's pages, e.g. `"/versions/v0-5/"` |
+| `notes` | `string?` | What changed, shown to reviewers |
+
+### `list_questions` / `ask_question` / `get_question_answers`
+
+| Tool | Parameters |
+|------|------------|
+| `list_questions` | `status?` (`open` default, or `closed`) |
+| `ask_question` | `title` (required), `body?` |
+| `get_question_answers` | `question_id` (required) |
+
+---
+
+## Turn-start pattern
+
+Feedback only helps if the agent sees it before it starts working. At the start of every session:
+
+1. Call `get_spikes` with `unresolved_only: true` and `since` set to the time of the last session (omit `since` on the first run).
+2. Call `list_questions` to see whether the reviewer answered anything.
+3. Do the work.
+4. For every spike you acted on, call `reply_to_spike` with `status: "addressed"` and the version label, or `status: "wont_do"` with the reason. The reviewer sees the outcome on the page.
+
+The server sends this guidance to MCP clients as its `instructions` string, so agents that read server instructions pick it up without extra prompting. For a push instead of a poll, run `spikes watch --exec 'herdr agent prompt <agent>'` next to the session.
 
 ## Example Session
 

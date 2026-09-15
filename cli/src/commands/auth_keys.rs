@@ -23,6 +23,9 @@ pub struct CreateKeyResponse {
     pub name: Option<String>,
     pub scopes: String,
     pub created_at: String,
+    /// Project the key is scoped to (None for account keys)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_key: Option<String>,
 }
 
 /// Single key entry from GET /auth/api-keys
@@ -37,6 +40,9 @@ pub struct ApiKeyEntry {
     pub expires_at: Option<String>,
     pub created_at: String,
     pub last_used_at: Option<String>,
+    /// Project the key is scoped to (None for account keys)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_key: Option<String>,
 }
 
 impl ApiKeyEntry {
@@ -82,7 +88,22 @@ pub struct RevokeKeyResponse {
 // create-key
 // ============================================
 
-pub fn create_key(name: Option<String>, json: bool) -> Result<()> {
+pub struct CreateKeyOptions {
+    pub name: Option<String>,
+    /// Scope the key to one project (requires a logged-in user token)
+    pub project: Option<String>,
+    /// Write the key into `.spikes/config.toml` under `[remote]`
+    pub save: bool,
+    pub json: bool,
+}
+
+pub fn create_key(options: CreateKeyOptions) -> Result<()> {
+    let CreateKeyOptions {
+        name,
+        project,
+        save,
+        json,
+    } = options;
     let api_base = get_api_base();
     let url = format!("{}/auth/api-key", api_base.trim_end_matches('/'));
 
@@ -91,11 +112,28 @@ pub fn create_key(name: Option<String>, json: bool) -> Result<()> {
     if let Some(ref n) = name {
         body.insert("name".to_string(), serde_json::Value::String(n.clone()));
     }
+    if let Some(ref p) = project {
+        body.insert(
+            "project_key".to_string(),
+            serde_json::Value::String(p.clone()),
+        );
+    }
 
-    let response = match ureq::post(&url)
-        .set("Content-Type", "application/json")
-        .send_json(serde_json::Value::Object(body))
-    {
+    // A project-scoped key must be minted by the project owner
+    let user_token = AuthConfig::token()?;
+    if project.is_some() && user_token.is_none() {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Creating a project-scoped key requires a login. Run 'spikes login' first.",
+        )));
+    }
+
+    let mut request = ureq::post(&url).set("Content-Type", "application/json");
+    if let Some(ref t) = user_token {
+        request = request.set("Authorization", &format!("Bearer {}", t));
+    }
+
+    let response = match request.send_json(serde_json::Value::Object(body)) {
         Ok(resp) => resp,
         Err(ureq::Error::Status(status, response)) => {
             let body = response.into_string().ok();
@@ -114,16 +152,39 @@ pub fn create_key(name: Option<String>, json: bool) -> Result<()> {
         .into_string()
         .map_err(|e| Error::RequestFailed(format!("Failed to read response: {}", e)))?;
 
-    let key_response: CreateKeyResponse = serde_json::from_str(&body)?;
+    let mut key_response: CreateKeyResponse = serde_json::from_str(&body)?;
+    if key_response.project_key.is_none() {
+        key_response.project_key = project.clone();
+    }
 
-    // Store the API key separately in auth.toml (does NOT overwrite bearer token)
-    AuthConfig::save_api_key(&key_response.api_key)?;
+    // Account keys go to auth.toml (does NOT overwrite bearer token).
+    // Project keys belong in the repo config instead.
+    let mut saved_to_config = false;
+    if key_response.project_key.is_none() {
+        AuthConfig::save_api_key(&key_response.api_key)?;
+    }
+    if save {
+        crate::config::ensure_initialized()?;
+        let mut config = crate::config::Config::load()?;
+        config.remote.token = Some(key_response.api_key.clone());
+        if config.remote.endpoint.is_none() {
+            config.remote.hosted = true;
+        }
+        if let Some(ref p) = key_response.project_key {
+            if config.project.key.as_deref().unwrap_or("").is_empty() {
+                config.project.key = Some(p.clone());
+            }
+        }
+        config.save()?;
+        saved_to_config = true;
+    }
 
     if json {
+        let mut value = serde_json::to_value(&key_response).expect("Failed to serialize to JSON");
+        value["saved_to_config"] = serde_json::Value::Bool(saved_to_config);
         println!(
             "{}",
-            serde_json::to_string_pretty(&key_response)
-                .expect("Failed to serialize to JSON")
+            serde_json::to_string_pretty(&value).expect("Failed to serialize to JSON")
         );
     } else {
         println!();
@@ -136,10 +197,22 @@ pub fn create_key(name: Option<String>, json: bool) -> Result<()> {
             println!("  │  Name:   {}  │", pad_right(n, 30));
         }
         println!("  │  Scopes: {}  │", pad_right(&key_response.scopes, 30));
+        if let Some(ref p) = key_response.project_key {
+            println!("  │  Project:{}  │", pad_right(p, 30));
+        }
         println!("  │                                            │");
         println!("  │  ⚠️  Save this key — it won't be shown again │");
-        println!("  │  Stored in auth.toml for CLI use.          │");
+        if key_response.project_key.is_some() {
+            println!("  │  Put it under [remote] token in           │");
+            println!("  │  .spikes/config.toml (or use --save).      │");
+        } else {
+            println!("  │  Stored in auth.toml for CLI use.          │");
+        }
         println!("  └────────────────────────────────────────────┘");
+        if saved_to_config {
+            println!();
+            println!("  Saved to .spikes/config.toml under [remote].");
+        }
         println!();
     }
 
@@ -170,15 +243,17 @@ pub fn list_keys(json: bool) -> Result<()> {
             .map(|key| {
                 let mut obj = serde_json::to_value(key).expect("Failed to serialize key");
                 if let Some(map) = obj.as_object_mut() {
-                    map.insert("status".to_string(), serde_json::Value::String(key.status().to_string()));
+                    map.insert(
+                        "status".to_string(),
+                        serde_json::Value::String(key.status().to_string()),
+                    );
                 }
                 obj
             })
             .collect();
         println!(
             "{}",
-            serde_json::to_string_pretty(&keys_with_status)
-                .expect("Failed to serialize to JSON")
+            serde_json::to_string_pretty(&keys_with_status).expect("Failed to serialize to JSON")
         );
     } else {
         print_keys_table(&keys);
@@ -266,11 +341,7 @@ pub fn revoke_key(key_id: &str, json: bool) -> Result<()> {
         })?;
 
     let api_base = get_api_base();
-    let url = format!(
-        "{}/auth/api-key/{}",
-        api_base.trim_end_matches('/'),
-        key_id
-    );
+    let url = format!("{}/auth/api-key/{}", api_base.trim_end_matches('/'), key_id);
 
     let response = match ureq::request("DELETE", &url)
         .set("Authorization", &format!("Bearer {}", token))
@@ -308,7 +379,10 @@ pub fn revoke_key(key_id: &str, json: bool) -> Result<()> {
         );
     } else {
         println!();
-        println!("  🗡️  API key {} revoked. It can no longer be used.", key_id);
+        println!(
+            "  🗡️  API key {} revoked. It can no longer be used.",
+            key_id
+        );
         println!();
     }
 
@@ -441,7 +515,10 @@ mod tests {
         }"#;
 
         let entry: ApiKeyEntry = serde_json::from_str(json).unwrap();
-        assert_eq!(entry.revoked_at, Some("2025-02-01T00:00:00.000Z".to_string()));
+        assert_eq!(
+            entry.revoked_at,
+            Some("2025-02-01T00:00:00.000Z".to_string())
+        );
     }
 
     #[test]
@@ -495,6 +572,7 @@ mod tests {
                 expires_at: None,
                 created_at: "2025-01-15T10:30:00.000Z".to_string(),
                 last_used_at: None,
+                project_key: None,
             },
             ApiKeyEntry {
                 key_id: "key_xyz789".to_string(),
@@ -506,6 +584,7 @@ mod tests {
                 expires_at: None,
                 created_at: "2025-01-16T12:00:00.000Z".to_string(),
                 last_used_at: Some("2025-01-17T08:00:00.000Z".to_string()),
+                project_key: None,
             },
         ];
         // Just ensure it doesn't panic
@@ -528,6 +607,7 @@ mod tests {
             expires_at: None,
             created_at: "2025-01-15T10:30:00.000Z".to_string(),
             last_used_at: None,
+            project_key: None,
         };
         assert_eq!(entry.status(), "active");
     }
@@ -544,6 +624,7 @@ mod tests {
             expires_at: None,
             created_at: "2025-01-15T10:30:00.000Z".to_string(),
             last_used_at: None,
+            project_key: None,
         };
         assert_eq!(entry.status(), "revoked");
     }
@@ -560,6 +641,7 @@ mod tests {
             expires_at: Some("2020-01-01T00:00:00.000Z".to_string()),
             created_at: "2019-01-15T10:30:00.000Z".to_string(),
             last_used_at: None,
+            project_key: None,
         };
         assert_eq!(entry.status(), "expired");
     }
@@ -576,6 +658,7 @@ mod tests {
             expires_at: Some("2099-12-31T23:59:59.000Z".to_string()),
             created_at: "2025-01-15T10:30:00.000Z".to_string(),
             last_used_at: None,
+            project_key: None,
         };
         assert_eq!(entry.status(), "active");
     }
@@ -592,6 +675,7 @@ mod tests {
             expires_at: Some("2020-01-01T00:00:00.000Z".to_string()),
             created_at: "2019-01-15T10:30:00.000Z".to_string(),
             last_used_at: None,
+            project_key: None,
         };
         assert_eq!(entry.status(), "revoked");
     }
@@ -614,6 +698,7 @@ mod tests {
     #[test]
     fn test_create_key_response_serialization_roundtrip() {
         let resp = CreateKeyResponse {
+            project_key: None,
             ok: true,
             api_key: "sk_spikes_test123".to_string(),
             key_id: "key_test".to_string(),

@@ -6,6 +6,7 @@ use crate::spike::SpikeType;
 use crate::storage::load_spikes;
 
 pub fn run(json: bool) -> Result<()> {
+    crate::state::warn_if_stale();
     let spikes = load_spikes()?;
 
     let mut counts: HashMap<String, usize> = HashMap::new();

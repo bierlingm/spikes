@@ -32,7 +32,7 @@
 
 ## MCP Tools
 
-Spikes exposes 9 MCP tools via `spikes mcp serve`. These tools let AI agents read, write, and manage feedback programmatically.
+Spikes exposes 16 MCP tools via `spikes mcp serve`. These tools let AI agents read, write, and manage feedback programmatically.
 
 ### get_spikes
 Get all feedback spikes with optional filters.
@@ -90,6 +90,22 @@ List all your shares.
 View usage statistics.
 - No parameters
 - Returns: Spike/share counts, limits, tier, and cost info (agent tier)
+
+### reply_to_spike (hosted)
+Answer a reviewer; the reply shows on the page.
+- `spike_id` (String, required), `body` (String, required)
+- `version_label`, `status` (`open`|`addressed`|`wont_do`), `addressed_in` (optional)
+
+### set_spike_status (hosted)
+- `spike_id` (String, required), `status` (String, required), `addressed_in` (optional)
+
+### list_versions / add_version (hosted)
+Review versions of the configured project. `add_version`: `label`, `url_prefix` (required), `notes` (optional).
+
+### list_questions / ask_question / get_question_answers (hosted)
+Questions for reviewers. `ask_question`: `title` (required), `body` (optional). `get_question_answers`: `question_id`.
+
+Turn-start pattern: call `get_spikes` with `unresolved_only: true` and `since` (ISO 8601 of your last session) first; `get_spikes` also accepts `url_prefix`. After acting, call `reply_to_spike` with the outcome.
 
 ## Agent Quickstart
 

@@ -307,6 +307,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
         ];
 
@@ -339,6 +340,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
         ];
 
@@ -365,6 +367,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
         ];
 
@@ -400,6 +403,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
             Spike {
                 id: "abcdef789012".to_string(),
@@ -417,6 +421,7 @@ mod tests {
                 viewport: None,
                 resolved: None,
                 resolved_at: None,
+                ..Default::default()
             },
         ];
 

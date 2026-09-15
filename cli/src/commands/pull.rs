@@ -3,14 +3,20 @@ use std::fs::{self, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
+use crate::api::with_query;
 use crate::auth::get_api_base;
 use crate::error::{map_http_error, map_network_error, Error, Result};
 use crate::spike::{PaginatedResponse, Spike};
+use crate::state::{self, SyncState};
 
 pub struct PullOptions {
     pub endpoint: Option<String>,
     pub token: Option<String>,
     pub from: Option<String>,
+    /// Only spikes updated after this ISO 8601 timestamp, or "last" for the stamp
+    pub since: Option<String>,
+    /// Only spikes whose URL starts with this prefix
+    pub url_prefix: Option<String>,
     pub json: bool,
 }
 
@@ -27,26 +33,75 @@ pub fn run(options: PullOptions) -> Result<()> {
 
     let config = get_remote_config(options.endpoint, options.token)?;
 
+    // Resolve --since ("last" reads .spikes/state.json)
+    let since = match options.since.as_deref() {
+        None => None,
+        Some("last") => {
+            let state = SyncState::load();
+            match state.last_pulled_at {
+                Some(ts) => Some(ts),
+                None => {
+                    if !options.json {
+                        eprintln!("  ! No previous pull recorded; pulling everything.");
+                    }
+                    None
+                }
+            }
+        }
+        Some(ts) => {
+            chrono::DateTime::parse_from_rfc3339(ts).map_err(|e| {
+                Error::RequestFailed(format!(
+                    "Invalid --since value '{}': {} (use ISO 8601 or 'last')",
+                    ts, e
+                ))
+            })?;
+            Some(ts.to_string())
+        }
+    };
+
     // Fetch remote spikes
-    let remote_spikes = fetch_remote_spikes(&config)?;
+    let remote_spikes =
+        fetch_remote_spikes_filtered(&config, since.as_deref(), options.url_prefix.as_deref())?;
 
     // Load local spikes
     let feedback_path = Path::new(".spikes/feedback.jsonl");
-    let local_spikes = load_local_spikes(feedback_path)?;
+    let mut local_spikes = load_local_spikes(feedback_path)?;
+    let local_count_before = local_spikes.len();
 
-    // Build set of existing IDs
-    let existing_ids: HashSet<String> = local_spikes.iter().map(|s| s.id.clone()).collect();
-
-    // Find new spikes
-    let new_spikes: Vec<&Spike> = remote_spikes
-        .iter()
-        .filter(|s| !existing_ids.contains(&s.id))
-        .collect();
-
+    // Merge: replace existing entries by id (status/replies may have changed),
+    // append unseen ones.
+    let mut updated_count = 0usize;
+    let mut new_spikes: Vec<Spike> = Vec::new();
+    for remote in &remote_spikes {
+        if let Some(local) = local_spikes.iter_mut().find(|l| l.id == remote.id) {
+            if serde_json::to_string(local).ok() != serde_json::to_string(remote).ok() {
+                *local = remote.clone();
+                updated_count += 1;
+            }
+        } else {
+            new_spikes.push(remote.clone());
+        }
+    }
     let new_count = new_spikes.len();
+
+    if updated_count > 0 {
+        // Rewrite the whole file to persist in-place updates
+        if let Some(parent) = feedback_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut file = fs::File::create(feedback_path)?;
+        for spike in &local_spikes {
+            let mut json = serde_json::to_string(spike)?;
+            json.push('\n');
+            file.write_all(json.as_bytes())?;
+        }
+    }
 
     // Append new spikes to local file
     if !new_spikes.is_empty() {
+        if let Some(parent) = feedback_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -59,6 +114,9 @@ pub fn run(options: PullOptions) -> Result<()> {
         }
     }
 
+    // Stamp the cache
+    state::stamp(&config.endpoint, &config.token)?;
+
     if options.json {
         println!(
             "{}",
@@ -66,17 +124,25 @@ pub fn run(options: PullOptions) -> Result<()> {
                 "success": true,
                 "fetched": remote_spikes.len(),
                 "new": new_count,
-                "existing": local_spikes.len(),
-                "total": local_spikes.len() + new_count
+                "updated": updated_count,
+                "existing": local_count_before,
+                "total": local_count_before + new_count,
+                "since": since,
             })
         );
     } else {
         println!();
         println!("  🗡️  Pulled from remote");
         println!();
+        if let Some(ref s) = since {
+            println!("  Since:          {}", s);
+        }
         println!("  Remote spikes:  {}", remote_spikes.len());
         println!("  New spikes:     {}", new_count);
-        println!("  Local total:    {}", local_spikes.len() + new_count);
+        if updated_count > 0 {
+            println!("  Updated:        {}", updated_count);
+        }
+        println!("  Local total:    {}", local_count_before + new_count);
         println!();
     }
 
@@ -150,8 +216,18 @@ fn get_remote_config(
     }
 }
 
+#[allow(dead_code)]
 fn fetch_remote_spikes(config: &RemoteConfig) -> Result<Vec<Spike>> {
-    let url = format!("{}/spikes", config.endpoint.trim_end_matches('/'));
+    fetch_remote_spikes_filtered(config, None, None)
+}
+
+fn fetch_remote_spikes_filtered(
+    config: &RemoteConfig,
+    since: Option<&str>,
+    url_prefix: Option<&str>,
+) -> Result<Vec<Spike>> {
+    let base = format!("{}/spikes", config.endpoint.trim_end_matches('/'));
+    let url = with_query(&base, &[("since", since), ("url_prefix", url_prefix)]);
 
     // Use ureq for synchronous HTTP (simpler than async for CLI)
     let response = match ureq::get(&url)
@@ -180,7 +256,7 @@ fn fetch_remote_spikes(config: &RemoteConfig) -> Result<Vec<Spike>> {
 
     if body.starts_with('<') {
         return Err(Error::RequestFailed(
-            "Got HTML instead of JSON. Check that the endpoint URL is correct.".to_string()
+            "Got HTML instead of JSON. Check that the endpoint URL is correct.".to_string(),
         ));
     }
 
@@ -414,7 +490,10 @@ mod tests {
         // Simulate URL construction for pull --from
         let share_id = "test-share-123";
         let api_url = format!("{}/spikes?project={}", get_api_base(), share_id);
-        assert_eq!(api_url, "http://localhost:8787/spikes?project=test-share-123");
+        assert_eq!(
+            api_url,
+            "http://localhost:8787/spikes?project=test-share-123"
+        );
 
         // Restore original value
         if let Some(val) = original {
@@ -436,7 +515,10 @@ mod tests {
         // Verify URL construction uses custom host
         let share_id = "my-project-abc";
         let api_url = format!("{}/spikes?project={}", get_api_base(), share_id);
-        assert_eq!(api_url, "https://spikes.example.com/spikes?project=my-project-abc");
+        assert_eq!(
+            api_url,
+            "https://spikes.example.com/spikes?project=my-project-abc"
+        );
 
         // Restore original value
         if let Some(val) = original {

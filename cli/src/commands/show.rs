@@ -3,6 +3,7 @@ use crate::output::{print_json, print_spike_detail};
 use crate::storage::load_spikes;
 
 pub fn run(id: &str, json: bool) -> Result<()> {
+    crate::state::warn_if_stale();
     let spikes = load_spikes()?;
 
     let spike = spikes
