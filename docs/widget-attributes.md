@@ -157,7 +157,7 @@ Enables admin features in the widget UI. Currently shows a "Review" button that 
 
 ### data-readback
 
-Controls whether the widget loads feedback that already exists for the current page from the hosted API (`GET /public/spikes`) and renders it as pins on the page, coloured by status: open (widget colour), addressed (green), won't do (grey). Clicking a pin shows the comment, its status, the version it was addressed in, and the builder's last reply. Spikes left by the current reviewer are labelled "yours". Page-level spikes are listed under "Earlier feedback" in the feedback dialog, and the matching version label (`GET /public/versions`) is shown as a chip under the button and in the dialog header. Only active when `data-project` is set and the endpoint is a hosted `…/spikes` URL; failures are silent.
+Controls whether the widget loads feedback that already exists for the current page from the hosted API (`GET /public/spikes`) and renders it as pins on the page, coloured by status: open (widget colour), addressed (green), won't do (grey). Clicking a pin shows the comment, its status, the version it was addressed in, and the builder's last reply. Spikes left by the current reviewer are labelled "yours". Page-level spikes are listed under "Earlier feedback" in the feedback dialog, and the matching version label (`GET /public/versions`) is shown as a chip under the button and in the dialog header. The version chip stays on while either this attribute or `data-questions` is on; only with both set to `"off"` does the widget make no `/public` requests. Only active when `data-project` is set and the endpoint is a hosted `…/spikes` URL; failures are silent.
 
 | Property | Value |
 |----------|-------|

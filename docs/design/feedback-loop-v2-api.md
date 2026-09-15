@@ -198,7 +198,7 @@ When `data-project` is set and the endpoint is hosted, on load the widget calls 
 - shows a "Questions for you (n)" entry in the panel that lists open questions with a textarea each; sending posts to `/public/questions/:id/answers` with the stored reviewer identity and marks the question answered in localStorage
 - shows the matching version label and notes in the panel header when the versions list is non-empty
 
-New attributes: `data-readback="off"` disables the existing-spike pins, `data-questions="off"` disables the questions entry. Both default to on. `site/spikes.js` is the deployed copy of `widget/spikes.js` and must stay identical.
+New attributes: `data-readback="off"` disables the existing-spike pins, `data-questions="off"` disables the questions entry. Both default to on. The version banner is fetched while either is on; with both off the widget makes no `/public/*` requests. `site/spikes.js` is the deployed copy of `widget/spikes.js` and must stay identical.
 
 ## 12. Embedder contract (documented in `docs/API.md`)
 

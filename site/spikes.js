@@ -1835,12 +1835,14 @@
                 renderReadbackPins();
                 renderEarlierFeedback();
             });
-            fetchPublic('/versions?project=' + project, function(res) {
-                readback.versions = (res && res.data) || [];
-                readback.version = matchVersion(readback.versions, currentPageUrl());
-                renderVersion();
-            });
         }
+
+        // The version banner is independent of the pins, but both switches off means no requests at all.
+        if (config.readback || config.questions) fetchPublic('/versions?project=' + project, function(res) {
+            readback.versions = (res && res.data) || [];
+            readback.version = matchVersion(readback.versions, currentPageUrl());
+            renderVersion();
+        });
 
         if (config.questions) {
             fetchPublic('/questions?project=' + project, function(res) {
@@ -2121,7 +2123,8 @@
                 showToast('Answer sent', 'success', 2000);
                 renderQuestions();
             };
-            xhr.send(JSON.stringify({ body: text, reviewer: getReviewerForSpike() }));
+            var who = currentReviewer ? { id: currentReviewer.id, name: currentReviewer.name } : { id: 'anon', name: 'Anonymous' };
+            xhr.send(JSON.stringify({ body: text, reviewer: who }));
         } catch (e) {
             fail(null);
         }
@@ -2130,7 +2133,8 @@
     function escapeHtml(str) {
         var div = document.createElement('div');
         div.textContent = str;
-        return div.innerHTML;
+        // innerHTML escapes &, <, > only; quotes matter when the result lands in an attribute value.
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function ratingBtnStyle() {

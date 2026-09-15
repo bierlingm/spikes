@@ -411,7 +411,6 @@ List the caller's spikes (owner-scoped) with cursor-based pagination.
   - `page` — Filter by page path
   - `reviewer` — Filter by reviewer ID
   - `rating` — Filter by rating value
-  - `resolved` — `true` / `false`
   - `since` — ISO 8601; only spikes whose `updatedAt` is later
   - `url_prefix` — only spikes whose `url` starts with this literal string
   - `cursor` — Pagination cursor (optional)
@@ -481,13 +480,13 @@ Change a spike's status. Also available as `PATCH /me/projects/:key/spikes/:id`.
 { "status": "open" }
 ```
 
-`resolved: true` is `status: "addressed"`; `resolved: false` is `status: "open"`. `addressed_in` may accompany any status and may be `null`. Returns the updated spike.
+`resolved: true` is `status: "addressed"`; `resolved: false` is `status: "open"`. `addressed_in` may accompany any status and may be `null`. `PATCH /spikes/:id` returns `{ ok, id, resolved, status, addressed_in, updated_at }` (legacy shape); `PATCH /me/projects/:key/spikes/:id` returns the full spike object.
 
 ---
 
 #### DELETE /spikes/:id
 
-Deletes the spike and its replies. `204`.
+Deletes the spike and its replies. `200 { ok: true, id }`.
 
 ---
 
@@ -525,7 +524,7 @@ Reply to a spike as the builder or an agent (user token → `authorType: "owner"
 
 ### Public read-back (`/public/*`)
 
-No bearer token. Authorised exactly like `POST /spikes`: the `Origin` header must match the project's `allowed_origins` (`403 ORIGIN_NOT_ALLOWED`), unknown project → `404 PROJECT_NOT_FOUND`, rate limit 120/min per IP. Responses never include reviewer emails, user agents, or bounding boxes.
+No bearer token. The `Origin` header must be present and match the project's `allowed_origins` (`403 ORIGIN_NOT_ALLOWED`); unlike `POST /spikes`, a missing `Origin` or the literal `null` is always refused, even when the allowlist contains `"null"`, unknown project → `404 PROJECT_NOT_FOUND`, rate limit 120/min per IP. Responses never include reviewer emails, user agents, or bounding boxes.
 
 #### GET /public/spikes?project=&url=
 
