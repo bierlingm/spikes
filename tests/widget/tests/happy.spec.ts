@@ -8,6 +8,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Happy Path - Silent 404', () => {
 	// Pre-seed localStorage with reviewer before each test to skip name prompt
 	test.beforeEach(async ({ page }) => {
+		// Read-back calls (/public/*) must never reach the network in this suite
+		await page.route('https://spikes.sh/public/**', route => route.abort());
 		await page.addInitScript(() => {
 			localStorage.setItem('spikes:reviewer', JSON.stringify({
 				id: 'test-reviewer-happy',

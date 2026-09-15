@@ -11,6 +11,12 @@ npx playwright install chromium  # One-time (~120MB)
 npm test
 ```
 
+If the Playwright browser download is unavailable, point the suite at a system browser instead:
+
+```bash
+SPIKES_CHROMIUM=/usr/bin/chromium npm test
+```
+
 The suite completes in under 60 seconds and includes:
 - 6 bytes-freshness marker assertions (Node-level, no browser)
 - Playwright behavioral tests (chromium-only)
@@ -18,6 +24,7 @@ The suite completes in under 60 seconds and includes:
 ## Network Isolation
 
 All tests use `page.route()` mocking. **No real network requests** to `https://spikes.sh` are made during test execution.
+The widget's read-back calls (`https://spikes.sh/public/*`) are mocked in `readback.spec.ts` and aborted in the other specs.
 
 ## Fixture Server
 

@@ -18,7 +18,12 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // SPIKES_CHROMIUM=/usr/bin/chromium runs the suite on a system browser
+        // when the Playwright download is unavailable (offline / slow CI).
+        ...(process.env.SPIKES_CHROMIUM ? { launchOptions: { executablePath: process.env.SPIKES_CHROMIUM } } : {}),
+      },
     },
   ],
   webServer: {

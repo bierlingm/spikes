@@ -7,6 +7,7 @@
     "/prospects*",
     "/webhooks/*",
     "/s/*",
-    "/widget.js"
+    "/widget.js",
+    "/public*"
   ]
 }

@@ -55,8 +55,16 @@
         collectEmail: script.getAttribute('data-collect-email') === 'true',
         offsetX: script.getAttribute('data-offset-x') || null,
         offsetY: script.getAttribute('data-offset-y') || null,
-        isAdmin: script.getAttribute('data-admin') === 'true'
+        isAdmin: script.getAttribute('data-admin') === 'true',
+        readback: script.getAttribute('data-readback') !== 'off',
+        questions: script.getAttribute('data-questions') !== 'off'
     };
+
+    // Public read-back base (hosted endpoints only): https://spikes.sh/spikes -> https://spikes.sh/public
+    var publicBase = null;
+    if (isProjectExplicitlySet && resolvedEndpoint && /\/spikes$/.test(resolvedEndpoint)) {
+        publicBase = resolvedEndpoint.replace(/\/spikes$/, '') + '/public';
+    }
     
     // Theme colors
     var themes = {
@@ -116,6 +124,12 @@
     var reviewMarkers = [];
     var reviewBar = null;
     
+    // Read-back state (existing spikes, versions, questions from the hosted API)
+    var readback = { spikes: [], versions: [], questions: [], version: null };
+    var readbackPins = [];
+    var readbackPopover = null;
+    var ANSWERED_KEY = 'spikes:answered:' + config.project;
+
     // Reviewer state
     var currentReviewer = null;
     var pendingSaveCallback = null;
@@ -897,6 +911,23 @@
         
         container.appendChild(btn);
         container.appendChild(reviewerIndicator);
+
+        // Version chip and questions badge (filled by read-back)
+        var versionChip = document.createElement('div');
+        versionChip.id = 'spikes-version';
+        versionChip.style.cssText = chipStyle() + 'display:none;';
+        container.appendChild(versionChip);
+
+        var questionsBadge = document.createElement('div');
+        questionsBadge.id = 'spikes-questions-badge';
+        questionsBadge.style.cssText = chipStyle() + 'display:none;cursor:pointer;border-color:' + config.color + ';';
+        questionsBadge.onclick = function(e) {
+            e.stopPropagation();
+            openModal();
+            var q = modal.querySelector('#spikes-questions');
+            if (q) q.scrollIntoView({ block: 'nearest' });
+        };
+        container.appendChild(questionsBadge);
         
         // Create error indicator dot (VAL-ERROR)
         createErrorDot();
@@ -1115,9 +1146,12 @@
         var pageName = document.title || location.pathname;
 
         modal.innerHTML = [
-            '<div id="spikes-modal-content" style="background:' + theme.bgCard + ';padding:24px;border-radius:12px;max-width:420px;width:90%;border:1px solid ' + theme.border + ';">',
+            '<div id="spikes-modal-content" style="background:' + theme.bgCard + ';padding:24px;border-radius:12px;max-width:420px;width:90%;max-height:90vh;overflow-y:auto;border:1px solid ' + theme.border + ';">',
             '  <h2 style="margin:0 0 4px;color:' + theme.text + ';font-size:16px;font-weight:600;"><span style="color:' + config.color + ';">/</span> Page Feedback</h2>',
-            '  <p style="color:' + theme.textDim + ';margin:0 0 20px;font-size:13px;">' + escapeHtml(pageName) + '</p>',
+            '  <p style="color:' + theme.textDim + ';margin:0 0 8px;font-size:13px;">' + escapeHtml(pageName) + '</p>',
+            '  <div id="spikes-version-note" style="display:none;"></div>',
+            '  <div id="spikes-questions" style="display:none;"></div>',
+            '  <div id="spikes-earlier" style="display:none;"></div>',
             '  <div id="spikes-modal-name-prompt-area"></div>',
             '  <div style="margin-bottom:16px;">',
             '    <div id="spikes-ratings" style="display:flex;gap:8px;flex-wrap:wrap;">',
@@ -1753,6 +1787,346 @@
         };
     }
 
+    // ============================================
+    // Read-back: existing spikes, versions, questions (hosted only)
+    // ============================================
+    function chipStyle() {
+        return [
+            'background:' + theme.bgCard,
+            'color:' + theme.textMuted,
+            'padding:3px 8px',
+            'border-radius:6px',
+            'border:1px solid ' + theme.border,
+            'font-family:ui-monospace,SF Mono,Monaco,monospace',
+            'font-size:11px',
+            'white-space:nowrap',
+            'max-width:200px',
+            'overflow:hidden',
+            'text-overflow:ellipsis'
+        ].join(';') + ';';
+    }
+
+    function fetchPublic(path, callback) {
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', publicBase + path, true);
+            xhr.onerror = function() { callback(null); };
+            xhr.onload = function() {
+                if (xhr.status < 200 || xhr.status >= 300) { callback(null); return; }
+                try { callback(JSON.parse(xhr.responseText)); } catch (e) { callback(null); }
+            };
+            xhr.send();
+        } catch (e) {
+            callback(null);
+        }
+    }
+
+    function currentPageUrl() {
+        return location.href.split('#')[0];
+    }
+
+    function initReadback() {
+        if (!publicBase) return;
+        var project = encodeURIComponent(config.project);
+
+        if (config.readback) {
+            fetchPublic('/spikes?project=' + project + '&url=' + encodeURIComponent(currentPageUrl()), function(res) {
+                readback.spikes = (res && res.data) || [];
+                renderReadbackPins();
+                renderEarlierFeedback();
+            });
+            fetchPublic('/versions?project=' + project, function(res) {
+                readback.versions = (res && res.data) || [];
+                readback.version = matchVersion(readback.versions, currentPageUrl());
+                renderVersion();
+            });
+        }
+
+        if (config.questions) {
+            fetchPublic('/questions?project=' + project, function(res) {
+                readback.questions = (res && res.data) || [];
+                renderQuestions();
+            });
+        }
+    }
+
+    function matchVersion(versions, url) {
+        var best = null;
+        versions.forEach(function(v) {
+            if (v && v.urlPrefix && url.indexOf(v.urlPrefix) === 0) {
+                if (!best || v.urlPrefix.length > best.urlPrefix.length) best = v;
+            }
+        });
+        return best;
+    }
+
+    function statusColor(status) {
+        if (status === 'addressed') return theme.green;
+        if (status === 'wont_do') return '#9ca3af';
+        return config.color;
+    }
+
+    function statusLabel(spike) {
+        if (spike.status === 'addressed') return 'Addressed' + (spike.addressedIn ? ' in ' + spike.addressedIn : '');
+        if (spike.status === 'wont_do') return "Won't do";
+        return 'Open';
+    }
+
+    function isMine(spike) {
+        return !!(currentReviewer && spike.reviewer && spike.reviewer.id === currentReviewer.id);
+    }
+
+    function clearReadbackPins() {
+        readbackPins.forEach(function(pin) {
+            if (pin.parentNode) pin.parentNode.removeChild(pin);
+        });
+        readbackPins = [];
+    }
+
+    function positionPin(pin, element) {
+        var rect = element.getBoundingClientRect();
+        pin.style.top = (rect.top + window.scrollY - 10) + 'px';
+        pin.style.left = (rect.right + window.scrollX - 10) + 'px';
+    }
+
+    function renderReadbackPins() {
+        clearReadbackPins();
+        readback.spikes.forEach(function(spike) {
+            if (spike.type !== 'element' || !spike.selector) return;
+            var element = null;
+            try { element = document.querySelector(spike.selector); } catch (e) { /* invalid selector */ }
+            if (!element || isWidgetElement(element)) return;
+
+            var pin = document.createElement('div');
+            pin.className = 'spikes-readback-pin';
+            pin.setAttribute('data-spike-id', spike.id);
+            pin.setAttribute('data-status', spike.status || 'open');
+            pin.title = statusLabel(spike) + (isMine(spike) ? ' (yours)' : '');
+            pin.style.cssText = [
+                'position:absolute',
+                'width:20px',
+                'height:20px',
+                'background:' + statusColor(spike.status),
+                'border-radius:50%',
+                'border:2px solid white',
+                'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+                'cursor:pointer',
+                'z-index:2147483640',
+                'transition:transform 0.15s'
+            ].join(';');
+            positionPin(pin, element);
+            pin.onmouseenter = function() { pin.style.transform = 'scale(1.2)'; };
+            pin.onmouseleave = function() { pin.style.transform = 'scale(1)'; };
+            pin.onclick = function(e) {
+                e.stopPropagation();
+                showReadbackPopover(pin, spike);
+            };
+            document.body.appendChild(pin);
+            readbackPins.push(pin);
+            pin._spikesElement = element;
+        });
+
+        if (readbackPins.length && !renderReadbackPins._resizeBound) {
+            renderReadbackPins._resizeBound = true;
+            window.addEventListener('resize', function() {
+                readbackPins.forEach(function(pin) {
+                    if (pin._spikesElement) positionPin(pin, pin._spikesElement);
+                });
+            });
+        }
+    }
+
+    function spikeCardHtml(spike) {
+        var reviewerName = spike.reviewer && spike.reviewer.name ? spike.reviewer.name : 'Anonymous';
+        var mine = isMine(spike);
+        var reply = spike.lastReply;
+        return '<div class="spikes-readback-card" data-spike-id="' + escapeHtml(spike.id) + '" style="border-left:3px solid ' + statusColor(spike.status) + ';padding:8px 12px;margin-bottom:8px;background:' + theme.bg + ';border-radius:0 6px 6px 0;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;">' +
+                '<span style="font-size:12px;color:' + theme.text + ';font-weight:500;">' + escapeHtml(reviewerName) +
+                    (mine ? ' <span class="spikes-yours" style="color:' + theme.textDim + ';font-weight:400;">(yours)</span>' : '') + '</span>' +
+                '<span class="spikes-status" style="font-size:11px;color:' + statusColor(spike.status) + ';">' + escapeHtml(statusLabel(spike)) + '</span>' +
+            '</div>' +
+            (spike.comments ? '<div style="font-size:12px;color:' + theme.textMuted + ';line-height:1.4;white-space:pre-wrap;">' + escapeHtml(spike.comments) + '</div>' : '') +
+            (reply ? '<div class="spikes-reply" style="margin-top:8px;padding:6px 8px;background:' + theme.bgSubtle + ';border-radius:4px;font-size:12px;color:' + theme.textMuted + ';">' +
+                '<span style="color:' + theme.text + ';">' + escapeHtml(reply.authorName || 'Builder') + '</span>' +
+                (reply.versionLabel ? ' <span style="color:' + theme.textDim + ';">· ' + escapeHtml(reply.versionLabel) + '</span>' : '') +
+                '<div style="margin-top:2px;white-space:pre-wrap;">' + escapeHtml(reply.body || '') + '</div>' +
+                '<div style="font-size:10px;color:' + theme.textDim + ';margin-top:2px;">' + formatTimeAgo(reply.createdAt) + '</div>' +
+            '</div>' : '') +
+            '<div style="font-size:10px;color:' + theme.textDim + ';margin-top:4px;">' + formatTimeAgo(spike.timestamp) + '</div>' +
+        '</div>';
+    }
+
+    function showReadbackPopover(anchor, spike) {
+        closeReadbackPopover();
+        var pop = document.createElement('div');
+        pop.id = 'spikes-readback-popover';
+        pop.style.cssText = [
+            'position:absolute',
+            'background:' + theme.bgCard,
+            'padding:12px',
+            'border-radius:10px',
+            'border:1px solid ' + theme.border,
+            'box-shadow:0 10px 40px rgba(0,0,0,0.25)',
+            'z-index:2147483645',
+            'font-family:ui-monospace,SF Mono,Monaco,monospace',
+            'max-width:340px',
+            'width:90vw'
+        ].join(';');
+        pop.innerHTML = spikeCardHtml(spike);
+
+        var rect = anchor.getBoundingClientRect();
+        var top = rect.bottom + window.scrollY + 6;
+        var left = rect.left + window.scrollX - 320;
+        if (left < window.scrollX + 10) left = window.scrollX + 10;
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+        document.body.appendChild(pop);
+        readbackPopover = pop;
+        setTimeout(function() {
+            document.addEventListener('click', handleReadbackPopoverClickOutside);
+        }, 0);
+    }
+
+    function closeReadbackPopover() {
+        if (readbackPopover && readbackPopover.parentNode) {
+            readbackPopover.parentNode.removeChild(readbackPopover);
+        }
+        readbackPopover = null;
+        document.removeEventListener('click', handleReadbackPopoverClickOutside);
+    }
+
+    function handleReadbackPopoverClickOutside(e) {
+        if (readbackPopover && !readbackPopover.contains(e.target)) closeReadbackPopover();
+    }
+
+    function sectionTitle(text) {
+        return '<div style="font-size:11px;color:' + theme.textDim + ';margin:12px 0 6px;text-transform:uppercase;letter-spacing:0.5px;">' + text + '</div>';
+    }
+
+    function renderEarlierFeedback() {
+        var box = modal && modal.querySelector('#spikes-earlier');
+        if (!box) return;
+        var pageSpikes = readback.spikes.filter(function(s) { return s.type !== 'element' || !s.selector; });
+        var pinned = readback.spikes.length - pageSpikes.length;
+        if (!readback.spikes.length) { box.style.display = 'none'; return; }
+        box.innerHTML = sectionTitle('Earlier feedback (' + readback.spikes.length + ')') +
+            (pinned ? '<div style="font-size:11px;color:' + theme.textDim + ';margin-bottom:6px;">' + pinned + ' on elements, shown as pins on the page.</div>' : '') +
+            pageSpikes.map(spikeCardHtml).join('');
+        box.style.display = 'block';
+    }
+
+    function renderVersion() {
+        var chip = document.getElementById('spikes-version');
+        var note = modal && modal.querySelector('#spikes-version-note');
+        var v = readback.version;
+        if (!v) {
+            if (chip) chip.style.display = 'none';
+            if (note) note.style.display = 'none';
+            return;
+        }
+        if (chip) {
+            chip.textContent = v.label;
+            chip.title = v.notes || ('Version ' + v.label);
+            chip.style.display = 'block';
+        }
+        if (note) {
+            note.innerHTML = '<div style="font-size:12px;color:' + theme.textMuted + ';margin-bottom:12px;padding:8px 10px;background:' + theme.bg + ';border-radius:6px;border-left:2px solid ' + theme.green + ';">' +
+                '<span style="color:' + theme.text + ';font-weight:500;">' + escapeHtml(v.label) + '</span>' +
+                (v.notes ? '<div style="margin-top:4px;white-space:pre-wrap;">' + escapeHtml(v.notes) + '</div>' : '') +
+            '</div>';
+            note.style.display = 'block';
+        }
+    }
+
+    function loadAnswered() {
+        try { return JSON.parse(localStorage.getItem(ANSWERED_KEY)) || []; } catch (e) { return []; }
+    }
+
+    function markAnswered(id) {
+        var list = loadAnswered();
+        if (list.indexOf(id) === -1) list.push(id);
+        try { localStorage.setItem(ANSWERED_KEY, JSON.stringify(list)); } catch (e) { /* quota */ }
+    }
+
+    function renderQuestions() {
+        var box = modal && modal.querySelector('#spikes-questions');
+        var badge = document.getElementById('spikes-questions-badge');
+        var answered = loadAnswered();
+        var open = readback.questions.filter(function(q) { return answered.indexOf(q.id) === -1; });
+
+        if (badge) {
+            if (open.length) {
+                badge.textContent = open.length + (open.length === 1 ? ' question' : ' questions') + ' for you';
+                badge.style.display = 'block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        if (!box) return;
+        if (!readback.questions.length) { box.style.display = 'none'; return; }
+
+        box.innerHTML = sectionTitle('Questions for you (' + open.length + ')') + readback.questions.map(function(q) {
+            var done = answered.indexOf(q.id) !== -1;
+            return '<div class="spikes-question" data-question-id="' + escapeHtml(q.id) + '" style="padding:8px 12px;margin-bottom:8px;background:' + theme.bg + ';border-radius:6px;border-left:2px solid ' + (done ? theme.green : theme.yellow) + ';">' +
+                '<div style="font-size:12px;color:' + theme.text + ';font-weight:500;">' + escapeHtml(q.title) + '</div>' +
+                (q.body ? '<div style="font-size:12px;color:' + theme.textMuted + ';margin-top:2px;white-space:pre-wrap;">' + escapeHtml(q.body) + '</div>' : '') +
+                (done
+                    ? '<div class="spikes-answered" style="font-size:11px;color:' + theme.green + ';margin-top:6px;">Answered ✓</div>'
+                    : '<textarea class="spikes-answer" placeholder="Your answer" style="' + textareaStyle() + 'height:60px;margin-top:8px;"></textarea>' +
+                      '<button class="spikes-answer-send" style="' + saveBtnStyle() + 'margin-top:6px;">Send answer</button>') +
+            '</div>';
+        }).join('');
+        box.style.display = 'block';
+
+        var cards = box.querySelectorAll('.spikes-question');
+        for (var i = 0; i < cards.length; i++) {
+            (function(card) {
+                var send = card.querySelector('.spikes-answer-send');
+                if (!send) return;
+                send.onclick = function(e) {
+                    e.stopPropagation();
+                    var text = card.querySelector('.spikes-answer').value.trim();
+                    if (!text) { card.querySelector('.spikes-answer').focus(); return; }
+                    var doSend = function() { postAnswer(card.getAttribute('data-question-id'), text, send); };
+                    if (currentReviewer) {
+                        doSend();
+                    } else {
+                        var area = modal.querySelector('#spikes-modal-name-prompt-area');
+                        area.innerHTML = '';
+                        showNamePrompt(area, doSend);
+                    }
+                };
+            })(cards[i]);
+        }
+    }
+
+    function postAnswer(questionId, text, button) {
+        button.disabled = true;
+        button.textContent = 'Sending…';
+        var url = publicBase + '/questions/' + encodeURIComponent(questionId) + '/answers';
+        var fail = function(status) {
+            button.disabled = false;
+            button.textContent = 'Send answer';
+            showToast('Answer not sent' + (status ? ' (HTTP ' + status + ')' : ''), 'error', 3000);
+        };
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onerror = function() { fail(null); };
+            xhr.onload = function() {
+                if (xhr.status < 200 || xhr.status >= 300) { fail(xhr.status); return; }
+                markAnswered(questionId);
+                showToast('Answer sent', 'success', 2000);
+                renderQuestions();
+            };
+            xhr.send(JSON.stringify({ body: text, reviewer: getReviewerForSpike() }));
+        } catch (e) {
+            fail(null);
+        }
+    }
+
     function escapeHtml(str) {
         var div = document.createElement('div');
         div.textContent = str;
@@ -1948,6 +2322,7 @@
         createButton();
         createModal();
         createPopover();
+        initReadback();
     }
 
     if (document.readyState === 'loading') {
@@ -1979,7 +2354,10 @@
         isReviewMode: function() { return reviewMode; },
         toggleReviewMode: toggleReviewMode,
         showReviewMarkers: showReviewMarkers,
-        hideReviewMarkers: hideReviewMarkers
+        hideReviewMarkers: hideReviewMarkers,
+        // Read-back API
+        getReadback: function() { return readback; },
+        refreshReadback: initReadback
     };
 
     // Log version info to console for debugging
