@@ -55,17 +55,15 @@ impl DataSource {
             return Ok(DataSource::Local);
         }
 
-        // Token resolution: SPIKES_TOKEN env var > auth.toml > error
-        let token = match AuthConfig::token()? {
-            Some(t) => t,
-            None => {
-                return Err(Error::AuthFailed);
-            }
-        };
+        // Credential precedence (contract §9): repo [remote].token (project or
+        // account key) > SPIKES_TOKEN > global auth file token > stored API key.
+        let cred = crate::api::resolve_credential()?.ok_or(Error::NoCredential)?;
+        let api_base = crate::api::resolve_endpoint();
 
-        let api_base = get_api_base();
-
-        Ok(DataSource::Remote { token, api_base })
+        Ok(DataSource::Remote {
+            token: cred.token,
+            api_base,
+        })
     }
 }
 
@@ -400,10 +398,7 @@ impl SpikesService {
                     }
                 }
                 // Unresolved filter
-                if unresolved_only && s.is_resolved() {
-                    return false;
-                }
-                true
+                !(unresolved_only && s.is_resolved())
             })
             .collect();
 

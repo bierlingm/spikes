@@ -126,6 +126,24 @@ pub fn classify_spikes(
     (events, newest)
 }
 
+/// Next `since` cursor after a poll: the newest marker seen when it is later
+/// than the current cursor, else the poll start time. `None` when the poll
+/// failed, so the caller keeps the cursor and does not stamp the state file.
+fn next_cursor(
+    poll_ok: bool,
+    newest_marker: Option<String>,
+    since: &str,
+    poll_started: &str,
+) -> Option<String> {
+    if !poll_ok {
+        return None;
+    }
+    Some(match newest_marker {
+        Some(m) if is_after(&m, since) => m,
+        _ => poll_started.to_string(),
+    })
+}
+
 fn deliver(event: &WatchEvent, exec: Option<&str>) -> Result<()> {
     let line = serde_json::to_string(event)?;
     let stdout = std::io::stdout();
@@ -199,6 +217,7 @@ pub fn run(options: WatchOptions) -> Result<()> {
             ],
         );
         let mut newest_marker: Option<String> = None;
+        let mut poll_ok = false;
         match client.get(&path) {
             Ok(value) => {
                 let spikes: Vec<Spike> = data_array(&value)
@@ -207,6 +226,7 @@ pub fn run(options: WatchOptions) -> Result<()> {
                     .collect();
                 let (events, newest) = classify_spikes(spikes, &since, &mut seen_spikes);
                 newest_marker = newest;
+                poll_ok = true;
                 for event in &events {
                     deliver(event, options.exec.as_deref())?;
                 }
@@ -288,12 +308,12 @@ pub fn run(options: WatchOptions) -> Result<()> {
             }
         }
 
-        // Advance the cursor: newest marker seen this poll, else poll start.
-        since = match newest_marker {
-            Some(m) if is_after(&m, &since) => m,
-            _ => poll_started,
-        };
-        let _ = state::stamp(&endpoint, &cred.token);
+        // Advance the cursor and the stamp only after a successful spikes poll;
+        // a failed poll keeps `since` so nothing updated meanwhile is skipped.
+        if let Some(next) = next_cursor(poll_ok, newest_marker, &since, &poll_started) {
+            since = next;
+            let _ = state::stamp(&endpoint, &cred.token);
+        }
 
         if options.once {
             break;
@@ -307,6 +327,63 @@ pub fn run(options: WatchOptions) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_poll_keeps_cursor() {
+        assert_eq!(
+            next_cursor(
+                false,
+                None,
+                "2026-09-15T12:00:00.000Z",
+                "2026-09-15T12:00:30.000Z"
+            ),
+            None
+        );
+        assert_eq!(
+            next_cursor(
+                false,
+                Some("2026-09-15T12:00:10.000Z".into()),
+                "2026-09-15T12:00:00.000Z",
+                "2026-09-15T12:00:30.000Z"
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn successful_poll_advances_to_newest_marker_or_poll_start() {
+        assert_eq!(
+            next_cursor(
+                true,
+                Some("2026-09-15T12:00:10.000Z".into()),
+                "2026-09-15T12:00:00.000Z",
+                "2026-09-15T12:00:30.000Z"
+            )
+            .as_deref(),
+            Some("2026-09-15T12:00:10.000Z")
+        );
+        assert_eq!(
+            next_cursor(
+                true,
+                None,
+                "2026-09-15T12:00:00.000Z",
+                "2026-09-15T12:00:30.000Z"
+            )
+            .as_deref(),
+            Some("2026-09-15T12:00:30.000Z")
+        );
+        // A marker older than the cursor never moves it backwards.
+        assert_eq!(
+            next_cursor(
+                true,
+                Some("2026-09-15T11:00:00.000Z".into()),
+                "2026-09-15T12:00:00.000Z",
+                "2026-09-15T12:00:30.000Z"
+            )
+            .as_deref(),
+            Some("2026-09-15T12:00:30.000Z")
+        );
+    }
 
     fn spike(id: &str, created: &str, updated: &str) -> Spike {
         Spike {

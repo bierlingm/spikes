@@ -8,7 +8,7 @@
 
 use crate::api::{encode, resolve_credential, resolve_endpoint, ApiClient};
 use crate::config::Config;
-use crate::error::{Error, Result};
+use crate::error::{ApiErrorCode, Error, Result};
 use crate::output::print_json;
 use crate::spike::Spike;
 use crate::storage::{find_spike_by_id, load_spikes, save_spikes};
@@ -54,6 +54,33 @@ impl ResolveOptions {
         } else {
             serde_json::json!({ "resolved": !self.unresolve })
         }
+    }
+}
+
+/// PATCH the spike on the hosted API.
+fn remote_patch(full_id: &str, options: &ResolveOptions) -> Result<serde_json::Value> {
+    let cred = resolve_credential()?.ok_or(Error::NoCredential)?;
+    let client = ApiClient::new(&resolve_endpoint(), &cred.token);
+    client.patch(
+        &format!("/spikes/{}", encode(full_id)),
+        &options.remote_body(),
+    )
+}
+
+/// Remote errors that should not block a local-only resolution: no credential,
+/// or the server does not know the spike (404 in any of its spellings).
+fn falls_back_to_local(err: &Error) -> bool {
+    match err {
+        Error::NoCredential => true,
+        Error::RequestFailed(msg) => msg == "Resource not found",
+        Error::ApiError(api) => match api.code {
+            Some(ApiErrorCode::ProjectNotFound) => true,
+            Some(ApiErrorCode::Unknown(ref code)) => {
+                code == "SPIKE_NOT_FOUND" || code == "NOT_FOUND"
+            }
+            _ => false,
+        },
+        _ => false,
     }
 }
 
@@ -112,13 +139,18 @@ pub fn run(options: ResolveOptions) -> Result<()> {
         .unwrap_or(false);
     let mut remote_response: Option<serde_json::Value> = None;
     if remote_configured {
-        let cred = resolve_credential()?.ok_or(Error::NoCredential)?;
-        let client = ApiClient::new(&resolve_endpoint(), &cred.token);
-        let response = client.patch(
-            &format!("/spikes/{}", encode(&full_id)),
-            &options.remote_body(),
-        )?;
-        remote_response = Some(response);
+        match remote_patch(&full_id, &options) {
+            Ok(response) => remote_response = Some(response),
+            // A spike that only exists locally (collected via `spikes serve`),
+            // or no credential at hand: resolve locally and say so.
+            Err(e) if local_match.is_some() && falls_back_to_local(&e) => {
+                eprintln!(
+                    "warning: remote update skipped ({}); resolved locally only",
+                    e
+                );
+            }
+            Err(e) => return Err(e),
+        }
     } else if local_match.is_none() {
         return Err(Error::SpikeNotFound(options.id.clone()));
     }
@@ -172,6 +204,7 @@ pub fn run(options: ResolveOptions) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ApiError;
 
     fn opts() -> ResolveOptions {
         ResolveOptions {
@@ -250,6 +283,35 @@ mod tests {
         );
         assert_eq!(s.resolved, None);
         assert_eq!(s.status.as_deref(), Some("open"));
+    }
+
+    #[test]
+    fn test_falls_back_to_local_only_for_missing_credential_or_404() {
+        assert!(falls_back_to_local(&Error::NoCredential));
+        assert!(falls_back_to_local(&Error::RequestFailed(
+            "Resource not found".to_string()
+        )));
+        let not_found = |code: ApiErrorCode| {
+            Error::ApiError(ApiError {
+                error: "nope".to_string(),
+                code: Some(code),
+                revoked_at: None,
+                expires_at: None,
+                upgrade_url: None,
+            })
+        };
+        assert!(falls_back_to_local(&not_found(ApiErrorCode::Unknown(
+            "SPIKE_NOT_FOUND".to_string()
+        ))));
+        assert!(falls_back_to_local(&not_found(
+            ApiErrorCode::ProjectNotFound
+        )));
+        assert!(!falls_back_to_local(&not_found(ApiErrorCode::Unknown(
+            "VALIDATION_ERROR".to_string()
+        ))));
+        assert!(!falls_back_to_local(&Error::AuthFailed));
+        assert!(!falls_back_to_local(&Error::AuthRevoked(None)));
+        assert!(!falls_back_to_local(&Error::ServerFailure));
     }
 
     #[test]

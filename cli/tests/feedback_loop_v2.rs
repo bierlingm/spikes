@@ -510,6 +510,94 @@ fn resolve_local_only_without_remote_keeps_working() {
         .stdout(predicate::str::contains("\"status\": \"wont_do\""));
 }
 
+#[tokio::test]
+async fn resolve_falls_back_to_local_when_remote_returns_404() {
+    let server = MockServer::start().await;
+    Mock::given(matchers::method("PATCH"))
+        .and(matchers::path("/spikes/aaaa1111"))
+        .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+            "error": "Spike not found", "code": "SPIKE_NOT_FOUND"
+        })))
+        .mount(&server)
+        .await;
+    let dir = project_with_remote(&server.uri(), None);
+    fs::write(
+        dir.path().join(".spikes/feedback.jsonl"),
+        format!(
+            "{}\n",
+            spike_json("aaaa1111", "https://x/", "2026-09-12T10:00:00.000Z")
+        ),
+    )
+    .unwrap();
+    let path = dir.path().join(".spikes/feedback.jsonl");
+    tokio::task::spawn_blocking(move || {
+        spikes_cmd(&dir)
+            .args(["resolve", "aaaa", "--wont-do", "--json"])
+            .assert()
+            .success()
+            .stderr(predicate::str::contains("resolved locally only"))
+            .stdout(predicate::str::contains("\"status\": \"wont_do\""));
+        let saved = fs::read_to_string(&path).unwrap();
+        assert!(
+            saved.contains("\"status\":\"wont_do\"") || saved.contains("\"status\": \"wont_do\"")
+        );
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn resolve_propagates_remote_404_without_local_match() {
+    let server = MockServer::start().await;
+    Mock::given(matchers::method("PATCH"))
+        .and(matchers::path("/spikes/zzzz9999"))
+        .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+            "error": "Spike not found", "code": "SPIKE_NOT_FOUND"
+        })))
+        .mount(&server)
+        .await;
+    let dir = project_with_remote(&server.uri(), None);
+    tokio::task::spawn_blocking(move || {
+        spikes_cmd(&dir)
+            .args(["resolve", "zzzz9999"])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("Spike not found"));
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn resolve_does_not_fall_back_on_revoked_credential() {
+    let server = MockServer::start().await;
+    Mock::given(matchers::method("PATCH"))
+        .and(matchers::path("/spikes/aaaa1111"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({
+            "error": "revoked", "code": "TOKEN_REVOKED", "revoked_at": "2026-09-01T00:00:00Z"
+        })))
+        .mount(&server)
+        .await;
+    let dir = project_with_remote(&server.uri(), None);
+    fs::write(
+        dir.path().join(".spikes/feedback.jsonl"),
+        format!(
+            "{}\n",
+            spike_json("aaaa1111", "https://x/", "2026-09-12T10:00:00.000Z")
+        ),
+    )
+    .unwrap();
+    tokio::task::spawn_blocking(move || {
+        spikes_cmd(&dir)
+            .args(["resolve", "aaaa"])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("revoked"));
+    })
+    .await
+    .unwrap();
+}
+
 #[test]
 fn resolve_rejects_conflicting_flags() {
     let dir = project_with_remote("http://127.0.0.1:9", None);
@@ -928,14 +1016,46 @@ async fn create_key_with_project_sends_project_key_and_bearer() {
 }
 
 #[test]
-fn create_key_with_project_requires_login() {
+fn create_key_with_project_requires_a_credential() {
     let dir = TempDir::new().unwrap();
     spikes_cmd(&dir)
         .env("SPIKES_API_URL", "http://127.0.0.1:9")
         .args(["auth", "create-key", "--project", "yvs"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("requires a login"));
+        .stderr(predicate::str::contains(
+            "needs a user token or an account key",
+        ));
+}
+
+#[tokio::test]
+async fn create_key_with_project_refuses_project_scoped_credential() {
+    let server = MockServer::start().await;
+    // The configured [remote].token is itself a project key: /me says so.
+    Mock::given(matchers::method("GET"))
+        .and(matchers::path("/me"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "type": "api_key", "scopes": "full", "project_key": "other",
+            "user": { "id": "u1", "email": "o@x.y", "tier": "pro" }
+        })))
+        .mount(&server)
+        .await;
+    Mock::given(matchers::method("POST"))
+        .and(matchers::path("/auth/api-key"))
+        .respond_with(ResponseTemplate::new(201))
+        .expect(0)
+        .mount(&server)
+        .await;
+    let dir = project_with_remote(&server.uri(), None);
+    tokio::task::spawn_blocking(move || {
+        spikes_cmd(&dir)
+            .args(["auth", "create-key", "--project", "yvs"])
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("project-scoped key"));
+    })
+    .await
+    .unwrap();
 }
 
 // ---------------------------------------------------------------------------

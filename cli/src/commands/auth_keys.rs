@@ -97,6 +97,25 @@ pub struct CreateKeyOptions {
     pub json: bool,
 }
 
+/// Refuse to mint keys with a project-scoped credential (`GET /me` reports a
+/// non-null `project_key` for those); such a key can only read and write its
+/// own project, never manage keys.
+fn reject_project_scoped_credential(me: &serde_json::Value) -> Result<()> {
+    let scoped = me
+        .get("project_key")
+        .and_then(|v| v.as_str())
+        .map(|p| !p.is_empty())
+        .unwrap_or(false);
+    if scoped {
+        return Err(Error::Io(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "Minting keys needs a user token or an account key; the configured credential is a project-scoped key. \
+             Run 'spikes login' or set SPIKES_TOKEN to an account key.",
+        )));
+    }
+    Ok(())
+}
+
 pub fn create_key(options: CreateKeyOptions) -> Result<()> {
     let CreateKeyOptions {
         name,
@@ -104,7 +123,8 @@ pub fn create_key(options: CreateKeyOptions) -> Result<()> {
         save,
         json,
     } = options;
-    let api_base = get_api_base();
+    // Endpoint precedence matches the credential: repo config, then env/default.
+    let api_base = crate::api::resolve_endpoint();
     let url = format!("{}/auth/api-key", api_base.trim_end_matches('/'));
 
     // Build request body
@@ -119,18 +139,27 @@ pub fn create_key(options: CreateKeyOptions) -> Result<()> {
         );
     }
 
-    // A project-scoped key must be minted by the project owner
-    let user_token = AuthConfig::token()?;
-    if project.is_some() && user_token.is_none() {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Creating a project-scoped key requires a login. Run 'spikes login' first.",
-        )));
+    // Same credential precedence as every other remote command. A
+    // project-scoped key must be minted by a user token or an account key.
+    let credential = crate::api::resolve_credential()?;
+    if project.is_some() {
+        let cred = credential.as_ref().ok_or_else(|| {
+            Error::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "Minting a project-scoped key needs a user token or an account key: \
+                 run 'spikes login' or set SPIKES_TOKEN to an account key.",
+            ))
+        })?;
+        if cred.is_api_key() {
+            let client = crate::api::ApiClient::new(&api_base, &cred.token);
+            let me = client.get("/me")?;
+            reject_project_scoped_credential(&me)?;
+        }
     }
 
     let mut request = ureq::post(&url).set("Content-Type", "application/json");
-    if let Some(ref t) = user_token {
-        request = request.set("Authorization", &format!("Bearer {}", t));
+    if let Some(ref c) = credential {
+        request = request.set("Authorization", &format!("Bearer {}", c.token));
     }
 
     let response = match request.send_json(serde_json::Value::Object(body)) {
@@ -711,5 +740,16 @@ mod tests {
         let deserialized: CreateKeyResponse = serde_json::from_str(&json_str).unwrap();
         assert_eq!(deserialized.api_key, resp.api_key);
         assert_eq!(deserialized.key_id, resp.key_id);
+    }
+
+    #[test]
+    fn test_reject_project_scoped_credential() {
+        let scoped = serde_json::json!({ "type": "api_key", "project_key": "yvs" });
+        let err = reject_project_scoped_credential(&scoped).unwrap_err();
+        assert!(err.to_string().contains("project-scoped key"));
+        let account = serde_json::json!({ "type": "api_key", "project_key": null });
+        assert!(reject_project_scoped_credential(&account).is_ok());
+        let user = serde_json::json!({ "email": "a@b.c", "tier": "pro" });
+        assert!(reject_project_scoped_credential(&user).is_ok());
     }
 }

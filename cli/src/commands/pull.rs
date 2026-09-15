@@ -20,6 +20,7 @@ pub struct PullOptions {
     pub json: bool,
 }
 
+#[derive(Debug)]
 struct RemoteConfig {
     endpoint: String,
     token: String,
@@ -158,19 +159,31 @@ fn get_remote_config(
         return Ok(RemoteConfig { endpoint, token });
     }
 
-    // Fall back to config file
+    // [remote] section of .spikes/config.toml, when present
+    let (config_endpoint, config_token) = read_remote_section()?;
+
+    // Same precedence as `spikes status` and the other remote commands:
+    // flags > [remote] > SPIKES_TOKEN > global auth file.
+    let fallback_token = crate::api::resolve_credential()?.map(|c| c.token);
+    let fallback_endpoint = crate::api::resolve_endpoint();
+
+    merge_remote_config(
+        endpoint_arg,
+        token_arg,
+        config_endpoint,
+        config_token,
+        fallback_token,
+        fallback_endpoint,
+    )
+}
+
+/// Read `[remote] endpoint` / `token` from `.spikes/config.toml`, or `(None, None)`
+/// when the file does not exist.
+fn read_remote_section() -> Result<(Option<String>, Option<String>)> {
     let config_path = Path::new(".spikes/config.toml");
     if !config_path.exists() {
-        return Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "No endpoint specified and .spikes/config.toml not found.\n\
-             Use --endpoint and --token, or configure in .spikes/config.toml:\n\n\
-             [remote]\n\
-             endpoint = \"https://your-worker.workers.dev\"\n\
-             token = \"your-token\"",
-        )));
+        return Ok((None, None));
     }
-
     let content = fs::read_to_string(config_path)?;
     let config: toml::Value = content.parse().map_err(|e: toml::de::Error| {
         Error::Io(std::io::Error::new(
@@ -178,42 +191,40 @@ fn get_remote_config(
             format!("Invalid config.toml: {}", e),
         ))
     })?;
-
-    let endpoint = endpoint_arg.or_else(|| {
+    let get = |k: &str| {
         config
             .get("remote")
-            .and_then(|r| r.get("endpoint"))
+            .and_then(|r| r.get(k))
             .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
             .map(|s| s.to_string())
-    });
+    };
+    Ok((get("endpoint"), get("token")))
+}
 
-    let token = token_arg.or_else(|| {
-        config
-            .get("remote")
-            .and_then(|r| r.get("token"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-    });
-
-    match (endpoint, token) {
-        (Some(endpoint), Some(token)) => {
-            if endpoint.ends_with("/spikes") {
-                return Err(Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Endpoint should be the base URL (e.g. https://spikes.sh), not the /spikes path",
-                )));
-            }
-            Ok(RemoteConfig { endpoint, token })
-        }
-        (None, _) => Err(Error::Io(std::io::Error::new(
+/// Pure merge of the credential/endpoint sources, in precedence order.
+fn merge_remote_config(
+    endpoint_arg: Option<String>,
+    token_arg: Option<String>,
+    config_endpoint: Option<String>,
+    config_token: Option<String>,
+    fallback_token: Option<String>,
+    fallback_endpoint: String,
+) -> Result<RemoteConfig> {
+    let endpoint = endpoint_arg
+        .or(config_endpoint)
+        .unwrap_or(fallback_endpoint);
+    if endpoint.ends_with("/spikes") {
+        return Err(Error::Io(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
-            "No remote endpoint. Add [remote] endpoint = \"...\" to .spikes/config.toml",
-        ))),
-        (_, None) => Err(Error::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "No token. Add token = \"...\" under [remote] in .spikes/config.toml",
-        ))),
+            "Endpoint should be the base URL (e.g. https://spikes.sh), not the /spikes path",
+        )));
     }
+    let token = token_arg
+        .or(config_token)
+        .or(fallback_token)
+        .ok_or(Error::NoCredential)?;
+    Ok(RemoteConfig { endpoint, token })
 }
 
 #[allow(dead_code)]
@@ -418,6 +429,70 @@ mod tests {
     use serial_test::serial;
 
     const SPIKES_API_URL_ENV: &str = "SPIKES_API_URL";
+
+    #[test]
+    fn test_merge_remote_config_precedence() {
+        let c = merge_remote_config(
+            None,
+            None,
+            None,
+            None,
+            Some("sk_spikes_fallback".into()),
+            "https://spikes.sh".into(),
+        )
+        .unwrap();
+        assert_eq!(c.endpoint, "https://spikes.sh");
+        assert_eq!(c.token, "sk_spikes_fallback");
+
+        // [remote] beats the fallback, flags beat [remote]
+        let c = merge_remote_config(
+            None,
+            None,
+            Some("https://w.example".into()),
+            Some("cfg".into()),
+            Some("fallback".into()),
+            "https://spikes.sh".into(),
+        )
+        .unwrap();
+        assert_eq!(
+            (c.endpoint.as_str(), c.token.as_str()),
+            ("https://w.example", "cfg")
+        );
+        let c = merge_remote_config(
+            Some("https://flag.example".into()),
+            None,
+            Some("https://w.example".into()),
+            Some("cfg".into()),
+            None,
+            "https://spikes.sh".into(),
+        )
+        .unwrap();
+        assert_eq!(
+            (c.endpoint.as_str(), c.token.as_str()),
+            ("https://flag.example", "cfg")
+        );
+    }
+
+    #[test]
+    fn test_merge_remote_config_no_credential_anywhere() {
+        let err = merge_remote_config(None, None, None, None, None, "https://spikes.sh".into())
+            .unwrap_err();
+        assert!(matches!(err, Error::NoCredential));
+    }
+
+    #[test]
+    fn test_merge_remote_config_rejects_spikes_suffix() {
+        let err = merge_remote_config(
+            None,
+            None,
+            Some("https://w.example/spikes".into()),
+            Some("t".into()),
+            None,
+            "https://spikes.sh".into(),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("not the /spikes path"));
+    }
 
     #[test]
     fn test_parse_share_slug_from_url() {

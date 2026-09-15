@@ -77,7 +77,7 @@ created_at TEXT NOT NULL
 
 ## 4. Public read-back for the widget
 
-All `/public/*` endpoints: no bearer token, origin allowlist enforced exactly like `POST /spikes` (`403 ORIGIN_NOT_ALLOWED`), per-IP rate limit 120/min, responses never include reviewer email, user agent, or bounding boxes of other reviewers' spikes.
+All `/public/*` endpoints: no bearer token, origin allowlist enforced like `POST /spikes` (`403 ORIGIN_NOT_ALLOWED`) with one difference: a missing `Origin` header or the literal `null` is always refused, even when the project's allowlist contains `"null"` (that entry exists for file:// widget posts, not for reads), per-IP rate limit 120/min, responses never include reviewer email, user agent, or bounding boxes of other reviewers' spikes.
 
 - `GET /public/spikes?project=<key>&url=<url>` returns `{ data: [ { id, type, selector, xpath, elementText, rating, comments, status, addressedIn, reviewer: { id, name }, timestamp, lastReply, version } ] }` for spikes whose `url` equals the given URL with any fragment removed. Max 200, newest first.
 - `GET /public/versions?project=<key>` returns `{ data: [ { label, urlPrefix, notes, createdAt } ] }`.
@@ -171,7 +171,7 @@ New or changed commands, all with `--json`:
 - `spikes pull --since <ISO|last> [--url-prefix <p>]`. `last` reads the stamp. Existing behaviour without flags is unchanged apart from writing the stamp.
 - `spikes projects create <key> [--origin <o>]...` and `spikes projects list` (user token or account key).
 - `spikes auth create-key --project <key>` mints a project key (existing `create-key` gains the flag).
-- `spikes reply <id> <text> [--version <label>] [--status addressed|wont_do|open] [--name <author>]`.
+- `spikes reply <id> <text> [--version <label>] [--status addressed|wont_do|open] [--name <author>]`. `--version <label>` also sets the spike to `addressed` with `addressed_in = <label>` unless `--status` is given explicitly.
 - `spikes resolve <id> [--in <label>] [--wont-do]` sends `status` per section 2; `spikes resolve --undo <id>` sends `status: open`. Existing `resolve` without flags keeps sending `resolved: true`.
 - `spikes versions add <label> --prefix <url-prefix> [--notes <text>]`, `spikes versions list`, `spikes versions notes <label> <text>`.
 - `spikes questions add <title> [--body <text>]`, `spikes questions list [--closed]`, `spikes questions answers <id>`, `spikes questions close <id>`.
