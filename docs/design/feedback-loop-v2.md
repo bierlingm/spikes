@@ -1,6 +1,6 @@
 # Feedback loop v2: closing all four arcs
 
-Status: design draft, 2026-09-14. Written after the Prosser Home review round exposed that Spikes covers one arc of its own tagline. Companion to `docs/agent-readiness.md` (March 2026), which covers agent auth and pricing at the account level; this doc is about the loop itself.
+Status: implemented 2026-09-15 across bierlingm/spikes-hosted#30 and the companion spikes PR (issues spikes-hosted #17–#28, spikes #13–#24); hosted snapshots (spikes-hosted#29) deferred. Written 2026-09-14. Written after the Prosser Home review round exposed that Spikes covers one arc of its own tagline. Companion to `docs/agent-readiness.md` (March 2026), which covers agent auth and pricing at the account level; this doc is about the loop itself.
 
 ## 1. What the Prosser round showed
 
@@ -98,6 +98,6 @@ Effort: 4 to 5 days. Depends on slices 1 and 3.
 
 **Pricing.** Project keys, webhooks, `watch`, and the review page belong in Pro and agent tiers. Capture stays free so reviewers never hit a wall. Questions and versions gate on Pro. Nothing here needs a new Stripe price.
 
-## 6. Decision needed
+## 6. Outcome
 
-Slice 1 is the recommendation: it is the only slice that would have turned this week's D1 queries into three CLI commands, and every later slice builds on its `since`, replies, and keys. The alternative worth arguing for is slice 3 first, because the reviewer-facing gap is what a paying client notices. Pick one; the other follows.
+All four slices were built in one pass (2026-09-15) rather than sequenced, because each later slice only needed the contract from slice 1, not its deployment. What remains is operational: apply migrations 015–020, deploy the worker, sync the widget to R2, and mint a project-scoped key for the Prosser project so the next review round runs through `spikes watch` instead of D1 queries. Hosted snapshots (slice 4's last item) are tracked separately.
