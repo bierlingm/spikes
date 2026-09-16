@@ -140,7 +140,7 @@ fn generate_cursor_context(spikes: &[crate::spike::Spike]) -> String {
     } else {
         for spike in &blocking {
             output.push_str(&format!("### [{}] {} on `{}`\n", 
-                &spike.id.chars().take(8).collect::<String>(),
+                spike.id.chars().take(8).collect::<String>(),
                 spike.type_str(),
                 spike.page
             ));
@@ -273,7 +273,7 @@ fn generate_claude_context(spikes: &[crate::spike::Spike]) -> String {
 
         for spike in &blocking {
             output.push_str(&format!("### ID: `{}`\n\n", 
-                &spike.id.chars().take(8).collect::<String>()
+                spike.id.chars().take(8).collect::<String>()
             ));
             output.push_str(&format!("- **Type:** {} on page `{}`\n", 
                 spike.type_str(),

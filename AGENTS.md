@@ -23,7 +23,6 @@ Spikes is the feedback loop tool for AI-assisted building. Building prototypes i
 
 ```bash
 werk tree                    # See full tension tree
-werk survey                  # Field survey — tensions by urgency
 werk show <id>               # Tension details + history
 werk list                    # List all active tensions
 werk reality <id> "new..."   # Update current reality
@@ -32,7 +31,7 @@ werk resolve <id>            # Mark tension resolved
 werk add "desired" "actual" --parent <id>  # Create child tension
 ```
 
-The root tension is #1: "Have 10 paying users on spikes.sh". All work should relate to this goal or its children.
+The root goal is "Have 10 paying users on spikes.sh"; all work should relate to it. If `werk tree` reports no tensions (no `.werk/` workspace in this repo as of 2026-09-16), use GitHub issues in bierlingm/spikes and bierlingm/spikes-hosted as the tracking surface.
 
 ## Architecture
 

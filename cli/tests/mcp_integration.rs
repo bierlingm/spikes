@@ -1,6 +1,6 @@
 //! Integration tests for MCP server
 
-use assert_cmd::Command;
+use assert_cmd::cargo::cargo_bin_cmd;
 use predicates::prelude::*;
 use serial_test::serial;
 use std::process::Child;
@@ -11,8 +11,7 @@ use std::time::Duration;
 fn test_mcp_initialize() {
     let input = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}"#;
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .arg("mcp")
         .arg("serve")
         .write_stdin(input)
@@ -26,8 +25,7 @@ fn test_mcp_tools_list_request() {
     // Test that tools/list is recognized (it will fail without proper init, but shows method exists)
     let input = r#"{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}"#;
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .arg("mcp")
         .arg("serve")
         .write_stdin(input)
@@ -48,8 +46,7 @@ fn test_mcp_sequential_requests() {
         "\n"
     );
 
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .arg("mcp")
         .arg("serve")
         .write_stdin(input)
@@ -63,7 +60,7 @@ fn test_mcp_sequential_requests() {
 fn start_http_server(port: u16) -> Child {
     use std::process::Stdio;
 
-    let binary = assert_cmd::cargo::cargo_bin("spikes");
+    let binary = assert_cmd::cargo::cargo_bin!("spikes");
 
     std::process::Command::new(binary)
         .args([
@@ -338,8 +335,7 @@ fn test_mcp_http_tools_list() {
 
 #[test]
 fn test_mcp_help_shows_transport_options() {
-    Command::cargo_bin("spikes")
-        .unwrap()
+    cargo_bin_cmd!("spikes")
         .args(["mcp", "serve", "--help"])
         .assert()
         .stdout(predicate::str::contains("--transport"))

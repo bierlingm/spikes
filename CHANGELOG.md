@@ -2,7 +2,7 @@
 
 All notable changes to Spikes will be documented in this file.
 
-## [Unreleased]
+## [0.5.0] - 2026-09-16
 
 ### Added
 

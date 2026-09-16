@@ -106,11 +106,7 @@ fn is_directory_empty(path: &Path) -> Result<bool> {
     // Check if there are ANY entries - hidden dotfiles count as non-empty
     // This prevents scaffolding into directories with .git/, .spikes/, .env, etc.
     let mut entries = fs::read_dir(path)?;
-    if entries.next().is_some() {
-        return Ok(false);
-    }
-
-    Ok(true)
+    Ok(entries.next().is_none())
 }
 
 pub fn run(options: DeployOptions) -> Result<()> {

@@ -43,10 +43,7 @@ pub fn run(options: ListOptions) -> Result<()> {
                 }
             }
             // Filter for unresolved spikes only
-            if options.unresolved && s.is_resolved() {
-                return false;
-            }
-            true
+            !(options.unresolved && s.is_resolved())
         })
         .collect();
 

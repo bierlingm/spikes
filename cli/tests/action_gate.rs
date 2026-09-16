@@ -8,7 +8,6 @@
 
 mod common;
 
-use assert_cmd::cargo::cargo_bin_cmd;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -68,35 +67,13 @@ fn check_script_path() -> PathBuf {
     path
 }
 
-/// Get path to the spikes binary
+/// Get path to the spikes binary.
+///
+/// Cargo sets CARGO_BIN_EXE_<name> for integration tests, which is correct for
+/// any target layout; deriving the path from the test executable's location is
+/// not (newer cargo places test binaries under target/<profile>/build/...).
 fn spikes_binary_path() -> PathBuf {
-    // Use cargo_bin_cmd to get the binary path
-    cargo_bin_cmd!("spikes")
-        .arg("--help")
-        .assert()
-        .success();
-
-    // Get the path to the binary
-    let _output = cargo_bin_cmd!("spikes")
-        .arg("version")
-        .assert()
-        .get_output()
-        .to_owned();
-
-    // The binary should be at target/debug/spikes
-    let mut path = std::env::current_exe().unwrap();
-    path.pop(); // Remove test binary name
-    path.pop(); // Remove 'deps'
-    path.push("spikes");
-
-    if !path.exists() {
-        // Try release build
-        path.pop();
-        path.push("release");
-        path.push("spikes");
-    }
-
-    path
+    PathBuf::from(env!("CARGO_BIN_EXE_spikes"))
 }
 
 // ============================================================================

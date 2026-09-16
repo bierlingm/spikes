@@ -1359,7 +1359,7 @@ pub const TURN_START_INSTRUCTIONS: &str = "Spikes holds reviewer feedback on the
 fn format_spike(spike: &Spike) -> String {
     let mut output = format!(
         "[{}] {} on {}\n",
-        &spike.id.chars().take(8).collect::<String>(),
+        spike.id.chars().take(8).collect::<String>(),
         spike.type_str(),
         spike.page
     );
@@ -1864,7 +1864,7 @@ async fn submit_spike_local(
 
     Ok(CallToolResult::success(vec![Content::text(format!(
         "Spike created: [{}] {} on {}\n  Comments: {}\n  ID: {}",
-        &spike.id.chars().take(8).collect::<String>(),
+        spike.id.chars().take(8).collect::<String>(),
         spike.type_str(),
         spike.page,
         spike.comments,
@@ -1965,7 +1965,7 @@ async fn resolve_spike_local(
     match result {
         Ok(updated) => Ok(CallToolResult::success(vec![Content::text(format!(
             "Spike [{}] marked as resolved.\n  Page: {}\n  Resolved at: {}",
-            &updated.id.chars().take(8).collect::<String>(),
+            updated.id.chars().take(8).collect::<String>(),
             updated.page,
             resolved_at
         ))])),
@@ -2026,7 +2026,7 @@ async fn resolve_spike_remote(
 
     Ok(CallToolResult::success(vec![Content::text(format!(
         "Spike [{}] resolved via API.\n  Resolved at: {}",
-        &args.spike_id, resolved_at
+        args.spike_id, resolved_at
     ))]))
 }
 
@@ -2039,7 +2039,7 @@ async fn delete_spike_local(
     match result {
         Ok(removed) => Ok(CallToolResult::success(vec![Content::text(format!(
             "Spike [{}] deleted.\n  Page: {}\n  Comments: {}",
-            &removed.id.chars().take(8).collect::<String>(),
+            removed.id.chars().take(8).collect::<String>(),
             removed.page,
             removed.comments
         ))])),
