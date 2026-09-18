@@ -342,7 +342,7 @@ Create a spike. This is the public endpoint the widget (and any custom embedder)
 }
 ```
 
-`selector`, `xpath`, `elementText`, `boundingBox` are present only for `type: "element"`. `reviewer.email` is present only when `data-collect-email="true"`. `page` is `document.title` (falls back to the path). `id` is ignored; the server generates its own.
+`selector`, `xpath`, `elementText`, `boundingBox` are present only for `type: "element"`. `reviewer.email` is present only when `data-collect-email="true"`. `page` is `document.title` (falls back to the path). The widget's nanoid `id` is ignored and the server generates its own (see *Idempotent retries* below for client-chosen ids).
 
 **Field rules** (`createSpikeSchema`):
 
@@ -360,8 +360,33 @@ Create a spike. This is the public endpoint the widget (and any custom embedder)
 | `selector`, `xpath`, `elementText` | no | strings |
 | `boundingBox` | no | `{ x, y, width, height }` numbers |
 | `share_id` | no | UUID of a hosted share |
+| `id` | no | UUID: used as the spike id and idempotency key. Any other value is ignored |
 
 Unknown fields are ignored.
+
+**Idempotent retries.** To retry a POST safely after a timeout or a lost response, choose the spike id yourself: send a UUID as `id` in the body or as an `Idempotency-Key: <uuid>` header (case-insensitive; stored lower-case), and send the same value on every retry.
+
+- First write: `201 { "ok": true, "id": "<your uuid>" }`.
+- Replay of an id that already exists in the same project: `200 { "ok": true, "id": "…", "duplicate": true }`. Nothing else happens: the stored spike keeps its original content, and no webhook, email, meter event or share-limit count fires. The replay still counts against the rate limits.
+- The id already exists in another project: `409 ID_CONFLICT`.
+- `Idempotency-Key` that is not a UUID, or that differs from a UUID body `id`: `400 VALIDATION_ERROR`.
+- Concurrent requests with the same id create one spike. The others answer like a replay.
+
+```js
+const id = crypto.randomUUID();           // once per spike, reused for retries
+for (let attempt = 0; attempt < 4; attempt++) {
+  try {
+    const res = await fetch('https://spikes.sh/spikes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Idempotency-Key': id },
+      body: JSON.stringify({ projectKey: 'my-project', type: 'page', page: document.title, url: location.href, comments }),
+    });
+    if (res.status === 201 || res.status === 200) break;             // stored (200 = already stored)
+    if (res.status !== 429 && res.status < 500) throw new Error(await res.text()); // do not retry 4xx
+    await new Promise(r => setTimeout(r, (Number(res.headers.get('Retry-After')) || 2 ** attempt) * 1000));
+  } catch (e) { if (attempt === 3) throw e; await new Promise(r => setTimeout(r, 2 ** attempt * 1000)); }
+}
+```
 
 **Origin check.** The server compares the request `Origin` header with the project's `allowed_origins` list (default `["http://localhost:*", "null"]`, set at `POST /projects` or `PATCH /me/projects/:key`):
 
@@ -371,7 +396,7 @@ Unknown fields are ignored.
 - Headers containing CR, LF, NUL, or a comma are rejected.
 - Mismatch → `403 ORIGIN_NOT_ALLOWED`. Unknown project → `404 PROJECT_NOT_FOUND`.
 
-**Preflight.** `OPTIONS /spikes` answers `204` with `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Headers: Content-Type, Authorization`, `Access-Control-Allow-Methods: GET, POST, DELETE, PATCH, OPTIONS`. Every response, including errors, carries `Access-Control-Allow-Origin: *`, so a browser can read the error body.
+**Preflight.** `OPTIONS /spikes` answers `204` with `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Headers: Content-Type, Authorization, Idempotency-Key`, `Access-Control-Allow-Methods: GET, POST, DELETE, PATCH, OPTIONS`. Every response, including errors, carries `Access-Control-Allow-Origin: *`, so a browser can read the error body.
 
 ```bash
 curl -X POST https://spikes.sh/spikes \
@@ -385,15 +410,18 @@ curl -X POST https://spikes.sh/spikes \
 { "ok": true, "id": "df5df3e3-9716-4121-8f60-d4089671bcd4" }
 ```
 
+`200 { "ok": true, "id", "duplicate": true }` for a replayed client id (see above).
+
 **Errors:**
 
 | Status | `code` | When |
 |--------|--------|------|
 | 400 | `INVALID_JSON` | body is not JSON |
-| 400 | `VALIDATION_ERROR` | field rules above (`details[]` names the field) |
+| 400 | `VALIDATION_ERROR` | field rules above (`details[]` names the field), or a bad `Idempotency-Key` |
 | 403 | `ORIGIN_NOT_ALLOWED` | `Origin` not in the project's allowlist |
 | 404 | `PROJECT_NOT_FOUND` | unknown `project`/`projectKey` |
 | 404 | `NOT_FOUND` | `share_id` given but unknown |
+| 409 | `ID_CONFLICT` | client `id` already used by another project |
 | 429 | `RATE_LIMIT` | per-IP limit, `retry_after` seconds |
 | 429 | `RATE_LIMITED` | per-project limit, `retry_after` seconds |
 | 429 | `SPIKE_LIMIT` | free-tier share limit, `upgrade_url` |
@@ -564,7 +592,73 @@ Open questions only.
 { "body": "B, the kitchen", "reviewer": { "id": "r123", "name": "Jane" } }
 ```
 
-`201 { "id": "a1", "questionId": "q1", "createdAt": "…" }`. `400 VALIDATION_ERROR` for an empty body, `404 NOT_FOUND` for an unknown or closed question.
+`201 { "id": "a1", "questionId": "q1", "createdAt": "…" }`. `400 VALIDATION_ERROR` for an empty body, `404 NOT_FOUND` for an unknown or closed question. This endpoint is not idempotent. For a form with several answers, use `POST /public/submissions`.
+
+#### POST /public/submissions
+
+Submit a set of text answers at once (a decision form, a survey step), atomically and idempotently. Access rules are those of `POST /spikes`, not the read-back endpoints: the project must exist, and the `Origin` must match its allowlist. A missing or `null` Origin passes only if the list contains `"null"`. Limits are 60/min per IP (`429 RATE_LIMIT`) and 60/min per project (`429 RATE_LIMITED`), both with `Retry-After`. CORS is open.
+
+```json
+{
+  "project": "my-project",
+  "submission_id": "5b0e8c1e-2a0c-4f7e-9d8a-3f1c2b4a5d6e",
+  "reviewer": { "id": "r123", "name": "Jane" },
+  "page": "/decisions",
+  "url": "https://example.com/decisions",
+  "answers": [
+    { "question_id": "q1", "body": "B, the kitchen" },
+    { "key": "budget", "title": "Budget ceiling", "body": "40k" }
+  ]
+}
+```
+
+| Field | Required | Rule |
+|-------|----------|------|
+| `project` | yes | project key |
+| `submission_id` | yes | UUID minted by the client once per submit and reused for every retry of it. Mint a new one when the answers change |
+| `reviewer` | no | `{ id?, name? }`, default `anon` / `Anonymous` |
+| `page`, `url` | no | strings; `url` must be a valid URL |
+| `answers` | yes | 1 to 50 items |
+| `answers[].body` | yes | 1 to 4000 characters after trimming |
+| `answers[].question_id` | no | an **open** question of this project (`GET /public/questions`); else `400 VALIDATION_ERROR` with `details[].field = "answers.<i>.question_id"` |
+| `answers[].title` | when no `question_id` | up to 200 characters; defaults to the question's title when `question_id` is set |
+| `answers[].key` | no | your own field name, up to 100 characters |
+
+Answers with `question_id` also show up as answers to that question (`GET /me/projects/:key/questions/:id/answers`, the widget panel, the email digest). Answers without one are free-form and are kept only with the submission.
+
+| Status | Body | When |
+|--------|------|------|
+| 201 | `{ "ok": true, "submissionId", "answerCount" }` | stored; all answers or none |
+| 200 | `{ "ok": true, "submissionId", "answerCount", "duplicate": true }` | same `submission_id`, same answers: nothing is written, nothing fires |
+| 409 | `IDEMPOTENCY_CONFLICT` | same `submission_id` with different answers; nothing is written |
+| 409 | `ID_CONFLICT` | `submission_id` belongs to another project |
+| 400 | `VALIDATION_ERROR` / `INVALID_JSON` | see the rules above |
+| 403 / 404 / 429 | `ORIGIN_NOT_ALLOWED` / `PROJECT_NOT_FOUND` / `RATE_LIMIT`, `RATE_LIMITED` | as for `POST /spikes` |
+
+A stored submission fires one `submission.received` project webhook with the whole submission, then one `question.answered` per answer that has a `question_id` (see *Project webhooks*).
+
+```js
+const submission_id = crypto.randomUUID(); // keep it until the server has answered 200 or 201
+async function send() {
+  const res = await fetch('https://spikes.sh/public/submissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ project: 'my-project', submission_id, reviewer, page: location.pathname, url: location.href, answers }),
+  });
+  if (res.status === 200 || res.status === 201) return res.json();
+  if (res.status === 429 || res.status >= 500) throw new Error('retry'); // retry later with the same submission_id
+  throw new Error(`rejected: ${res.status} ${await res.text()}`);       // fix the request, do not retry as is
+}
+```
+
+Owner side (user token, account key, or the project's key):
+
+| Method | Path | Result |
+|--------|------|--------|
+| `GET` | `/me/projects/:key/submissions[?since=<ISO>&limit=1..200]` | `{ "data": [Submission] }`. Without `since`, newest first. With `since`, only submissions created after it, oldest first, so a poller can pass the last `createdAt` as the next `since`. Default `limit` 50 |
+| `GET` | `/me/projects/:key/submissions/:id` | `Submission`, or `404 NOT_FOUND` |
+
+`Submission` = `{ id, projectKey, reviewer: { id, name }, page, url, answerCount, createdAt, answers: [ { id, position, questionId, key, title, body } ] }`.
 
 ---
 
@@ -628,7 +722,7 @@ Auth as for versions. Reviewers answer through `POST /public/questions/:id/answe
 
 ### Project webhooks
 
-Configured per project with `PATCH /me/projects/:key`. Delivery uses the same signing and retry logic as share webhooks (HMAC-SHA256 of the raw body with the project's `webhook_secret` in the signature header).
+Configured per project with `PATCH /me/projects/:key`. Every event is a `POST` of JSON to the project's `webhook_url`:
 
 ```json
 {
@@ -637,11 +731,40 @@ Configured per project with `PATCH /me/projects/:key`. Delivery uses the same si
   "timestamp": "2026-09-15T08:00:00.000Z",
   "spike": { "…SpikeResponse" },
   "reply": null,
-  "answer": null
+  "answer": null,
+  "submission": null,
+  "deliveryId": "0f6c5a52-1f0e-4d53-a8c4-6a1b0b8f2e11"
 }
 ```
 
-`event` is one of `spike.created`, `spike.replied` (`reply` set), `spike.status_changed`, `question.answered` (`answer`: `{ questionId, questionTitle, reviewer, body, createdAt }`, `spike` null).
+`event` is one of:
+
+- `spike.created`
+- `spike.replied` (`reply` set)
+- `spike.status_changed`
+- `question.answered` (`answer`: `{ questionId, questionTitle, reviewer, body, createdAt }`, `spike` null)
+- `submission.received` (`submission`: the `Submission` object of `POST /public/submissions`)
+
+Share webhooks (`POST /shares` with `webhook_url`) send `{ "event": "spike.created", "spike": { id, type, page, rating, comments, selector, reviewer, timestamp }, "deliveryId" }` and follow the same delivery rules.
+
+**Headers.**
+
+| Header | Value |
+|--------|-------|
+| `X-Spikes-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256 of "<t>.<raw body>" keyed with the webhook secret>` |
+| `X-Spikes-Delivery-Id` | UUID of this delivery. The same on every retry, and equal to `deliveryId` in the body (which the signature covers) |
+| `X-Spikes-Event` | the `event` value |
+| `X-Spikes-Delivery-Attempt` | `1` for the first attempt, then `2`, `3`, … |
+
+**Delivery semantics: at least once.** Each event is written to a durable outbox before the triggering request returns, then sent immediately.
+
+- A `2xx` answer (within 10 s) completes the delivery.
+- Timeouts, network errors, `408`, `429` and `5xx` are retried after 1 min, 5 min, 30 min, 2 h, 6 h and 16 h, so there are 7 attempts over about 24.5 h before the delivery is marked failed.
+- Any other `4xx` stops the delivery at once.
+- The body is byte-identical on every attempt. The signature timestamp is fresh each time.
+- Retries go to the project's current `webhook_url`, signed with its current secret. If the webhook is removed or the owner leaves the pro/agent tier, pending retries stop.
+
+A receiver can get the same delivery twice, for example when it processed the request but its response was lost. Dedupe on `X-Spikes-Delivery-Id` and answer `2xx` quickly (queue the work). Events can arrive out of order. Use `timestamp` and the ids in the payload, not arrival order.
 
 **Email digest.** With `notify_email` on (pro/agent), the owner receives at most one email per project per hour summarising new spikes and answers since the previous email, with a link to `https://spikes.sh/dashboard/p/<key>`.
 
@@ -665,12 +788,14 @@ curl https://your-api.example/s/my-project
 
 ## Rate Limiting
 
-Endpoints are rate limited with sliding window counters. When rate limited, responses include a `Retry-After` header with seconds until retry.
+Endpoints are rate limited with fixed one-minute windows, counted atomically (concurrent requests never fail because of the counter itself). When rate limited, responses include a `Retry-After` header with seconds until retry.
 
 | Endpoint | Limit | Window | Identifier |
 |----------|-------|--------|------------|
 | `POST /spikes` | 60 | 1 minute | Client IP |
 | `POST /spikes` | 60 | 1 minute | Project key |
+| `POST /public/submissions` | 60 | 1 minute | Client IP |
+| `POST /public/submissions` | 60 | 1 minute | Project key |
 | `GET /public/*`, `POST /public/questions/:id/answers` | 120 | 1 minute | Client IP |
 | `POST /shares` | 10 | 1 minute | Bearer token |
 | Password attempts per share | 5 | 1 minute | Slug + IP |
@@ -727,6 +852,8 @@ Validation errors include field-level details:
 | `PROJECT_NOT_FOUND` | Unknown project, or a project the credential cannot see |
 | `SPIKE_NOT_FOUND` | Unknown spike, or a spike the credential cannot see |
 | `VERSION_EXISTS` | A version with that label already exists |
+| `ID_CONFLICT` | A client-chosen spike id or `submission_id` already belongs to another project |
+| `IDEMPOTENCY_CONFLICT` | A `submission_id` was reused with different answers |
 | `INVALID_JSON` | Body is not valid JSON |
 | `RATE_LIMITED` | Per-project rate limit exceeded |
 | `BUDGET_EXCEEDED` | Agent-tier monthly budget cap reached |
@@ -746,6 +873,7 @@ Validation errors include field-level details:
 | 402 | Upgrade required (project webhooks, email notifications) |
 | 403 | Forbidden (origin not allowed, wrong credential kind, insufficient scope) |
 | 404 | Resource not found |
+| 409 | Idempotency conflict (`ID_CONFLICT`, `IDEMPOTENCY_CONFLICT`) |
 | 429 | Rate limit or usage limit exceeded |
 | 500 | Server error |
 

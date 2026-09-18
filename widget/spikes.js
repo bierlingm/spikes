@@ -2335,6 +2335,64 @@
         init();
     }
 
+    // Batch answers for custom forms (reliable-intake): one atomic, idempotent
+    // POST /public/submissions. The submission_id is minted once per call and
+    // reused for every retry, so a retry after a lost response never duplicates.
+    function newUuid() {
+        if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+        var b = crypto.getRandomValues(new Uint8Array(16));
+        b[6] = (b[6] & 0x0f) | 0x40;
+        b[8] = (b[8] & 0x3f) | 0x80;
+        var h = Array.prototype.map.call(b, function(x) { return (x + 0x100).toString(16).slice(1); }).join('');
+        return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
+    }
+
+    function submitAnswers(answers, opts) {
+        opts = opts || {};
+        if (!publicBase) {
+            return Promise.reject(new Error('[Spikes] submit() needs a hosted project (data-project)'));
+        }
+        var submissionId = opts.submissionId || newUuid();
+        var who = currentReviewer ? { id: currentReviewer.id, name: currentReviewer.name } : { id: 'anon', name: 'Anonymous' };
+        var body = JSON.stringify({
+            project: config.project,
+            submission_id: submissionId,
+            reviewer: opts.reviewer || who,
+            page: opts.page || location.pathname,
+            url: opts.url || location.href.split('#')[0],
+            answers: answers
+        });
+        var retries = typeof opts.retries === 'number' ? opts.retries : 3;
+        function wait(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); }
+        function attempt(n) {
+            return fetch(publicBase + '/submissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: body
+            }).then(function(res) {
+                return res.json().catch(function() { return {}; }).then(function(data) {
+                    if (res.status === 200 || res.status === 201) {
+                        return { ok: true, submissionId: submissionId, answerCount: data.answerCount, duplicate: !!data.duplicate };
+                    }
+                    if ((res.status === 429 || res.status >= 500) && n < retries) {
+                        var after = Number(res.headers.get('Retry-After'));
+                        return wait((after > 0 ? after : Math.pow(2, n)) * 1000).then(function() { return attempt(n + 1); });
+                    }
+                    var err = new Error('[Spikes] submission rejected: ' + res.status + ' ' + (data.code || ''));
+                    err.status = res.status;
+                    err.body = data;
+                    err.submissionId = submissionId;
+                    throw err;
+                });
+            }, function(networkError) {
+                if (n < retries) return wait(Math.pow(2, n) * 1000).then(function() { return attempt(n + 1); });
+                networkError.submissionId = submissionId;
+                throw networkError;
+            });
+        }
+        return attempt(0);
+    }
+
     // Expose config for debugging
     window.Spikes = {
         version: VERSION,
@@ -2361,7 +2419,9 @@
         hideReviewMarkers: hideReviewMarkers,
         // Read-back API
         getReadback: function() { return readback; },
-        refreshReadback: initReadback
+        refreshReadback: initReadback,
+        // Batch answers: Spikes.submit([{ question_id | key+title, body }], { submissionId?, retries? })
+        submit: submitAnswers
     };
 
     // Log version info to console for debugging
