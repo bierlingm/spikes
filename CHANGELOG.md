@@ -2,6 +2,15 @@
 
 All notable changes to Spikes will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+**Reliable intake** (design: `docs/design/reliable-intake.md`, hosted side in spikes-hosted `reliable-intake`).
+
+- Widget: `Spikes.submit(answers, { submissionId?, retries?, reviewer?, page?, url? })` sends a whole form of answers to `POST /public/submissions` in one atomic, idempotent request. It mints one `submission_id` per call and reuses it when it retries 429, 5xx and network errors.
+- `docs/API.md`: the embedder contract for idempotent `POST /spikes` (UUID `id` or `Idempotency-Key`), `POST /public/submissions` and the owner-side `GET /me/projects/:key/submissions[/:id]`, plus webhook delivery semantics (at least once, `X-Spikes-Delivery-Id`, backoff schedule).
+
 ## [0.5.0] - 2026-09-16
 
 ### Added

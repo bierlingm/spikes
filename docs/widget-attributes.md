@@ -258,3 +258,27 @@ All widget elements use `z-index: 2147483647` (maximum 32-bit signed integer) to
 - Element popover (`#spikes-popover`)
 - Review markers (`.spikes-review-marker`)
 - Toast notifications (`#spikes-toast`)
+
+## JavaScript API: batch answers
+
+Pages that collect several text answers in their own form (a decision form, a survey step) can send them all at once through the loaded widget:
+
+```html
+<script src="https://spikes.sh/spikes.js" data-project="my-project"></script>
+<script>
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const r = await Spikes.submit([
+        { question_id: 'q1', body: form.hero.value },                     // an open question of the project
+        { key: 'budget', title: 'Budget ceiling', body: form.budget.value } // free-form
+      ]);
+      // r = { ok: true, submissionId, answerCount, duplicate }
+    } catch (err) {
+      // err.status (400, 403, 404, 409 …), err.body, err.submissionId
+    }
+  });
+</script>
+```
+
+`Spikes.submit(answers, opts)` posts to `POST /public/submissions` (see `docs/API.md`) with the stored reviewer identity (name and id, never the email), `location.pathname` and the URL without its fragment. The call mints one `submission_id` and reuses it when it retries 429, 5xx and network errors (`opts.retries`, default 3, exponential backoff or `Retry-After`), so a retry never stores the answers twice. Pass `opts.submissionId` to keep the id across page reloads. Needs a hosted project (`data-project` with the default or a `…/spikes` endpoint); otherwise the promise rejects.
