@@ -1,0 +1,9 @@
+# Proposed additions to .github/workflows/test.yml (token here lacks `workflow` scope to push them).
+      - name: Doc facts match code
+        run: ./scripts/check-doc-facts.sh
+# And a widget job (currently local-only via workflows-local/widget.yml); consider running it
+# on PRs that touch widget/** only, to keep the cost concern from workflows-local/widget.yml low:
+#  widget:
+#    if: contains(github.event.pull_request.labels.*.name, 'widget') || github.event_name == 'push'
+#    runs-on: ubuntu-latest
+#    steps: (copy from workflows-local/widget.yml)

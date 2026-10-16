@@ -11,7 +11,7 @@ Spikes is the feedback loop tool for AI-assisted building. Building prototypes i
 
 **Components:**
 - **Widget:** Vanilla JS (`widget/spikes.js`, ~14KB gzipped, zero dependencies)
-- **CLI:** Rust binary (`cli/`, v0.4.0, 36 subcommands)
+- **CLI:** Rust binary (`cli/`, v0.5.0, 36 subcommands)
 - **MCP Server:** 16 tools via `spikes mcp serve` (stdio or HTTP transport)
 - **Site:** Landing page and docs (`site/`, deployed to Cloudflare Pages)
 - **Worker:** Cloudflare Workers backend (D1 + R2)
@@ -165,4 +165,8 @@ cd ../spikes-hosted/worker && npm test  # Worker test suite (vitest)
 - Domain: spikes.sh
 - Repo: github.com/bierlingm/spikes
 - MCP registry: Smithery
+
+## Verify
+
+Follow `.agents/skills/verify/SKILL.md` before calling a change done (cargo test + clippy, `scripts/check-doc-facts.sh`, widget tests if `widget/` changed).
 </coding_guidelines>
